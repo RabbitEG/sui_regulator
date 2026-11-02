@@ -3,11 +3,50 @@
   "updated_on": "2026-11-02",
   "push_policy": "commit and push after every completed stage",
   "stages": [
-    {"id": 0, "status": "complete", "evidence": ["docs/REUSE_REVIEW.md", "docs/ENVIRONMENT.md", "docs/ARCHITECTURE.md"], "tests": {"upstream_watchdog": 38, "upstream_manifest": 18}},
-    {"id": 1, "status": "pending"},
-    {"id": 2, "status": "pending"},
-    {"id": 3, "status": "pending"},
-    {"id": 4, "status": "pending"}
+    {
+      "id": 0,
+      "status": "complete",
+      "evidence": [
+        "docs/REUSE_REVIEW.md",
+        "docs/ENVIRONMENT.md",
+        "docs/ARCHITECTURE.md"
+      ],
+      "tests": {
+        "upstream_watchdog": 38,
+        "upstream_manifest": 18
+      }
+    },
+    {
+      "id": 1,
+      "status": "complete",
+      "evidence": [
+        "src/sui_regulator/store.py",
+        "src/sui_regulator/service.py",
+        "tests/test_core.py"
+      ],
+      "tests": {
+        "core": 12
+      }
+    },
+    {
+      "id": 2,
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "status": "pending"
+    }
   ],
-  "unverified": ["internal GLM", "real provider credentials", "GPU/NPU jobs", "container rebuild persistence", "remote transport authorization"]
+  "unverified": [
+    "internal GLM",
+    "real provider credentials",
+    "GPU/NPU jobs",
+    "container rebuild persistence",
+    "remote transport authorization"
+  ],
+  "git_transport": "SSH verified; stage 0 synced through connected GitHub app after HTTPS credential failure"
 }

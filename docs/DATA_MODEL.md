@@ -1,0 +1,24 @@
+# 数据模型
+
+Schema v1，使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDIATE。`PRAGMA user_version` 驱动逐版本事务迁移；拒绝打开未来版本。禁止直接复制运行中的主数据库文件作为备份，使用 `yan backup` 的 SQLite backup API。
+
+| 表 | 主键/约束 | 含义 |
+|---|---|---|
+| tasks | id；generation 单调递增 | 目标、desired、status、workspace、declared、恢复冷却 |
+| commands | id；UNIQUE(actor,idempotency_key) | 原始请求、参数摘要、队列状态、执行回执、拒绝原因 |
+| workers | id；UNIQUE(task_id,generation)，session UUID | WorkerSession + lease hash/expiry、进程身份、心跳、活动、Handoff |
+| experiments | id → task | 不随 Worker 变化的实验定义 |
+| jobs | id；UNIQUE(task_id,logical_key) | 具体一次运行、授权快照、独立进程、observed、退出码 |
+| executions | job_id 唯一 | Runner 已开始执行的持久去重记录 |
+| artifacts | id；UNIQUE(task_id,path) | 路径、来源、种类；Worker 声明与 Runner 产物有来源区别 |
+| events | 自增 id，task 索引 | 结构化审计，支持 after/limit 游标 |
+
+WorkerLease 合并在 workers 中，以 lease hash、到期时间及 Task current_worker/generation 实现。首轮 Metric 保存在 Job 最新观测 JSON；历史合成日志与结果落在私有 Job 目录，不自建指标平台。Approval 尚未实现：首轮接口不提供真实 shell/真实训练终止等需要审批的能力。
+
+Task desired：ACTIVE/HOLD/CANCELLED/COMPLETED；执行 status 另有 READY/RUNNING/QUARANTINED。终态任务不能 resume。HOLD/CANCEL 撤销 Worker lease，但保留运行 Job。
+
+Command：QUEUED → SUCCEEDED 或 REJECTED。本地纯数据库命令在一个事务中完成，外部看不到半个执行结果；预留 EXECUTING/FAILED/UNKNOWN 给后续远端操作。SUCCEEDED 只代表该命令定义的效果，例如「指令已记录」，不代表模型已执行分析。
+
+Job：CREATED/QUEUED/STARTING/RUNNING/COMPLETED/FAILED/CANCELLED/BLOCKED/UNKNOWN。UNKNOWN 必须保留，不能等同 FAILED。已经开始的物理执行不能因 Worker 更替而重新 dispatch。
+
+时间为 UTC Unix 秒，查询返回 queried_at、observed_at、source 和 stale。终态观测是历史结果，不标为实时运行观测。声明内容绝不直接改写 Job 的客观状态。

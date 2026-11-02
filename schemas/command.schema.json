@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sui-regulator/command/0.1",
+  "type": "object",
+  "required": ["protocol_version", "method", "params"],
+  "additionalProperties": false,
+  "properties": {
+    "protocol_version": {"const": "0.1"},
+    "method": {"type": "string", "enum": ["yan.submit_task", "yan.instruct_task", "yan.request_analysis", "yan.hold_task", "yan.resume_task", "yan.cancel_task"]},
+    "params": {
+      "type": "object",
+      "required": ["idempotency_key", "payload"],
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
+        "task_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "payload": {"type": "object"}
+      }
+    }
+  }
+}
