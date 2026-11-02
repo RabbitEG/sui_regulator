@@ -42,6 +42,8 @@ def parser() -> argparse.ArgumentParser:
     backup.add_argument("destination", type=Path)
     commands.add_parser("tick", help="run one reconciliation pass")
     commands.add_parser("serve", help="run the independent controller")
+    console = commands.add_parser("console", help="run the independent localhost Yan Console")
+    console.add_argument("--port", type=int, default=8765)
     commands.add_parser("demo", help="run an isolated real-process worker-death drill")
     rpc = commands.add_parser("rpc", help="call the authenticated local Unix gateway")
     rpc.add_argument("method")
@@ -62,6 +64,11 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
     try:
+        if args.command == "console":
+            from .console import run_console
+
+            run_console(args.home, args.port)
+            return
         if args.command == "failures":
             from .failures.registry import FailureRegistry
             from .failures.replay import evaluate, replay

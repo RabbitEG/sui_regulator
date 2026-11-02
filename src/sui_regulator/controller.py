@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import signal
 import sqlite3
 import subprocess
@@ -44,6 +45,9 @@ class Controller(AbstractContextManager):
         try:
             self._sweep_frozen()
             self.service = Service(self.config)
+            self.service.controller_identity = identity(os.getpid())
+            self.service.controller_started_at = time.time()
+            self.service.controller_last_tick_at = None
             self.protocol = SuiProtocol(self.service)
             self.runner = LocalMockRunner(self.service)
             with self.service.store.transaction() as conn:
@@ -85,6 +89,7 @@ class Controller(AbstractContextManager):
 
     def __exit__(self, *args):
         self.acquired = False
+        self.service.controller_identity = None
         self.lock.__exit__(*args)
         # Detached workers and jobs intentionally survive a controller exit.
 
@@ -285,6 +290,7 @@ class Controller(AbstractContextManager):
             "SELECT * FROM workers WHERE status IN ('REVOKED','RETIRED','FAILED')"
         ):
             self._stop(worker)
+        self.service.controller_last_tick_at = time.time()
 
     def run(self, stop=None) -> None:
         while stop is None or not stop.is_set():

@@ -18,6 +18,7 @@ from .service import COMMAND_KINDS, Service, unpack
 MAX_MESSAGE_BYTES = 262144
 
 QUERY_FIELDS = {
+    "get_console_snapshot": {"section", "offset", "limit"},
     "get_incidents": {"task_id", "after", "limit"},
     "get_overview": set(),
     "list_tasks": set(),
@@ -86,6 +87,11 @@ def request_schema() -> dict:
                 }
         else:
             properties = {field: identifier for field in QUERY_FIELDS[name] if field.endswith("_id")}
+            if name == "get_console_snapshot":
+                properties.update(
+                    section={"enum": ["overview", "sessions", "tasks", "incidents"]},
+                    offset={"type": "integer", "minimum": 0, "maximum": 10000000},
+                )
             if "after" in QUERY_FIELDS[name]:
                 properties["after"] = {"type": "integer", "minimum": 0}
             if "limit" in QUERY_FIELDS[name]:
@@ -182,6 +188,10 @@ class Dispatcher:
 
     def query(self, method: str, params: dict):
         service = self.service
+        if method == "get_console_snapshot":
+            from .console_read import snapshot
+
+            return snapshot(service, **params)
         if method == "get_incidents":
             from .failures.persistence import list_incidents
 
@@ -320,7 +330,7 @@ class Gateway(AbstractContextManager):
         self.lock.__exit__(*args)
 
 
-def call(home: Path, method: str, params: dict) -> dict:
+def call(home: Path, method: str, params: dict, *, timeout: float = 5) -> dict:
     request = {
         "id": uuid.uuid4().hex,
         "protocol_version": PROTOCOL_VERSION,
@@ -331,7 +341,7 @@ def call(home: Path, method: str, params: dict) -> dict:
     if len(encoded) > MAX_MESSAGE_BYTES:
         raise DomainError("MESSAGE_TOO_LARGE", "request is too large")
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-        client.settimeout(5)
+        client.settimeout(timeout)
         client.connect(str(home.absolute() / "yan.sock"))
         client.sendall(encoded)
         with client.makefile("rb") as source:

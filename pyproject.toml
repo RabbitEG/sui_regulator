@@ -22,6 +22,7 @@ where = ["src"]
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "docs/licenses/antiloop-MIT.txt"]
 
 [tool.setuptools.package-data]
+"sui_regulator" = ["static/*"]
 "sui_regulator.failures" = ["patterns/*.json"]
 
 [tool.ruff]

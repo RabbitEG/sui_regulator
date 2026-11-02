@@ -313,6 +313,7 @@
         "yan.cancel_job",
         "yan.cancel_task",
         "yan.get_command_status",
+        "yan.get_console_snapshot",
         "yan.get_events",
         "yan.get_experiment",
         "yan.get_incidents",

@@ -173,5 +173,37 @@
       }
     ],
     "status": "complete"
+  },
+  "v0_4": {
+    "scope": "Local Yan Console",
+    "status": "in_progress",
+    "stages": [
+      {
+        "id": "A",
+        "status": "complete",
+        "evidence": [
+          "docs/YAN_CONSOLE_PLAN.md",
+          "src/sui_regulator/console.py",
+          "src/sui_regulator/console_read.py",
+          "tests/test_console.py"
+        ],
+        "verification": {
+          "full_suite_passed": 84,
+          "console_backend_tests": 7,
+          "headless_chromium_available": true,
+          "schema_migrations_added": 0,
+          "new_readonly_rpc_methods": 1,
+          "new_control_commands": 0
+        }
+      },
+      {
+        "id": "B",
+        "status": "pending"
+      },
+      {
+        "id": "C",
+        "status": "pending"
+      }
+    ]
   }
 }

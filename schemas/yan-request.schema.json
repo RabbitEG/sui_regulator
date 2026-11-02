@@ -101,6 +101,38 @@
     {
       "properties": {
         "method": {
+          "const": "yan.get_console_snapshot"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "limit": {
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "offset": {
+              "maximum": 10000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "section": {
+              "enum": [
+                "overview",
+                "sessions",
+                "tasks",
+                "incidents"
+              ]
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
           "const": "yan.get_events"
         },
         "params": {
@@ -591,6 +623,7 @@
         "yan.cancel_job",
         "yan.cancel_task",
         "yan.get_command_status",
+        "yan.get_console_snapshot",
         "yan.get_events",
         "yan.get_experiment",
         "yan.get_incidents",
