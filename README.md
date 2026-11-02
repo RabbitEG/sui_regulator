@@ -10,9 +10,11 @@ python3.11 -m sui_regulator --home .sui init
 python3.11 -m sui_regulator --home .sui submit '合成训练' --key demo-task
 python3.11 -m sui_regulator --home .sui drain
 python3.11 -m sui_regulator --home .sui list
+python3.11 -m sui_regulator demo
+python3.11 -m sui_regulator --home .sui serve
 python3.11 -m unittest discover -s tests -v
 ```
 
-`submit` 返回持久 Command ID 和预分配的 Task ID，`drain` 应用纯数据库命令；后续 Controller 将自动处理队列。相同 actor/key 的不同请求会报幂等冲突。`receipt COMMAND_ID` 查询执行回执。真实 GLM、训练和远程网络尚未验证。
+`submit` 返回持久 Command ID 和预分配的 Task ID，`serve` 启动独立 Controller 并自动处理队列；`drain` 只应用纯数据库命令。`demo` 在临时目录强杀专用 Mock Worker，验证新 Worker 接管及原 Job 只执行一次。相同 actor/key 的不同请求会报幂等冲突。`receipt COMMAND_ID` 查询执行回执。真实 GLM、训练和远程网络尚未验证。
 
 设计依据：[需求](docs/REQUIREMENTS.md)、[复用调查](docs/REUSE_REVIEW.md)、[架构](docs/ARCHITECTURE.md)、[数据模型](docs/DATA_MODEL.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md)。

@@ -37,12 +37,19 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("drain", help="apply queued commands without starting workers")
     backup = commands.add_parser("backup")
     backup.add_argument("destination", type=Path)
+    commands.add_parser("tick", help="run one reconciliation pass")
+    commands.add_parser("serve", help="run the independent controller")
+    commands.add_parser("demo", help="run an isolated real-process worker-death drill")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
     try:
+        if args.command == "demo":
+            from .demo import run_demo
+            print(json.dumps(run_demo(), ensure_ascii=False))
+            return
         service = Service(Config.load(args.home))
         actor = f"local:{getpass.getuser()}"
         key = getattr(args, "key", None) or uuid.uuid4().hex
@@ -65,6 +72,18 @@ def main(argv: list[str] | None = None) -> None:
             result = {"processed": service.process_commands()}
         elif args.command == "backup":
             result = {"path": str(service.store.backup(args.destination))}
+        elif args.command in {"serve", "tick"}:
+            from .controller import Controller
+            with Controller(service.config) as controller:
+                if args.command == "tick":
+                    controller.tick()
+                    result = {"reconciled": True}
+                else:
+                    try:
+                        controller.run()
+                    except KeyboardInterrupt:
+                        pass
+                    result = {"controller": "stopped", "jobs": "retained"}
         else:
             kind = "instruct_task" if args.command == "instruct" else f"{args.command}_task"
             payload = {"instruction": args.instruction} if args.command == "instruct" else {}

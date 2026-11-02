@@ -30,7 +30,17 @@
     },
     {
       "id": 2,
-      "status": "pending"
+      "status": "complete",
+      "evidence": [
+        "src/sui_regulator/protocol.py",
+        "src/sui_regulator/controller.py",
+        "src/sui_regulator/job_process.py",
+        "tests/test_lifecycle.py"
+      ],
+      "tests": {
+        "cumulative": 23
+      },
+      "verified": "SIGKILL worker, generation takeover, same runner PID, one execution"
     },
     {
       "id": 3,

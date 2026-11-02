@@ -43,3 +43,14 @@ class Config:
         path = home.expanduser().absolute() / "config.toml"
         data = tomllib.loads(path.read_text()) if path.exists() else {}
         return cls(home, **data.get("regulator", {}))
+
+    def write(self) -> None:
+        """Persist non-secret settings so independent subprocesses use the same policy."""
+        import json
+        self.home.mkdir(parents=True, exist_ok=True, mode=0o700)
+        text = "[regulator]\n" + "\n".join(
+            f"{f.name} = {json.dumps(getattr(self, f.name))}" for f in fields(self) if f.name != "home") + "\n"
+        path = self.home / "config.toml"
+        with path.open("x") as output:
+            output.write(text)
+        path.chmod(0o600)
