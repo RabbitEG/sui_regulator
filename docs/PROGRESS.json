@@ -59,7 +59,26 @@
     },
     {
       "id": 4,
-      "status": "pending"
+      "status": "complete",
+      "evidence": [
+        "docs/DELIVERY.md",
+        "docs/TEST_PLAN.md",
+        "docs/test-output.txt",
+        "docs/verification.json",
+        "tests/test_faults.py"
+      ],
+      "tests": {
+        "python311_passed": 54,
+        "python312_passed": 52,
+        "python312_skipped": 2
+      },
+      "verified": [
+        "actual Controller SIGKILL recovery",
+        "SQLite writer freeze recovery before database access",
+        "lost launch acknowledgement reconciliation",
+        "fenced synthetic job cancellation",
+        "wheel install and console demo"
+      ]
     }
   ],
   "unverified": [
@@ -69,5 +88,6 @@
     "container rebuild persistence",
     "remote transport authorization"
   ],
-  "git_transport": "SSH verified; stage 0 synced through connected GitHub app after HTTPS credential failure"
+  "git_transport": "SSH verified; stage 0 synced through connected GitHub app after HTTPS credential failure",
+  "completed_scope": "First-round MVP and Claude Code adapter with local fake API; real platform integration remains unverified"
 }

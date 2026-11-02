@@ -11,7 +11,7 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 
 from . import PROTOCOL_VERSION
-from .models import DomainError, encode
+from .models import DomainError, encode, require_text
 from .processes import FileLock
 from .service import COMMAND_KINDS, Service, unpack
 
@@ -34,6 +34,81 @@ QUERY_FIELDS = {
 
 
 def request_schema() -> dict:
+    identifier = {"type": "string", "minLength": 1, "maxLength": 128}
+    variants = []
+    for name in sorted(COMMAND_KINDS | QUERY_FIELDS.keys()):
+        if name in COMMAND_KINDS:
+            properties = {
+                "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
+                "payload": {"type": "object"},
+            }
+            required = ["idempotency_key", "payload"]
+            if name != "submit_task":
+                properties["task_id"] = identifier
+                required.append("task_id")
+            if name in {"hold_task", "resume_task", "cancel_task"}:
+                properties["payload"] = {"type": "object", "maxProperties": 0}
+            elif name in {"instruct_task", "request_analysis"}:
+                properties["payload"] = {
+                    "type": "object",
+                    "properties": {"instruction": {"type": "string", "minLength": 1, "maxLength": 16384}},
+                    "required": ["instruction"],
+                    "additionalProperties": False,
+                }
+            elif name == "cancel_job":
+                properties["payload"] = {
+                    "type": "object",
+                    "properties": {"job_id": identifier},
+                    "required": ["job_id"],
+                    "additionalProperties": False,
+                }
+            else:
+                properties["payload"] = {
+                    "type": "object",
+                    "required": ["title"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "title": {"type": "string", "minLength": 1, "maxLength": 512},
+                        "objective": {"type": "string", "minLength": 1, "maxLength": 16384},
+                        "adapter": {"enum": ["mock", "claude", "unavailable"]},
+                        "spec": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "steps": {"type": "integer", "minimum": 1, "maximum": 100000},
+                                "interval": {"type": "number", "minimum": 0.001, "maximum": 60},
+                                "fail_at": {"type": ["integer", "null"], "minimum": 1},
+                                "resource_available": {"type": "boolean"},
+                            },
+                        },
+                    },
+                }
+        else:
+            properties = {field: identifier for field in QUERY_FIELDS[name] if field.endswith("_id")}
+            if "after" in QUERY_FIELDS[name]:
+                properties["after"] = {"type": "integer", "minimum": 0}
+            if "limit" in QUERY_FIELDS[name]:
+                properties["limit"] = {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 500 if name == "get_logs" else 1000,
+                }
+            required = (
+                [] if name == "get_events" else sorted(field for field in properties if field.endswith("_id"))
+            )
+        variants.append(
+            {
+                "properties": {
+                    "method": {"const": "yan." + name},
+                    "params": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required,
+                        "additionalProperties": False,
+                    },
+                }
+            }
+        )
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -45,6 +120,7 @@ def request_schema() -> dict:
             "method": {"enum": sorted("yan." + kind for kind in COMMAND_KINDS | QUERY_FIELDS.keys())},
             "params": {"type": "object"},
         },
+        "oneOf": variants,
     }
 
 
@@ -59,6 +135,8 @@ class Dispatcher:
                 raise DomainError("INVALID_REQUEST", "invalid envelope fields")
             if request.get("protocol_version") != PROTOCOL_VERSION:
                 raise DomainError("PROTOCOL_VERSION", "supported protocol_version is 0.1")
+            if rid is not None and (type(rid) not in (str, int) or (isinstance(rid, str) and len(rid) > 256)):
+                raise DomainError("INVALID_REQUEST", "invalid request id")
             method, params = request.get("method"), request.get("params")
             if not isinstance(method, str) or not method.startswith("yan.") or not isinstance(params, dict):
                 raise DomainError("INVALID_REQUEST", "expected yan method and object params")
@@ -72,6 +150,8 @@ class Dispatcher:
                         "INVALID_ARGUMENT",
                         "command requires idempotency_key and payload; actor is transport-derived",
                     )
+                if kind == "submit_task" and "task_id" in params:
+                    raise DomainError("INVALID_ARGUMENT", "submit_task allocates its own task_id")
                 result = self.service.command(
                     kind, actor, params["idempotency_key"], params["payload"], params.get("task_id")
                 )
@@ -80,6 +160,16 @@ class Dispatcher:
                     raise DomainError("UNKNOWN_METHOD", "method is not available")
                 if set(params) - QUERY_FIELDS[kind]:
                     raise DomainError("INVALID_ARGUMENT", "unexpected query parameters")
+                required = (
+                    {field for field in QUERY_FIELDS[kind] if field.endswith("_id")}
+                    if kind != "get_events"
+                    else set()
+                )
+                if not required <= params.keys():
+                    raise DomainError("INVALID_ARGUMENT", "missing query identifier")
+                for key, value in params.items():
+                    if key.endswith("_id"):
+                        require_text(value, key, 128)
                 result = self.query(kind, params)
             return {"id": rid, "protocol_version": PROTOCOL_VERSION, "result": result}
         except (DomainError, KeyError, TypeError, ValueError) as exc:

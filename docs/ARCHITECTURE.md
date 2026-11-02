@@ -20,6 +20,7 @@ Yan CLI / Unix socket RPC → Command ledger → Controller / Candleholder
 - `service.py`：Task / Command 状态机、查询、幂等命令、Worker 注册领取、lease 与 fencing、语义报告、Handoff、Job 请求。
 - `runner.py` / `job_process.py`：稳定 Job ID、幂等启动、执行端授权复核、独立进程、客观指标与结果。首轮只执行合成训练，不暴露任意 shell。
 - `adapters.py` / `worker_process.py`：可替换 WorkerAdapter；自动采集进程、流/工具活动、会话退出；Mock 与 Claude Code 共用生命周期。
+- `registry.py`：独立私有 Worker 进程登记与心跳，为数据库锁住时的清理提供身份核验；不授予 lease。
 - `controller.py`：单实例 flock；先协调 Job，再检查 Worker，回收后增 generation，新 Worker 从账本取上下文。
 - `gateway.py` / `cli.py` / `mcp.py`：共享领域服务；Unix socket 基于文件权限和 Linux SO_PEERCRED 授权；MCP stdio 从受管启动环境取得 Worker 凭据。
 
@@ -36,7 +37,7 @@ Yan CLI / Unix socket RPC → Command ledger → Controller / Candleholder
 
 ## 人工意图优先
 
-HOLD/CANCEL 落库后撤销 Worker 所有权，自动协调不能恢复。HOLD 保留正在运行的 Job；CANCEL 默认也保留运行 Job，停止实验必须是单独明确的受管作业操作。取消任务不会隐含杀训练。终态 CANCELLED 不允许普通 resume 复活。
+HOLD/CANCEL 落库后撤销 Worker 所有权，自动协调不能恢复。HOLD 保留正在运行的 Job；CANCEL 默认也保留运行 Job；显式 cancel_job 只针对本地合成 Job，Runner 二次核验取消授权。真实实验终止尚未开放。取消任务不会隐含杀训练。终态 CANCELLED 不允许普通 resume 复活。
 
 ## 恢复路径
 

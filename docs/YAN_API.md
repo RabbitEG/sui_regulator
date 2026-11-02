@@ -39,7 +39,7 @@ Job/指标查询返回 source、observed_at、stale；Task 包含三个状态来
 
 接收返回 QUEUED Command（含预分配 task_id）。Controller 在纯数据库事务中完成操作，然后回执 SUCCEEDED/REJECTED。`request_analysis` 的成功表示分析要求已记录，`analysis_executed:false`，不伪称模型已完成分析。参数不合法的已接受请求会有 REJECTED 回执；幂等键冲突立即报 IDEMPOTENCY_CONFLICT。查询无需可用 LLM。
 
-HOLD 停止 Worker、保留运行 Job；CANCEL 是持久终态，同样保留运行 Job。此原型不提供终止真实训练的接口。
+HOLD 停止 Worker、保留运行 Job；CANCEL 是持久终态，同样保留运行 Job。`yan.cancel_job` 需 task_id 和 payload.job_id，是单独的合成 Job 取消指令；Runner 检查 Command 授权后才改变客观状态。此原型不提供终止真实训练的接口。
 
 ## MCP
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import secrets
 import sqlite3
@@ -13,6 +14,7 @@ from pathlib import Path
 from . import PROTOCOL_VERSION
 from .models import Credentials, DomainError, digest, encode, identifier, mock_spec, require_text
 from .processes import identity
+from .registry import WorkerRegistry
 from .service import Service, unpack
 
 
@@ -48,6 +50,53 @@ def execution_authorized(conn: sqlite3.Connection, job: sqlite3.Row) -> bool:
         and worker["lease_expires"] > time.time()
         and worker["status"] in {"STARTING", "RUNNING", "ROTATING"}
     )
+
+
+def consume_cancellation(service: Service, conn: sqlite3.Connection, job: sqlite3.Row) -> bool:
+    """Runner-side authorization at the point of the cancellation side effect."""
+    if not job["cancel_requested"]:
+        return False
+    auth = json.loads(job["cancel_auth"] or "{}")
+    authorized = False
+    if auth.get("source") == "yan":
+        command = conn.execute("SELECT * FROM commands WHERE id=?", (auth.get("command_id"),)).fetchone()
+        authorized = bool(
+            command
+            and command["kind"] == "cancel_job"
+            and command["status"] == "SUCCEEDED"
+            and command["task_id"] == job["task_id"]
+            and json.loads(command["payload"]).get("job_id") == job["id"]
+        )
+    elif auth.get("source") == "worker":
+        authorized = execution_authorized(
+            conn,
+            {
+                "task_id": job["task_id"],
+                "authorized_worker": auth.get("worker_id"),
+                "authorized_generation": auth.get("generation"),
+            },
+        )
+    if not authorized:
+        conn.execute("UPDATE jobs SET cancel_requested=0,cancel_auth=NULL WHERE id=?", (job["id"],))
+        service.store.event(
+            conn, job["task_id"], "RUNNER_CANCEL_FENCED", "runner-observed", "runner", {"job_id": job["id"]}
+        )
+        return False
+    now = time.time()
+    conn.execute(
+        "UPDATE jobs SET status='CANCELLED',exit_code=130,observed_at=?,updated_at=? WHERE id=?",
+        (now, now, job["id"]),
+    )
+    conn.execute("UPDATE executions SET finished_at=? WHERE job_id=?", (now, job["id"]))
+    service.store.event(
+        conn,
+        job["task_id"],
+        "JOB_CANCELLED",
+        "runner-observed",
+        "runner",
+        {"job_id": job["id"], "authorization": auth},
+    )
+    return True
 
 
 class SuiProtocol:
@@ -108,11 +157,19 @@ class SuiProtocol:
             raise
 
     def claim_task(self, credentials: Credentials) -> dict:
-        with self._write(credentials) as (conn, _):
+        with self._write(credentials) as (conn, worker):
             conn.execute(
                 "UPDATE workers SET status='RUNNING',pid=?,identity=? WHERE id=?",
                 (os.getpid(), encode(identity(os.getpid())), credentials.worker_id),
             )
+            created_at = worker["created_at"]
+        WorkerRegistry(self.config.home).publish(
+            credentials.worker_id,
+            credentials.task_id,
+            credentials.generation,
+            identity(os.getpid()),
+            created_at,
+        )
         return self.get_task_context(credentials)
 
     def heartbeat(self, credentials: Credentials, *, effective_activity: bool = False) -> None:
@@ -124,13 +181,17 @@ class SuiProtocol:
             )
             if effective_activity:
                 conn.execute("UPDATE workers SET activity_at=? WHERE id=?", (now, credentials.worker_id))
+        WorkerRegistry(self.config.home).heartbeat(credentials.worker_id)
 
     def get_task_context(self, credentials: Credentials) -> dict:
         with self.store.connection() as conn:
             worker = fence(conn, credentials)
             rotation = worker["rotation_at"] is not None
         task = self.service.get_task(credentials.task_id)
-        task["events"] = self.service.events(credentials.task_id)
+        recent = self.store.rows(
+            "SELECT * FROM events WHERE task_id=? ORDER BY id DESC LIMIT 100", (credentials.task_id,)
+        )
+        task["events"] = [unpack(row) for row in reversed(recent)]
         task["instructions"] = [
             unpack(row)
             for row in self.store.rows(
@@ -158,10 +219,16 @@ class SuiProtocol:
     ) -> dict:
         require_text(phase, "phase", 128)
         require_text(summary, "summary")
+        if job_ids is not None and (
+            not isinstance(job_ids, list)
+            or len(job_ids) > 100
+            or any(not isinstance(value, str) or not value or len(value) > 128 for value in job_ids)
+        ):
+            raise DomainError("INVALID_ARGUMENT", "job_ids must be a bounded list of job IDs")
         if (
-            not isinstance(job_ids or [], list)
-            or not isinstance(blockers or [], list)
+            (blockers is not None and (not isinstance(blockers, list) or len(blockers) > 50))
             or not isinstance(next_action, str)
+            or len(next_action) > 16384
         ):
             raise DomainError("INVALID_ARGUMENT", "invalid progress fields")
         report = {
@@ -264,10 +331,39 @@ class SuiProtocol:
             )
             return self.service._job_view(job)
 
+    def cancel_job(self, credentials: Credentials, job_id: str) -> dict:
+        with self._write(credentials) as (conn, _):
+            job = self.service._get(conn, "jobs", require_text(job_id, "job_id", 128))
+            if job["task_id"] != credentials.task_id:
+                raise DomainError("FORBIDDEN", "job belongs to another task")
+            if job["status"] not in {"COMPLETED", "FAILED", "CANCELLED"}:
+                conn.execute(
+                    "UPDATE jobs SET cancel_requested=1,cancel_auth=? WHERE id=?",
+                    (
+                        encode(
+                            {
+                                "source": "worker",
+                                "worker_id": credentials.worker_id,
+                                "generation": credentials.generation,
+                            }
+                        ),
+                        job_id,
+                    ),
+                )
+                self.store.event(
+                    conn,
+                    credentials.task_id,
+                    "JOB_CANCELLATION_REQUESTED",
+                    "protocol",
+                    credentials.worker_id,
+                    {"job_id": job_id},
+                )
+            return {"job_id": job_id, "requested": True, "observed_status": job["status"]}
+
     def handoff(self, credentials: Credentials, summary: dict) -> dict:
         if not isinstance(summary, dict) or not summary or len(encode(summary)) > 65536:
             raise DomainError("INVALID_ARGUMENT", "handoff must be a bounded nonempty object")
-        document = {"protocol_version": PROTOCOL_VERSION, "generation": credentials.generation, **summary}
+        document = {**summary, "protocol_version": PROTOCOL_VERSION, "generation": credentials.generation}
         with self._write(credentials) as (conn, _):
             conn.execute("UPDATE workers SET handoff=? WHERE id=?", (encode(document), credentials.worker_id))
             self.store.event(

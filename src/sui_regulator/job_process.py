@@ -11,7 +11,7 @@ from pathlib import Path
 from .config import Config
 from .models import encode, identifier
 from .processes import FileLock, identity
-from .protocol import execution_authorized
+from .protocol import consume_cancellation, execution_authorized
 from .service import Service
 
 
@@ -29,7 +29,9 @@ def run(config: Config, job_id: str) -> None:
             job = service._get(conn, "jobs", job_id)
             if conn.execute("SELECT 1 FROM executions WHERE job_id=?", (job_id,)).fetchone():
                 return
-            if job["status"] not in {"STARTING", "QUEUED"}:
+            if job["status"] not in {"STARTING", "QUEUED", "UNKNOWN"}:
+                return
+            if consume_cancellation(service, conn, job):
                 return
             if not execution_authorized(conn, job):
                 conn.execute(
@@ -67,6 +69,8 @@ def run(config: Config, job_id: str) -> None:
                 metric = {"step": step, "total_steps": spec["steps"], "loss": round(1 / step, 8)}
                 os.write(log_fd, (encode(metric) + "\n").encode())
                 with service.store.transaction() as conn:
+                    if consume_cancellation(service, conn, service._get(conn, "jobs", job_id)):
+                        return
                     conn.execute(
                         "UPDATE jobs SET metric=?,observed_at=?,updated_at=? WHERE id=?",
                         (encode(metric), time.time(), time.time(), job_id),
@@ -117,7 +121,7 @@ def run(config: Config, job_id: str) -> None:
             )
             service.store.event(
                 conn,
-                None,
+                job["task_id"] if "job" in locals() else None,
                 "RUNNER_ERROR",
                 "runner-observed",
                 "runner",

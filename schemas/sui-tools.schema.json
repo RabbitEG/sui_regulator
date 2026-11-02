@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "attach_job": {
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id"
+      ],
+      "type": "object"
+    },
+    "cancel_job": {
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id"
+      ],
+      "type": "object"
+    },
+    "complete_task": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary"
+      ],
+      "type": "object"
+    },
+    "get_task_context": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "handoff": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "summary"
+      ],
+      "type": "object"
+    },
+    "launch_job": {
+      "additionalProperties": false,
+      "properties": {
+        "logical_key": {
+          "type": "string"
+        },
+        "spec": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "logical_key"
+      ],
+      "type": "object"
+    },
+    "publish_artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "report_blocker": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "waiting_for": {
+          "enum": [
+            "user",
+            "resource",
+            "external"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "type": "object"
+    },
+    "report_progress": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "type": "array"
+        },
+        "job_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "next_action": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "phase",
+        "summary"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "sui-regulator/sui-tools/0.1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

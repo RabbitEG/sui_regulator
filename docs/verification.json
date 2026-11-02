@@ -1,0 +1,51 @@
+{
+  "scope": "final stage 4 source; see the containing Git commit",
+  "python_311": "Python 3.11.13",
+  "python_312": "Python 3.12.15",
+  "claude_cli": "2.1.316 (Claude Code)",
+  "tests": [
+    {
+      "command": "SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src python3.11 -m unittest discover -s tests -v",
+      "run": 54,
+      "passed": 54,
+      "skipped": 0,
+      "output": "docs/test-output.txt"
+    },
+    {
+      "command": "PYTHONPATH=src python3.12 -m unittest discover -s tests -q",
+      "run": 54,
+      "passed": 52,
+      "skipped": 2
+    }
+  ],
+  "checks": {
+    "ruff": "passed",
+    "format": "passed",
+    "exported_schemas": "passed",
+    "wheel_build": "passed",
+    "installed_console_script_demo": "passed"
+  },
+  "installed_demo": {
+    "checks": {
+      "worker_sigkill": true,
+      "replacement_generation": true,
+      "single_job": true,
+      "single_execution": true,
+      "same_runner_pid": true,
+      "job_completed": true
+    },
+    "metric": {
+      "loss": 0.01666667,
+      "step": 60,
+      "total_steps": 60
+    }
+  },
+  "test_output_sha256": "297eaca27df25e4f4211db1731f79c65ef7035addbe8c3510b137eb40cd76cdc",
+  "real_model_api_verified": false,
+  "internal_glm_verified": false,
+  "real_gpu_npu_verified": false,
+  "upstream_tests": {
+    "codex_task_watchdog": 38,
+    "agent_cli_farm_manifest": 18
+  }
+}

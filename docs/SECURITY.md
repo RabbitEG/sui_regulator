@@ -6,7 +6,7 @@
 - Yan 仅 Unix socket，SO_PEERCRED 验证 UID；CLI/MCP owner 角色继承本地操作员权限。远程 SSH/TLS、独立用户身份与角色授权仍待实现；没有公网监听。
 - Worker token 随机生成，数据库只存 hash；generation 和 lease 在领域事务与 Runner 执行端校验。Worker 无 register/抢占工具，Task 取消不能自动复活。
 - Claude 默认 bare、strict MCP、禁用内置 tools 和 slash commands，不加载仓库自定义 hooks，不允许任意 Shell，也不使用 dangerously-skip-permissions。没有自动读取或上传内部数据。
-- 真实训练启动/终止、抢占其他用户资源、宿主机修改等操作未开放。因此首轮没有以「提示词审批」冒充执行端 Approval；未来开放时必须提供真实授权对象和执行端验证。
+- 仅提供受管合成 Job 的显式取消并在 Runner 复核身份。真实训练启动/终止、抢占其他用户资源、宿主机修改等操作未开放。因此首轮没有以「提示词审批」冒充执行端 Approval；未来开放时必须提供真实授权对象和执行端验证。
 - 任务文本、日志和 Handoff 只保存为数据；模型自述保留 worker-declared 来源，不直接覆盖 Runner 观测。
 - 进程清理只针对登记身份（boot ID/PID/start ticks），从不按 claude/codex 名称扫描。优先 pidfd；当前老内核不支持 pidfd，fallback 最后检查到 signal 仍有窄的 PID 复用竞态。生产平台建议支持 pidfd 或使用受管 cgroup/作业服务。
 - CLI 子进程绑定 Wrapper 的 parent-death signal，实验 Job 独立；取消 Task 不等于授权杀训练。

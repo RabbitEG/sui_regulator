@@ -34,6 +34,9 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("instruction")
     receipt = commands.add_parser("receipt")
     receipt.add_argument("command_id")
+    cancel_job = commands.add_parser("cancel-job", help="explicitly cancel a managed synthetic job")
+    cancel_job.add_argument("job_id")
+    cancel_job.add_argument("--key")
     commands.add_parser("drain", help="apply queued commands without starting workers")
     backup = commands.add_parser("backup")
     backup.add_argument("destination", type=Path)
@@ -67,6 +70,23 @@ def main(argv: list[str] | None = None) -> None:
             if "error" in result:
                 sys.exit(1)
             return
+        if args.command in {"serve", "tick"}:
+            from .controller import Controller
+            from .gateway import Gateway
+
+            with Controller(Config.load(args.home)) as controller:
+                if args.command == "tick":
+                    controller.tick()
+                    result = {"reconciled": True}
+                else:
+                    try:
+                        with Gateway(controller.service):
+                            controller.run()
+                    except KeyboardInterrupt:
+                        pass
+                    result = {"controller": "stopped", "jobs": "retained"}
+            print(json.dumps({"protocol_version": PROTOCOL_VERSION, "result": result}, ensure_ascii=False))
+            return
         service = Service(Config.load(args.home))
         actor = f"local:{getpass.getuser()}"
         key = getattr(args, "key", None) or uuid.uuid4().hex
@@ -85,26 +105,13 @@ def main(argv: list[str] | None = None) -> None:
             result = service.events(args.task_id)
         elif args.command == "receipt":
             result = service.get_command(args.command_id)
+        elif args.command == "cancel-job":
+            job = service.get_job(args.job_id)
+            result = service.command("cancel_job", actor, key, {"job_id": job["id"]}, job["task_id"])
         elif args.command == "drain":
             result = {"processed": service.process_commands()}
         elif args.command == "backup":
             result = {"path": str(service.store.backup(args.destination))}
-        elif args.command in {"serve", "tick"}:
-            from .controller import Controller
-
-            with Controller(service.config) as controller:
-                if args.command == "tick":
-                    controller.tick()
-                    result = {"reconciled": True}
-                else:
-                    from .gateway import Gateway
-
-                    try:
-                        with Gateway(service):
-                            controller.run()
-                    except KeyboardInterrupt:
-                        pass
-                    result = {"controller": "stopped", "jobs": "retained"}
         else:
             kind = "instruct_task" if args.command == "instruct" else f"{args.command}_task"
             payload = {"instruction": args.instruction} if args.command == "instruct" else {}

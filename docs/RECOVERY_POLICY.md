@@ -17,6 +17,8 @@
 
 恢复计数由持久 WORKER_FAILED Event 计算；Controller 重启不清空。正常主动轮换不消耗故障预算。用户 resume 隔离任务是明确的恢复授权，会更新预算起点。取消是终态，不能 resume。
 
+受管 Worker 身份和最近心跳还写入私有 worker-registry，供数据库锁住时核验冻结进程。到期冻结 Worker 在数据库访问前回收，随后恢复审计。退出的受管 Worker 先 SIGTERM，超过 grace 后在身份核验基础上升级 SIGKILL。
+
 进程身份使用 boot ID、PID、/proc start ticks。优先 pidfd 发信号；老内核无 pidfd 时使用身份检查再发信号，最后检查到 signal 间仍有很窄的 PID 复用竞态，见 SECURITY.md。首轮只针对合成进程测试；没有终止真实训练。
 
 Controller 退出故意保留 Worker 和 Job；生产需用管理员批准的 OS/容器进程守护启动 Controller，首轮不自动安装服务。整个容器/主机丢失不能由本地进程 Runner 自动恢复执行：持久卷上的 Job 会显示 UNKNOWN，需真实平台 Adapter 核验。

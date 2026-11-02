@@ -16,6 +16,7 @@ from .protocol import SuiProtocol
 from .service import Service
 
 WORKER_TOOLS = {
+    "cancel_job": ({"job_id": {"type": "string"}}, ["job_id"]),
     "get_task_context": ({}, []),
     "report_progress": (
         {

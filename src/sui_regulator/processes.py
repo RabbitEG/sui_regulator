@@ -30,6 +30,16 @@ def alive(value: dict | None) -> bool:
     return bool(value and identity(value["pid"]) == value)
 
 
+def process_state(value: dict | None) -> str | None:
+    if not alive(value):
+        return None
+    try:
+        stat = Path(f"/proc/{value['pid']}/stat").read_text()
+        return stat[stat.rfind(")") + 2 :].split()[0]
+    except (OSError, IndexError):
+        return None
+
+
 def signal_owned(value: dict | None, sig: int = signal.SIGTERM) -> bool:
     if not value or not alive(value) or value["pid"] in {1, os.getpid()}:
         return False

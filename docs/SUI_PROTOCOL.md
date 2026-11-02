@@ -11,6 +11,7 @@
 | report_progress | 版本化声明，保存 phase/summary/job_ids/next_action/blockers 与审计；不更新客观 Job 状态 |
 | report_blocker | WAITING_USER/RESOURCE/EXTERNAL，区别正常等待与卡死 |
 | launch_job | 先登记独立 Experiment/Job；稳定 task + logical_key 去重，spec 改变时报冲突 |
+| cancel_job | 显式请求结束本地合成 Job；Runner 执行前再次校验当前 lease/generation |
 | attach_job | 验证任务归属，关联既有 Job，不启动第二份作业 |
 | publish_artifact | 只登记受管 workspace 内现有文件，来源为 worker-declared |
 | handoff | 保存有界结构化交接；缺失时仍可从账本恢复 |

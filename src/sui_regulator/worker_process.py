@@ -51,7 +51,10 @@ def run(config: Config, credentials: Credentials) -> None:
                 credentials, "Synthetic job observed completed; no scientific conclusion asserted"
             )
             return
-        if job["status"] in {"FAILED", "UNKNOWN", "BLOCKED"} and job["status"] != previous_status:
+        if (
+            job["status"] in {"FAILED", "UNKNOWN", "BLOCKED", "CANCELLED"}
+            and job["status"] != previous_status
+        ):
             protocol.report_blocker(
                 credentials,
                 f"Existing job is {job['status']}; do not relaunch",

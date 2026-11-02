@@ -15,6 +15,7 @@ COMMAND_KINDS = {
     "hold_task",
     "resume_task",
     "cancel_task",
+    "cancel_job",
 }
 JSON_COLUMNS = {
     "payload",
@@ -27,6 +28,7 @@ JSON_COLUMNS = {
     "data",
     "identity",
     "child_identity",
+    "cancel_auth",
 }
 
 
@@ -134,6 +136,23 @@ class Service:
             )
             return {"task_id": tid, "effect": "task created"}
         task = self._get(conn, "tasks", tid)
+        if kind == "cancel_job":
+            if set(payload) != {"job_id"}:
+                raise DomainError("INVALID_ARGUMENT", "cancel_job requires exactly job_id")
+            job = self._get(conn, "jobs", require_text(payload["job_id"], "job_id", 128))
+            if job["task_id"] != tid:
+                raise DomainError("FORBIDDEN", "job belongs to another task")
+            if job["status"] not in {"COMPLETED", "FAILED", "CANCELLED"}:
+                conn.execute(
+                    "UPDATE jobs SET cancel_requested=1,cancel_auth=? WHERE id=?",
+                    (encode({"source": "yan", "command_id": command["id"]}), job["id"]),
+                )
+            return {
+                "task_id": tid,
+                "job_id": job["id"],
+                "effect": "synthetic job cancellation requested",
+                "observed_status": job["status"],
+            }
         if task["desired"] in {"CANCELLED", "COMPLETED"}:
             if kind == "cancel_task" and task["desired"] == "CANCELLED":
                 return {"task_id": tid, "effect": "already cancelled; jobs retained"}

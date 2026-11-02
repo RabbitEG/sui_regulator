@@ -6,6 +6,7 @@ import time
 from typing import Protocol
 
 from .processes import alive, detached
+from .protocol import consume_cancellation
 from .service import Service
 
 
@@ -37,9 +38,10 @@ class LocalMockRunner:
             self.children[process.pid] = process
         except OSError as exc:
             with self.store.transaction() as conn:
+                status = "FAILED" if isinstance(exc, (FileNotFoundError, PermissionError)) else "UNKNOWN"
                 conn.execute(
-                    "UPDATE jobs SET status='FAILED',error=?,updated_at=? WHERE id=? AND status='STARTING'",
-                    (f"spawn failed before execution: {type(exc).__name__}", time.time(), job_id),
+                    "UPDATE jobs SET status=?,error=?,updated_at=? WHERE id=? AND status='STARTING'",
+                    (status, f"dispatch outcome: {type(exc).__name__}", time.time(), job_id),
                 )
 
     def reconcile(self) -> None:
@@ -47,13 +49,40 @@ class LocalMockRunner:
             if process.poll() is not None:
                 del self.children[pid]
         for job in self.store.rows(
-            "SELECT * FROM jobs WHERE status IN ('QUEUED','STARTING','RUNNING','UNKNOWN')"
+            "SELECT * FROM jobs WHERE status IN ('QUEUED','STARTING','RUNNING','UNKNOWN','BLOCKED')"
         ):
+            if job["cancel_requested"] and not self.store.rows(
+                "SELECT 1 FROM executions WHERE job_id=?", (job["id"],)
+            ):
+                with self.store.transaction() as conn:
+                    current = self.service._get(conn, "jobs", job["id"])
+                    if not conn.execute(
+                        "SELECT 1 FROM executions WHERE job_id=?", (job["id"],)
+                    ).fetchone() and consume_cancellation(self.service, conn, current):
+                        continue
+            if job["status"] == "BLOCKED":
+                continue
             if job["status"] == "QUEUED":
                 self.dispatch(job["id"])
                 continue
             process_identity = json.loads(job["identity"]) if job["identity"] else None
-            if alive(process_identity) or time.time() - job["updated_at"] < self.config.startup_grace:
+            if alive(process_identity):
+                if job["status"] == "UNKNOWN":
+                    with self.store.transaction() as conn:
+                        conn.execute(
+                            "UPDATE jobs SET status='RUNNING',error=NULL,updated_at=? WHERE id=? AND status='UNKNOWN' AND EXISTS(SELECT 1 FROM executions WHERE job_id=?)",
+                            (time.time(), job["id"], job["id"]),
+                        )
+                        self.store.event(
+                            conn,
+                            job["task_id"],
+                            "JOB_RECONCILED",
+                            "runner-observed",
+                            "controller",
+                            {"job_id": job["id"]},
+                        )
+                continue
+            if time.time() - job["updated_at"] < self.config.startup_grace:
                 continue
             if job["status"] != "UNKNOWN":
                 with self.store.transaction() as conn:

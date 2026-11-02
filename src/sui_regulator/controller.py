@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import signal
+import sqlite3
 import subprocess
 import time
 from contextlib import AbstractContextManager
@@ -8,17 +10,17 @@ from contextlib import AbstractContextManager
 from .adapters import MockWorkerAdapter, UnavailableWorkerAdapter, WorkerAdapter
 from .config import Config
 from .models import DomainError, encode
-from .processes import FileLock, alive, identity, signal_owned
+from .processes import FileLock, alive, identity, process_state, signal_owned
 from .protocol import SuiProtocol
+from .registry import WorkerRegistry
 from .runner import LocalMockRunner
 from .service import Service
 
 
 class Controller(AbstractContextManager):
     def __init__(self, config: Config, adapters: dict[str, WorkerAdapter] | None = None):
-        self.config, self.service = config, Service(config)
-        self.protocol = SuiProtocol(self.service)
-        self.runner = LocalMockRunner(self.service)
+        self.config, self.registry = config, WorkerRegistry(config.home)
+        self.watchdog_actions: list[dict] = []
         self.adapters = adapters or {"mock": MockWorkerAdapter(), "unavailable": UnavailableWorkerAdapter()}
         if adapters is None:
             from .claude_adapter import ClaudeCodeAdapter
@@ -30,10 +32,47 @@ class Controller(AbstractContextManager):
 
     def __enter__(self):
         self.lock.__enter__()
-        self.acquired = True
-        with self.service.store.transaction() as conn:
-            self.service.store.event(conn, None, "CONTROLLER_STARTED", "controller", "controller", {})
+        try:
+            self._sweep_frozen()
+            self.service = Service(self.config)
+            self.protocol = SuiProtocol(self.service)
+            self.runner = LocalMockRunner(self.service)
+            with self.service.store.transaction() as conn:
+                self.service.store.event(conn, None, "CONTROLLER_STARTED", "controller", "controller", {})
+            self._audit_watchdog()
+            self.acquired = True
+        except BaseException:
+            self.lock.__exit__(None, None, None)
+            raise
         return self
+
+    def _sweep_frozen(self):
+        for record in self.registry.records():
+            overdue = (
+                time.time() - record["heartbeat_at"] >= self.config.lease_seconds
+                or time.time() - record["created_at"] >= self.config.max_session_age
+            )
+            if overdue and process_state(record["identity"]) in {"T", "t"}:
+                if signal_owned(record["identity"], signal.SIGKILL):
+                    self.watchdog_actions.append(record)
+
+    def _audit_watchdog(self):
+        if self.watchdog_actions:
+            with self.service.store.transaction() as conn:
+                for record in self.watchdog_actions:
+                    self.service.store.event(
+                        conn,
+                        record["task_id"],
+                        "FROZEN_WORKER_TERMINATED",
+                        "candleholder",
+                        "controller",
+                        {
+                            "worker_id": record["worker_id"],
+                            "identity": record["identity"],
+                            "reason": "stopped worker exceeded lease or session age",
+                        },
+                    )
+            self.watchdog_actions.clear()
 
     def __exit__(self, *args):
         self.acquired = False
@@ -41,11 +80,16 @@ class Controller(AbstractContextManager):
         # Detached workers and jobs intentionally survive a controller exit.
 
     def _stop(self, worker: dict) -> None:
+        sig = (
+            signal.SIGKILL
+            if worker.get("ended_at") and time.time() - worker["ended_at"] >= self.config.rotation_grace
+            else signal.SIGTERM
+        )
         for column in ["child_identity", "identity"]:
             value = worker.get(column)
             if isinstance(value, str):
                 value = json.loads(value)
-            signal_owned(value)
+            signal_owned(value, sig)
 
     def _retire(self, task: dict, worker: dict, reason: str, failure: bool) -> None:
         now = time.time()
@@ -101,6 +145,8 @@ class Controller(AbstractContextManager):
     def tick(self) -> None:
         if not self.acquired:
             raise RuntimeError("controller must hold its singleton lock")
+        self._sweep_frozen()
+        self._audit_watchdog()
         self.service.process_commands()
         self.runner.reconcile()
         for pid, process in list(self.children.items()):
@@ -166,6 +212,9 @@ class Controller(AbstractContextManager):
                 adapter = self.adapters.get(task["adapter"], UnavailableWorkerAdapter())
                 process = adapter.start(self.service, credentials)
                 self.children[process.pid] = process
+                self.registry.publish(
+                    credentials.worker_id, credentials.task_id, credentials.generation, identity(process.pid)
+                )
                 with self.service.store.transaction() as conn:
                     conn.execute(
                         "UPDATE workers SET pid=?,identity=? WHERE id=? AND identity IS NULL",
@@ -184,7 +233,11 @@ class Controller(AbstractContextManager):
 
     def run(self, stop=None) -> None:
         while stop is None or not stop.is_set():
-            self.tick()
+            try:
+                self.tick()
+            except sqlite3.OperationalError as exc:
+                if "lock" not in str(exc).lower() and "busy" not in str(exc).lower():
+                    raise
             if stop is None:
                 time.sleep(self.config.tick_seconds)
             else:

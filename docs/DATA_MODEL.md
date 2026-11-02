@@ -1,6 +1,6 @@
 # 数据模型
 
-Schema v1，使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDIATE。`PRAGMA user_version` 驱动逐版本事务迁移；拒绝打开未来版本。禁止直接复制运行中的主数据库文件作为备份，使用 `yan backup` 的 SQLite backup API。
+Schema v2（v1→v2 增加取消授权快照），使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDIATE。`PRAGMA user_version` 驱动逐版本事务迁移；拒绝打开未来版本。禁止直接复制运行中的主数据库文件作为备份，使用 `yan backup` 的 SQLite backup API。
 
 | 表 | 主键/约束 | 含义 |
 |---|---|---|
@@ -8,7 +8,7 @@ Schema v1，使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDI
 | commands | id；UNIQUE(actor,idempotency_key) | 原始请求、参数摘要、队列状态、执行回执、拒绝原因 |
 | workers | id；UNIQUE(task_id,generation)，session UUID | WorkerSession + lease hash/expiry、进程身份、心跳、活动、Handoff |
 | experiments | id → task | 不随 Worker 变化的实验定义 |
-| jobs | id；UNIQUE(task_id,logical_key) | 具体一次运行、授权快照、独立进程、observed、退出码 |
+| jobs | id；UNIQUE(task_id,logical_key) | 具体一次运行、启动/取消授权快照、独立进程、observed、退出码 |
 | executions | job_id 唯一 | Runner 已开始执行的持久去重记录 |
 | artifacts | id；UNIQUE(task_id,path) | 路径、来源、种类；Worker 声明与 Runner 产物有来源区别 |
 | events | 自增 id，task 索引 | 结构化审计，支持 after/limit 游标 |
