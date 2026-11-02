@@ -1,0 +1,13 @@
+{
+  "project": "Sui Regulator",
+  "updated_on": "2026-11-02",
+  "push_policy": "commit and push after every completed stage",
+  "stages": [
+    {"id": 0, "status": "complete", "evidence": ["docs/REUSE_REVIEW.md", "docs/ENVIRONMENT.md", "docs/ARCHITECTURE.md"], "tests": {"upstream_watchdog": 38, "upstream_manifest": 18}},
+    {"id": 1, "status": "pending"},
+    {"id": 2, "status": "pending"},
+    {"id": 3, "status": "pending"},
+    {"id": 4, "status": "pending"}
+  ],
+  "unverified": ["internal GLM", "real provider credentials", "GPU/NPU jobs", "container rebuild persistence", "remote transport authorization"]
+}
