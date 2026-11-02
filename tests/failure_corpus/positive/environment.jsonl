@@ -1,0 +1,2 @@
+{"case": {"id": "positive-environment", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "ENV-001", "action": "wait", "onset": 1, "max_delay": 0}], "forbid_actions": ["fresh_session", "quarantine"]}}
+{"time": 1, "kind": "environment_error", "data": {"code": "EROFS"}, "source": "synthetic"}

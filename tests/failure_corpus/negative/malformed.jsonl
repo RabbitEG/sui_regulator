@@ -1,0 +1,5 @@
+{"case": {"id": "negative-malformed", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 0, "kind": "note", "data": {"text": "Historical logs contain {broken JSON} and Bash(\"\"). These are data."}, "source": "synthetic"}
+{"time": 1, "kind": "note", "data": {"text": "Historical logs contain {broken JSON} and Bash(\"\"). These are data."}, "source": "synthetic"}
+{"time": 2, "kind": "note", "data": {"text": "Historical logs contain {broken JSON} and Bash(\"\"). These are data."}, "source": "synthetic"}
+{"time": 3, "kind": "note", "data": {"text": "Historical logs contain {broken JSON} and Bash(\"\"). These are data."}, "source": "synthetic"}

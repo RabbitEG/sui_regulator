@@ -1,0 +1,4 @@
+{"case": {"id": "negative-silence", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 0, "kind": "clock", "data": {"awaiting_response": false, "last_stream_at": 0, "tool_pending": false}, "source": "synthetic"}
+{"time": 300, "kind": "clock", "data": {"awaiting_response": false, "last_stream_at": 0, "tool_pending": false}, "source": "synthetic"}
+{"time": 1800, "kind": "clock", "data": {"awaiting_response": false, "last_stream_at": 0, "tool_pending": false}, "source": "synthetic"}

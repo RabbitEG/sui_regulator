@@ -1,0 +1,2 @@
+{"case": {"id": "positive-session", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "STATE-001", "action": "quarantine", "onset": 1, "max_delay": 0}], "forbid_actions": []}}
+{"time": 1, "kind": "session_state", "data": {"mismatch": true}, "source": "synthetic"}

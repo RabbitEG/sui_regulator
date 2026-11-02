@@ -1,0 +1,4 @@
+{"case": {"id": "positive-silence", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "NET-002", "action": "fresh_session", "onset": 0, "max_delay": 60}], "forbid_actions": []}}
+{"time": 0, "kind": "clock", "data": {"awaiting_response": true, "last_stream_at": 0, "tool_pending": false, "streaming_observed": true}, "source": "synthetic"}
+{"time": 30, "kind": "clock", "data": {"awaiting_response": true, "last_stream_at": 0, "tool_pending": false, "streaming_observed": true}, "source": "synthetic"}
+{"time": 60, "kind": "clock", "data": {"awaiting_response": true, "last_stream_at": 0, "tool_pending": false, "streaming_observed": true}, "source": "synthetic"}

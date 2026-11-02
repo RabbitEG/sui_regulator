@@ -66,6 +66,14 @@ python3.11 -m venv .venv
 
 ## 文档
 
+v0.3 故障检测正在按阶段交付，已提供离线 Registry + Corpus + Replay：
+
+```bash
+PYTHONPATH=src python3.11 -m sui_regulator failures evaluate tests/failure_corpus --summary
+```
+
+设计与复用依据见 [故障调查](docs/FAILURE_RESEARCH.md)、[检测架构](docs/FAILURE_ARCHITECTURE.md)；案例贡献说明见 [Incident Corpus](tests/failure_corpus/README.md)。
+
 - [原始需求](docs/REQUIREMENTS.md)、[上游源码与复用判断](docs/REUSE_REVIEW.md)、[环境核验](docs/ENVIRONMENT.md)
 - [架构](docs/ARCHITECTURE.md)、[数据模型](docs/DATA_MODEL.md)、[Sui Protocol](docs/SUI_PROTOCOL.md)、[Yan API](docs/YAN_API.md)
 - [恢复策略](docs/RECOVERY_POLICY.md)、[安全边界](docs/SECURITY.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md)

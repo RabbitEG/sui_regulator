@@ -1,0 +1,11 @@
+{"case": {"id": "positive-failed-tools", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "TOOL-002", "action": "fresh_session", "onset": 1, "max_delay": 9}], "forbid_actions": []}}
+{"time": 1, "kind": "tool_call", "data": {"call_id": "0", "name": "Bash", "arguments": {"command": "run synthetic experiment", "attempt": 0}}, "source": "synthetic"}
+{"time": 2, "kind": "tool_result", "data": {"call_id": "0", "is_error": true, "result": {"error": "same failure", "pid": 100}}, "source": "synthetic"}
+{"time": 3, "kind": "tool_call", "data": {"call_id": "1", "name": "Bash", "arguments": {"command": "run synthetic experiment", "attempt": 1}}, "source": "synthetic"}
+{"time": 4, "kind": "tool_result", "data": {"call_id": "1", "is_error": true, "result": {"error": "same failure", "pid": 101}}, "source": "synthetic"}
+{"time": 5, "kind": "tool_call", "data": {"call_id": "2", "name": "Bash", "arguments": {"command": "run synthetic experiment", "attempt": 2}}, "source": "synthetic"}
+{"time": 6, "kind": "tool_result", "data": {"call_id": "2", "is_error": true, "result": {"error": "same failure", "pid": 102}}, "source": "synthetic"}
+{"time": 7, "kind": "tool_call", "data": {"call_id": "3", "name": "Bash", "arguments": {"command": "run synthetic experiment", "attempt": 3}}, "source": "synthetic"}
+{"time": 8, "kind": "tool_result", "data": {"call_id": "3", "is_error": true, "result": {"error": "same failure", "pid": 103}}, "source": "synthetic"}
+{"time": 9, "kind": "tool_call", "data": {"call_id": "4", "name": "Bash", "arguments": {"command": "run synthetic experiment", "attempt": 4}}, "source": "synthetic"}
+{"time": 10, "kind": "tool_result", "data": {"call_id": "4", "is_error": true, "result": {"error": "same failure", "pid": 104}}, "source": "synthetic"}

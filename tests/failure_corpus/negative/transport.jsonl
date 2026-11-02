@@ -1,0 +1,2 @@
+{"case": {"id": "negative-transport", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 1, "kind": "tool_result", "data": {"call_id": "read", "is_error": false, "result": {"text": "A tutorial contains HTTP 503, ECONNRESET and error examples."}}, "source": "synthetic"}

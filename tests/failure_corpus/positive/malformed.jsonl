@@ -1,0 +1,4 @@
+{"case": {"id": "positive-malformed", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "TOOL-001", "action": "fresh_session", "onset": 1, "max_delay": 2}], "forbid_actions": []}}
+{"time": 1, "kind": "malformed_call", "data": {"reason": "empty Bash command"}, "source": "synthetic"}
+{"time": 2, "kind": "malformed_call", "data": {"reason": "empty Bash command"}, "source": "synthetic"}
+{"time": 3, "kind": "malformed_call", "data": {"reason": "empty Bash command"}, "source": "synthetic"}

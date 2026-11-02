@@ -1,0 +1,36 @@
+{
+  "id": "PROG-001",
+  "name": "No progress evidence or completion conflict",
+  "version": 1,
+  "category": "progress",
+  "signals": [
+    "health"
+  ],
+  "detector": {
+    "type": "progress",
+    "config": {
+      "warn_after": 1,
+      "act_after": 1,
+      "stall_seconds": 120
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "probe",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/progress.jsonl"
+    ],
+    "negative": [
+      "negative/progress.jsonl"
+    ]
+  },
+  "origin": "unknown",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

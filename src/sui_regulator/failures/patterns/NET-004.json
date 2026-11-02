@@ -1,0 +1,42 @@
+{
+  "id": "NET-004",
+  "name": "Authentication or account/resource rejection",
+  "version": 1,
+  "category": "transport",
+  "signals": [
+    "api_error"
+  ],
+  "detector": {
+    "type": "transport",
+    "config": {
+      "warn_after": 1,
+      "act_after": 1,
+      "codes": [
+        401,
+        403,
+        429,
+        "AUTH_REQUIRED",
+        "RESOURCE_BLOCKED"
+      ]
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "quarantine",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/authentication.jsonl"
+    ],
+    "negative": [
+      "negative/authentication.jsonl"
+    ]
+  },
+  "origin": "provider_or_configuration_unconfirmed",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

@@ -47,12 +47,42 @@ def parser() -> argparse.ArgumentParser:
     rpc.add_argument("method")
     rpc.add_argument("--params", default="{}")
     commands.add_parser("schema", help="emit the versioned Yan request schema")
+    failures = commands.add_parser("failures", help="offline failure registry and trajectory replay")
+    failure_commands = failures.add_subparsers(dest="failure_command", required=True)
+    for name in ["list", "replay", "evaluate"]:
+        sub = failure_commands.add_parser(name)
+        sub.add_argument("--registry", type=Path)
+        if name != "list":
+            sub.add_argument("path", type=Path)
+            sub.add_argument("--summary", action="store_true")
+            sub.add_argument("--output", type=Path)
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
     try:
+        if args.command == "failures":
+            from .failures.registry import FailureRegistry
+            from .failures.replay import evaluate, replay
+
+            registry = FailureRegistry(args.registry)
+            result = (
+                registry.catalog()
+                if args.failure_command == "list"
+                else (replay if args.failure_command == "replay" else evaluate)(args.path, registry)
+            )
+            if getattr(args, "output", None):
+                args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+            displayed = (
+                {key: value for key, value in result.items() if key != "results"}
+                if getattr(args, "summary", False)
+                else result
+            )
+            print(json.dumps(displayed, ensure_ascii=False))
+            if isinstance(result, dict) and result.get("passed") is False:
+                sys.exit(1)
+            return
         if args.command == "demo":
             from .demo import run_demo
 

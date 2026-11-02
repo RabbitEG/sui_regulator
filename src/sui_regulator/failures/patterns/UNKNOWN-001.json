@@ -1,0 +1,36 @@
+{
+  "id": "UNKNOWN-001",
+  "name": "Unclassified observed anomaly",
+  "version": 1,
+  "category": "unknown",
+  "signals": [
+    "unknown_error"
+  ],
+  "detector": {
+    "type": "unknown",
+    "config": {
+      "warn_after": 1,
+      "act_after": 3,
+      "early_action": "probe"
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "quarantine",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/unknown.jsonl"
+    ],
+    "negative": [
+      "negative/unknown.jsonl"
+    ]
+  },
+  "origin": "unknown",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

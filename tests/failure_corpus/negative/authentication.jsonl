@@ -1,0 +1,2 @@
+{"case": {"id": "negative-authentication", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 1, "kind": "assistant_text", "data": {"message_id": "normal", "text": "The documentation describes status 401 and configuring credentials safely."}, "source": "synthetic"}

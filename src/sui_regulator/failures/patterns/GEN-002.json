@@ -1,0 +1,37 @@
+{
+  "id": "GEN-002",
+  "name": "Cross-message repetition without successful work",
+  "version": 1,
+  "category": "generation",
+  "signals": [
+    "assistant_text",
+    "tool_result"
+  ],
+  "detector": {
+    "type": "cross_message",
+    "config": {
+      "warn_after": 4,
+      "act_after": 6,
+      "similarity": 0.95
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "fresh_session",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/cross.jsonl"
+    ],
+    "negative": [
+      "negative/cross.jsonl"
+    ]
+  },
+  "origin": "model_or_context_suspected",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

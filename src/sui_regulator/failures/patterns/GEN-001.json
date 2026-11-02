@@ -1,0 +1,39 @@
+{
+  "id": "GEN-001",
+  "name": "Intra-generation repetition",
+  "version": 1,
+  "category": "generation",
+  "signals": [
+    "text_delta",
+    "assistant_text"
+  ],
+  "detector": {
+    "type": "intra_repetition",
+    "config": {
+      "warn_after": 16,
+      "act_after": 32,
+      "min_run": 16,
+      "min_words": 16,
+      "window_chars": 8192
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "fresh_session",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/generation.jsonl"
+    ],
+    "negative": [
+      "negative/generation.jsonl"
+    ]
+  },
+  "origin": "model_suspected",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

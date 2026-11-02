@@ -1,0 +1,35 @@
+{
+  "id": "STATE-001",
+  "name": "Observable session-state conflict",
+  "version": 1,
+  "category": "session_state",
+  "signals": [
+    "session_state"
+  ],
+  "detector": {
+    "type": "session_state",
+    "config": {
+      "warn_after": 1,
+      "act_after": 1
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "quarantine",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/session.jsonl"
+    ],
+    "negative": [
+      "negative/session.jsonl"
+    ]
+  },
+  "origin": "cli_or_protocol_unconfirmed",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

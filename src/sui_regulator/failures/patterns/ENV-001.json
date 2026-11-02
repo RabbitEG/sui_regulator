@@ -1,0 +1,35 @@
+{
+  "id": "ENV-001",
+  "name": "Structured environment/resource failure",
+  "version": 1,
+  "category": "environment",
+  "signals": [
+    "environment_error"
+  ],
+  "detector": {
+    "type": "environment",
+    "config": {
+      "warn_after": 1,
+      "act_after": 1
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "wait",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/environment.jsonl"
+    ],
+    "negative": [
+      "negative/environment.jsonl"
+    ]
+  },
+  "origin": "environment_observed",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

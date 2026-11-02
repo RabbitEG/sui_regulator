@@ -1,0 +1,36 @@
+{
+  "id": "NET-002",
+  "name": "Expected response becomes silent",
+  "version": 1,
+  "category": "transport",
+  "signals": [
+    "clock"
+  ],
+  "detector": {
+    "type": "stream_silence",
+    "config": {
+      "warn_after": 30,
+      "act_after": 60,
+      "early_action": "probe"
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "fresh_session",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/silence.jsonl"
+    ],
+    "negative": [
+      "negative/silence.jsonl"
+    ]
+  },
+  "origin": "transport_or_cli_unconfirmed",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

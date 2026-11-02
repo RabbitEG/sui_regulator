@@ -1,0 +1,2 @@
+{"case": {"id": "negative-environment", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 1000, "kind": "health", "data": {"phase": "WAITING_RESOURCE", "last_progress_at": 0, "jobs": [{"status": "BLOCKED", "stale": true}]}, "source": "synthetic"}

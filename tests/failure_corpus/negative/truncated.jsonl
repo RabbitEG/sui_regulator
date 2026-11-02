@@ -1,0 +1,2 @@
+{"case": {"id": "negative-truncated", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 1, "kind": "stream_end", "data": {"final_seen": true}, "source": "synthetic"}

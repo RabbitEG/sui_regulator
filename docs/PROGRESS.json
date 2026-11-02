@@ -105,7 +105,22 @@
       },
       {
         "id": "B",
-        "status": "pending"
+        "status": "complete",
+        "evidence": [
+          "src/sui_regulator/failures",
+          "tests/failure_corpus",
+          "docs/failure-corpus-report.json"
+        ],
+        "verification": {
+          "rules": 13,
+          "positive_cases": 17,
+          "negative_cases": 13,
+          "case_recall": 1.0,
+          "false_positive_rate": 0.0,
+          "offline_policy_match_rate": 1.0,
+          "executed_recovery_correctness": null,
+          "focused_tests_passed": 7
+        }
       },
       {
         "id": "C",

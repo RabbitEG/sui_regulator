@@ -1,0 +1,35 @@
+{
+  "id": "PROC-001",
+  "name": "Unexpected registered process exit",
+  "version": 1,
+  "category": "process",
+  "signals": [
+    "health"
+  ],
+  "detector": {
+    "type": "process_exit",
+    "config": {
+      "warn_after": 1,
+      "act_after": 1
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "fresh_session",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/process.jsonl"
+    ],
+    "negative": [
+      "negative/process.jsonl"
+    ]
+  },
+  "origin": "process_observed",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

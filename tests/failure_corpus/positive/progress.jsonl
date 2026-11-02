@@ -1,0 +1,2 @@
+{"case": {"id": "positive-progress", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "PROG-001", "action": "probe", "onset": 1, "max_delay": 0}], "forbid_actions": ["fresh_session", "quarantine"]}}
+{"time": 1, "kind": "health", "data": {"phase": "COMPLETED", "jobs": [{"status": "RUNNING", "stale": false}]}, "source": "synthetic"}

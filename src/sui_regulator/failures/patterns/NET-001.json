@@ -1,0 +1,45 @@
+{
+  "id": "NET-001",
+  "name": "Bounded transient transport failures",
+  "version": 1,
+  "category": "transport",
+  "signals": [
+    "api_error"
+  ],
+  "detector": {
+    "type": "transport",
+    "config": {
+      "warn_after": 1,
+      "act_after": 3,
+      "early_action": "bounded_retry",
+      "codes": [
+        502,
+        503,
+        504,
+        "ECONNRESET",
+        "ECONNREFUSED",
+        "ETIMEDOUT",
+        "TRANSPORT_FAILURE"
+      ]
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "fresh_session",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/transport.jsonl"
+    ],
+    "negative": [
+      "negative/transport.jsonl"
+    ]
+  },
+  "origin": "transport_observed",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

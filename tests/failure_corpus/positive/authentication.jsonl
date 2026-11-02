@@ -1,0 +1,2 @@
+{"case": {"id": "positive-authentication", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "NET-004", "action": "quarantine", "onset": 1, "max_delay": 0}], "forbid_actions": []}}
+{"time": 1, "kind": "api_error", "data": {"code": 401}, "source": "synthetic"}

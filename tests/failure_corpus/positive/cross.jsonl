@@ -1,0 +1,7 @@
+{"case": {"id": "positive-cross", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "GEN-002", "action": "fresh_session", "onset": 1, "max_delay": 5}], "forbid_actions": []}}
+{"time": 1, "kind": "assistant_text", "data": {"message_id": "1", "text": "I will inspect the same synthetic state without taking any further action."}, "source": "synthetic"}
+{"time": 2, "kind": "assistant_text", "data": {"message_id": "2", "text": "I will inspect the same synthetic state without taking any further action."}, "source": "synthetic"}
+{"time": 3, "kind": "assistant_text", "data": {"message_id": "3", "text": "I will inspect the same synthetic state without taking any further action."}, "source": "synthetic"}
+{"time": 4, "kind": "assistant_text", "data": {"message_id": "4", "text": "I will inspect the same synthetic state without taking any further action."}, "source": "synthetic"}
+{"time": 5, "kind": "assistant_text", "data": {"message_id": "5", "text": "I will inspect the same synthetic state without taking any further action."}, "source": "synthetic"}
+{"time": 6, "kind": "assistant_text", "data": {"message_id": "6", "text": "I will inspect the same synthetic state without taking any further action."}, "source": "synthetic"}

@@ -1,0 +1,35 @@
+{
+  "id": "TOOL-001",
+  "name": "Malformed structured call/frame",
+  "version": 1,
+  "category": "tool_use",
+  "signals": [
+    "malformed_call"
+  ],
+  "detector": {
+    "type": "malformed",
+    "config": {
+      "warn_after": 1,
+      "act_after": 3
+    }
+  },
+  "severity": "high",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "fresh_session",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 2,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/malformed.jsonl"
+    ],
+    "negative": [
+      "negative/malformed.jsonl"
+    ]
+  },
+  "origin": "model_or_cli_unconfirmed",
+  "observability": "structured signals and bounded text only; semantic root cause is unverified"
+}

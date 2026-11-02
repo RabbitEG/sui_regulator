@@ -1,0 +1,2 @@
+{"case": {"id": "positive-process", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "PROC-001", "action": "fresh_session", "onset": 1, "max_delay": 0}], "forbid_actions": []}}
+{"time": 1, "kind": "health", "data": {"alive": false, "expected_exit": false}, "source": "synthetic"}

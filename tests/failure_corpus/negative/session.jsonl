@@ -1,0 +1,2 @@
+{"case": {"id": "negative-session", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 1, "kind": "session_state", "data": {"mismatch": false}, "source": "synthetic"}

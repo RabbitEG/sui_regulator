@@ -1,0 +1,4 @@
+{"case": {"id": "positive-unknown", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "UNKNOWN-001", "action": "quarantine", "onset": 1, "max_delay": 2}], "forbid_actions": []}}
+{"time": 1, "kind": "unknown_error", "data": {"code": "UNRECOGNIZED_VENDOR_FAILURE"}, "source": "synthetic"}
+{"time": 2, "kind": "unknown_error", "data": {"code": "UNRECOGNIZED_VENDOR_FAILURE"}, "source": "synthetic"}
+{"time": 3, "kind": "unknown_error", "data": {"code": "UNRECOGNIZED_VENDOR_FAILURE"}, "source": "synthetic"}

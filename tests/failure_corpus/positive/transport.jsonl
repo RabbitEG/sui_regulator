@@ -1,0 +1,4 @@
+{"case": {"id": "positive-transport", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "NET-001", "action": "fresh_session", "onset": 1, "max_delay": 2}], "forbid_actions": []}}
+{"time": 1, "kind": "api_error", "data": {"code": 503}, "source": "synthetic"}
+{"time": 2, "kind": "api_error", "data": {"code": 503}, "source": "synthetic"}
+{"time": 3, "kind": "api_error", "data": {"code": 503}, "source": "synthetic"}
