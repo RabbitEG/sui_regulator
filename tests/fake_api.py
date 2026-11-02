@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 class FakeAnthropic(AbstractContextManager):
     def __init__(self, mode="tools"):
         self.mode, self.requests = mode, []
+        self.stream_finished = threading.Event()
 
     def __enter__(self):
         owner = self
@@ -44,7 +45,10 @@ class FakeAnthropic(AbstractContextManager):
                 index = len(owner.requests) - 1
                 operation = ["get_task_context", "report_progress", "complete_task"][min(index, 2)]
                 tool = next((tool for tool in tools if tool["name"].endswith("__" + operation)), None)
-                if tool is None:
+                if owner.mode == "streaming":
+                    blocks = [("text", {"text": "synthetic streaming capability probe"})]
+                    stop_reason = "end_turn"
+                elif tool is None:
                     blocks = [("text", {"text": "synthetic stub: no matching MCP tools"})]
                     stop_reason = "end_turn"
                 else:
@@ -106,11 +110,23 @@ class FakeAnthropic(AbstractContextManager):
                                 index=number,
                                 content_block={"type": "text", "text": ""},
                             )
-                            event(
-                                "content_block_delta",
-                                index=number,
-                                delta={"type": "text_delta", "text": block["text"]},
-                            )
+                            if owner.mode == "streaming":
+                                import time
+
+                                for part in range(20):
+                                    event(
+                                        "content_block_delta",
+                                        index=number,
+                                        delta={"type": "text_delta", "text": f"synthetic part {part}. "},
+                                    )
+                                    time.sleep(0.05)
+                                owner.stream_finished.set()
+                            else:
+                                event(
+                                    "content_block_delta",
+                                    index=number,
+                                    delta={"type": "text_delta", "text": block["text"]},
+                                )
                         event("content_block_stop", index=number)
                     event(
                         "message_delta",
