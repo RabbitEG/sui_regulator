@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import StrEnum
 import hashlib
 import json
 import uuid
+from dataclasses import dataclass
+from enum import StrEnum
 
 
 class DesiredState(StrEnum):
@@ -84,7 +84,9 @@ def mock_spec(value: object) -> dict:
         raise DomainError("INVALID_ARGUMENT", "steps must be an integer in [1, 100000]")
     if type(spec["interval"]) not in (float, int) or not 0.001 <= spec["interval"] <= 60:
         raise DomainError("INVALID_ARGUMENT", "interval must be finite and in [0.001, 60]")
-    if spec["fail_at"] is not None and (type(spec["fail_at"]) is not int or not 1 <= spec["fail_at"] <= spec["steps"]):
+    if spec["fail_at"] is not None and (
+        type(spec["fail_at"]) is not int or not 1 <= spec["fail_at"] <= spec["steps"]
+    ):
         raise DomainError("INVALID_ARGUMENT", "fail_at must be a valid step")
     if type(spec["resource_available"]) is not bool:
         raise DomainError("INVALID_ARGUMENT", "resource_available must be boolean")

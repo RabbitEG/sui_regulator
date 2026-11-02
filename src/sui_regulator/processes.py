@@ -1,24 +1,27 @@
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
 import errno
 import fcntl
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
+from contextlib import AbstractContextManager
+from pathlib import Path
 
 
 def identity(pid: int) -> dict | None:
     """Linux process identity; zombie/unknown processes are never considered live."""
     try:
         stat = Path(f"/proc/{pid}/stat").read_text()
-        fields = stat[stat.rfind(")") + 2:].split()
+        fields = stat[stat.rfind(")") + 2 :].split()
         if fields[0] in {"Z", "X"}:
             return None
-        return {"pid": pid, "start_ticks": int(fields[19]),
-                "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip()}
+        return {
+            "pid": pid,
+            "start_ticks": int(fields[19]),
+            "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
+        }
     except (OSError, ValueError, IndexError):
         return None
 
@@ -84,12 +87,18 @@ def child_environment() -> dict[str, str]:
     return env
 
 
-def detached(module: str, args: list[str], *, env: dict | None = None,
-             input_data: str | None = None) -> subprocess.Popen:
-    process = subprocess.Popen([sys.executable, "-m", module, *args],
-                               stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                               start_new_session=True, close_fds=True, env=env or child_environment())
+def detached(
+    module: str, args: list[str], *, env: dict | None = None, input_data: str | None = None
+) -> subprocess.Popen:
+    process = subprocess.Popen(
+        [sys.executable, "-m", module, *args],
+        stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+        env=env or child_environment(),
+    )
     if input_data is not None:
         assert process.stdin is not None
         try:

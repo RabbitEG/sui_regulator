@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
-from pathlib import Path
 import sys
 import uuid
+from pathlib import Path
 
 from . import PROTOCOL_VERSION
 from .config import Config
@@ -40,6 +40,10 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("tick", help="run one reconciliation pass")
     commands.add_parser("serve", help="run the independent controller")
     commands.add_parser("demo", help="run an isolated real-process worker-death drill")
+    rpc = commands.add_parser("rpc", help="call the authenticated local Unix gateway")
+    rpc.add_argument("method")
+    rpc.add_argument("--params", default="{}")
+    commands.add_parser("schema", help="emit the versioned Yan request schema")
     return p
 
 
@@ -48,7 +52,20 @@ def main(argv: list[str] | None = None) -> None:
     try:
         if args.command == "demo":
             from .demo import run_demo
+
             print(json.dumps(run_demo(), ensure_ascii=False))
+            return
+        if args.command in {"rpc", "schema"}:
+            from .gateway import call, request_schema
+
+            result = (
+                request_schema()
+                if args.command == "schema"
+                else call(args.home, args.method, json.loads(args.params))
+            )
+            print(json.dumps(result, ensure_ascii=False))
+            if "error" in result:
+                sys.exit(1)
             return
         service = Service(Config.load(args.home))
         actor = f"local:{getpass.getuser()}"
@@ -74,13 +91,17 @@ def main(argv: list[str] | None = None) -> None:
             result = {"path": str(service.store.backup(args.destination))}
         elif args.command in {"serve", "tick"}:
             from .controller import Controller
+
             with Controller(service.config) as controller:
                 if args.command == "tick":
                     controller.tick()
                     result = {"reconciled": True}
                 else:
+                    from .gateway import Gateway
+
                     try:
-                        controller.run()
+                        with Gateway(service):
+                            controller.run()
                     except KeyboardInterrupt:
                         pass
                     result = {"controller": "stopped", "jobs": "retained"}
@@ -90,5 +111,10 @@ def main(argv: list[str] | None = None) -> None:
             result = service.command(kind, actor, key, payload, args.task_id)
         print(json.dumps({"protocol_version": PROTOCOL_VERSION, "result": result}, ensure_ascii=False))
     except (DomainError, ValueError, OSError) as exc:
-        print(json.dumps({"error": {"code": getattr(exc, "code", "LOCAL_ERROR"), "message": str(exc)}}, ensure_ascii=False))
+        print(
+            json.dumps(
+                {"error": {"code": getattr(exc, "code", "LOCAL_ERROR"), "message": str(exc)}},
+                ensure_ascii=False,
+            )
+        )
         sys.exit(1)

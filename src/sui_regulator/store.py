@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 import os
-from pathlib import Path
 import sqlite3
 import time
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Iterator
 
 from .models import encode
 
 SCHEMA_VERSION = 1
-MIGRATIONS = {1: [
-    """CREATE TABLE tasks (
+MIGRATIONS = {
+    1: [
+        """CREATE TABLE tasks (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, objective TEXT NOT NULL,
         workspace TEXT NOT NULL, adapter TEXT NOT NULL, spec TEXT NOT NULL,
         desired TEXT NOT NULL DEFAULT 'ACTIVE', status TEXT NOT NULL DEFAULT 'READY',
@@ -19,13 +20,13 @@ MIGRATIONS = {1: [
         declared TEXT NOT NULL DEFAULT '{}', declared_at REAL,
         next_start_at REAL NOT NULL DEFAULT 0, recovery_reset_at REAL NOT NULL DEFAULT 0,
         created_at REAL NOT NULL, updated_at REAL NOT NULL)""",
-    """CREATE TABLE commands (
+        """CREATE TABLE commands (
         id TEXT PRIMARY KEY, actor TEXT NOT NULL, idempotency_key TEXT NOT NULL,
         kind TEXT NOT NULL, task_id TEXT NOT NULL, payload TEXT NOT NULL,
         request_hash TEXT NOT NULL, status TEXT NOT NULL, result TEXT NOT NULL DEFAULT '{}',
         error TEXT, created_at REAL NOT NULL, updated_at REAL NOT NULL,
         UNIQUE(actor, idempotency_key))""",
-    """CREATE TABLE workers (
+        """CREATE TABLE workers (
         id TEXT PRIMARY KEY, session_id TEXT NOT NULL UNIQUE,
         task_id TEXT NOT NULL REFERENCES tasks(id), generation INTEGER NOT NULL,
         adapter TEXT NOT NULL, status TEXT NOT NULL, lease_hash TEXT NOT NULL,
@@ -33,10 +34,10 @@ MIGRATIONS = {1: [
         pid INTEGER, identity TEXT, child_identity TEXT, capabilities TEXT NOT NULL,
         handoff TEXT, rotation_at REAL, error TEXT, anomaly_count INTEGER NOT NULL DEFAULT 0,
         created_at REAL NOT NULL, ended_at REAL, UNIQUE(task_id, generation))""",
-    """CREATE TABLE experiments (
+        """CREATE TABLE experiments (
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
         name TEXT NOT NULL, spec TEXT NOT NULL, created_at REAL NOT NULL)""",
-    """CREATE TABLE jobs (
+        """CREATE TABLE jobs (
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
         experiment_id TEXT NOT NULL REFERENCES experiments(id), logical_key TEXT NOT NULL,
         spec TEXT NOT NULL, spec_hash TEXT NOT NULL, status TEXT NOT NULL,
@@ -44,20 +45,21 @@ MIGRATIONS = {1: [
         pid INTEGER, identity TEXT, observed_at REAL, metric TEXT NOT NULL DEFAULT '{}',
         exit_code INTEGER, error TEXT, cancel_requested INTEGER NOT NULL DEFAULT 0,
         created_at REAL NOT NULL, updated_at REAL NOT NULL, UNIQUE(task_id, logical_key))""",
-    """CREATE TABLE executions (
+        """CREATE TABLE executions (
         job_id TEXT PRIMARY KEY REFERENCES jobs(id), identity TEXT NOT NULL,
         started_at REAL NOT NULL, finished_at REAL)""",
-    """CREATE TABLE artifacts (
+        """CREATE TABLE artifacts (
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
         job_id TEXT REFERENCES jobs(id), path TEXT NOT NULL, kind TEXT NOT NULL,
         source TEXT NOT NULL, created_at REAL NOT NULL, UNIQUE(task_id, path))""",
-    """CREATE TABLE events (
+        """CREATE TABLE events (
         id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT, kind TEXT NOT NULL,
         source TEXT NOT NULL, actor TEXT NOT NULL, data TEXT NOT NULL, created_at REAL NOT NULL)""",
-    "CREATE INDEX events_task_idx ON events(task_id, id)",
-    "CREATE INDEX commands_status_idx ON commands(status, created_at)",
-    "CREATE INDEX workers_task_idx ON workers(task_id, created_at)",
-]}
+        "CREATE INDEX events_task_idx ON events(task_id, id)",
+        "CREATE INDEX commands_status_idx ON commands(status, created_at)",
+        "CREATE INDEX workers_task_idx ON workers(task_id, created_at)",
+    ]
+}
 
 
 class Store:
@@ -116,10 +118,13 @@ class Store:
             return [dict(row) for row in conn.execute(sql, args)]
 
     @staticmethod
-    def event(conn: sqlite3.Connection, task_id: str | None, kind: str,
-              source: str, actor: str, data: object) -> None:
-        conn.execute("INSERT INTO events(task_id,kind,source,actor,data,created_at) VALUES(?,?,?,?,?,?)",
-                     (task_id, kind, source, actor, encode(data), time.time()))
+    def event(
+        conn: sqlite3.Connection, task_id: str | None, kind: str, source: str, actor: str, data: object
+    ) -> None:
+        conn.execute(
+            "INSERT INTO events(task_id,kind,source,actor,data,created_at) VALUES(?,?,?,?,?,?)",
+            (task_id, kind, source, actor, encode(data), time.time()),
+        )
 
     def backup(self, destination: Path) -> Path:
         destination = Path(destination).absolute()

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sqlite3
 import time
 
@@ -9,8 +8,26 @@ from .config import Config
 from .models import DomainError, digest, encode, identifier, mock_spec, require_text
 from .store import Store
 
-COMMAND_KINDS = {"submit_task", "instruct_task", "request_analysis", "hold_task", "resume_task", "cancel_task"}
-JSON_COLUMNS = {"payload", "result", "spec", "declared", "capabilities", "handoff", "metric", "data", "identity", "child_identity"}
+COMMAND_KINDS = {
+    "submit_task",
+    "instruct_task",
+    "request_analysis",
+    "hold_task",
+    "resume_task",
+    "cancel_task",
+}
+JSON_COLUMNS = {
+    "payload",
+    "result",
+    "spec",
+    "declared",
+    "capabilities",
+    "handoff",
+    "metric",
+    "data",
+    "identity",
+    "child_identity",
+}
 
 
 def unpack(row: sqlite3.Row | dict) -> dict:
@@ -36,8 +53,7 @@ class Service:
             raise DomainError("NOT_FOUND", f"{table}: entity not found")
         return row
 
-    def command(self, kind: str, actor: str, key: str, payload: dict,
-                task_id: str | None = None) -> dict:
+    def command(self, kind: str, actor: str, key: str, payload: dict, task_id: str | None = None) -> dict:
         if kind not in COMMAND_KINDS:
             raise DomainError("UNKNOWN_METHOD", "unsupported Yan command")
         require_text(actor, "actor", 256)
@@ -46,24 +62,32 @@ class Service:
             raise DomainError("INVALID_ARGUMENT", "payload must be a bounded object")
         request_hash = digest({"kind": kind, "task_id": task_id, "payload": payload})
         with self.store.transaction() as conn:
-            old = conn.execute("SELECT * FROM commands WHERE actor=? AND idempotency_key=?", (actor, key)).fetchone()
+            old = conn.execute(
+                "SELECT * FROM commands WHERE actor=? AND idempotency_key=?", (actor, key)
+            ).fetchone()
             if old is not None:
                 if old["request_hash"] != request_hash:
                     raise DomainError("IDEMPOTENCY_CONFLICT", "key already used for a different request")
                 return unpack(old)
             task_id = identifier("task") if kind == "submit_task" else require_text(task_id, "task_id", 128)
             command_id, now = identifier("command"), time.time()
-            conn.execute("""INSERT INTO commands(id,actor,idempotency_key,kind,task_id,payload,
+            conn.execute(
+                """INSERT INTO commands(id,actor,idempotency_key,kind,task_id,payload,
                 request_hash,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'QUEUED',?,?)""",
-                         (command_id, actor, key, kind, task_id, encode(payload), request_hash, now, now))
-            self.store.event(conn, task_id, "COMMAND_ACCEPTED", "yan", actor, {"command_id": command_id, "kind": kind})
+                (command_id, actor, key, kind, task_id, encode(payload), request_hash, now, now),
+            )
+            self.store.event(
+                conn, task_id, "COMMAND_ACCEPTED", "yan", actor, {"command_id": command_id, "kind": kind}
+            )
             return unpack(self._get(conn, "commands", command_id))
 
     def process_commands(self, limit: int = 100) -> int:
         count = 0
         for _ in range(limit):
             with self.store.transaction() as conn:
-                command = conn.execute("SELECT * FROM commands WHERE status='QUEUED' ORDER BY created_at,id LIMIT 1").fetchone()
+                command = conn.execute(
+                    "SELECT * FROM commands WHERE status='QUEUED' ORDER BY created_at,id LIMIT 1"
+                ).fetchone()
                 if command is None:
                     break
                 cid, tid, now = command["id"], command["task_id"], time.time()
@@ -76,10 +100,18 @@ class Service:
                     conn.execute("ROLLBACK TO apply_command")
                     conn.execute("RELEASE apply_command")
                     result, status, error = {}, "REJECTED", str(exc)
-                conn.execute("UPDATE commands SET status=?,result=?,error=?,updated_at=? WHERE id=?",
-                             (status, encode(result), error, now, cid))
-                self.store.event(conn, tid, f"COMMAND_{status}", "controller", command["actor"],
-                                 {"command_id": cid, "result": result, "error": error})
+                conn.execute(
+                    "UPDATE commands SET status=?,result=?,error=?,updated_at=? WHERE id=?",
+                    (status, encode(result), error, now, cid),
+                )
+                self.store.event(
+                    conn,
+                    tid,
+                    f"COMMAND_{status}",
+                    "controller",
+                    command["actor"],
+                    {"command_id": cid, "result": result, "error": error},
+                )
                 count += 1
         return count
 
@@ -95,8 +127,11 @@ class Service:
                 raise DomainError("INVALID_ARGUMENT", "unsupported adapter")
             spec = mock_spec(payload.get("spec", {}))
             workspace = self.config.home / "workspaces" / tid
-            conn.execute("""INSERT INTO tasks(id,title,objective,workspace,adapter,spec,created_at,updated_at)
-                VALUES(?,?,?,?,?,?,?,?)""", (tid, title, objective, str(workspace), adapter, encode(spec), now, now))
+            conn.execute(
+                """INSERT INTO tasks(id,title,objective,workspace,adapter,spec,created_at,updated_at)
+                VALUES(?,?,?,?,?,?,?,?)""",
+                (tid, title, objective, str(workspace), adapter, encode(spec), now, now),
+            )
             return {"task_id": tid, "effect": "task created"}
         task = self._get(conn, "tasks", tid)
         if task["desired"] in {"CANCELLED", "COMPLETED"}:
@@ -107,8 +142,14 @@ class Service:
             if set(payload) != {"instruction"}:
                 raise DomainError("INVALID_ARGUMENT", "instruction is required")
             instruction = require_text(payload["instruction"], "instruction")
-            self.store.event(conn, tid, "INSTRUCTION_RECORDED", "yan", command["actor"],
-                             {"command_id": command["id"], "instruction": instruction, "kind": kind})
+            self.store.event(
+                conn,
+                tid,
+                "INSTRUCTION_RECORDED",
+                "yan",
+                command["actor"],
+                {"command_id": command["id"], "instruction": instruction, "kind": kind},
+            )
             return {"task_id": tid, "effect": "instruction recorded", "analysis_executed": False}
         if payload:
             raise DomainError("INVALID_ARGUMENT", "control command payload must be empty")
@@ -116,10 +157,14 @@ class Service:
         status = "READY" if desired == "ACTIVE" else desired
         if kind == "resume_task" and task["desired"] == "ACTIVE" and task["status"] != "QUARANTINED":
             return {"task_id": tid, "effect": "already active"}
-        conn.execute("UPDATE workers SET status='REVOKED',ended_at=?,lease_expires=0 WHERE id=?",
-                     (now, task["current_worker"]))
-        conn.execute("UPDATE tasks SET desired=?,status=?,current_worker=NULL,updated_at=?,recovery_reset_at=? WHERE id=?",
-                     (desired, status, now, now if desired == "ACTIVE" else task["recovery_reset_at"], tid))
+        conn.execute(
+            "UPDATE workers SET status='REVOKED',ended_at=?,lease_expires=0 WHERE id=?",
+            (now, task["current_worker"]),
+        )
+        conn.execute(
+            "UPDATE tasks SET desired=?,status=?,current_worker=NULL,updated_at=?,recovery_reset_at=? WHERE id=?",
+            (desired, status, now, now if desired == "ACTIVE" else task["recovery_reset_at"], tid),
+        )
         return {"task_id": tid, "effect": desired, "running_jobs": "retained"}
 
     def get_command(self, command_id: str) -> dict:
@@ -132,10 +177,29 @@ class Service:
     def get_task(self, task_id: str) -> dict:
         with self.store.connection() as conn:
             task = unpack(self._get(conn, "tasks", task_id))
-            task["jobs"] = [self._job_view(row) for row in conn.execute("SELECT * FROM jobs WHERE task_id=? ORDER BY created_at,id", (task_id,))]
-            task["workers"] = [unpack(row) for row in conn.execute("SELECT * FROM workers WHERE task_id=? ORDER BY generation", (task_id,))]
-            task["artifacts"] = [dict(row) for row in conn.execute("SELECT * FROM artifacts WHERE task_id=? ORDER BY created_at", (task_id,))]
-            task["state_sources"] = {"desired": "yan/controller", "declared": "worker; unverified", "jobs": "runner observations"}
+            task["jobs"] = [
+                self._job_view(row)
+                for row in conn.execute(
+                    "SELECT * FROM jobs WHERE task_id=? ORDER BY created_at,id", (task_id,)
+                )
+            ]
+            task["workers"] = [
+                unpack(row)
+                for row in conn.execute(
+                    "SELECT * FROM workers WHERE task_id=? ORDER BY generation", (task_id,)
+                )
+            ]
+            task["artifacts"] = [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM artifacts WHERE task_id=? ORDER BY created_at", (task_id,)
+                )
+            ]
+            task["state_sources"] = {
+                "desired": "yan/controller",
+                "declared": "worker; unverified",
+                "jobs": "runner observations",
+            }
             task["queried_at"] = time.time()
             return task
 
@@ -143,7 +207,9 @@ class Service:
         value = unpack(row)
         terminal = value["status"] in {"COMPLETED", "FAILED", "CANCELLED"}
         value["source"] = "runner"
-        value["stale"] = not terminal and (value["observed_at"] is None or time.time() - value["observed_at"] > self.config.stale_seconds)
+        value["stale"] = not terminal and (
+            value["observed_at"] is None or time.time() - value["observed_at"] > self.config.stale_seconds
+        )
         return value
 
     def get_job(self, job_id: str) -> dict:
@@ -154,7 +220,9 @@ class Service:
         if type(after) is not int or after < 0 or type(limit) is not int or not 1 <= limit <= 1000:
             raise DomainError("INVALID_ARGUMENT", "invalid event pagination")
         if task_id:
-            rows = self.store.rows("SELECT * FROM events WHERE task_id=? AND id>? ORDER BY id LIMIT ?", (task_id, after, limit))
+            rows = self.store.rows(
+                "SELECT * FROM events WHERE task_id=? AND id>? ORDER BY id LIMIT ?", (task_id, after, limit)
+            )
         else:
             rows = self.store.rows("SELECT * FROM events WHERE id>? ORDER BY id LIMIT ?", (after, limit))
         return [unpack(row) for row in rows]

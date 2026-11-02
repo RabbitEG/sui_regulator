@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
-from pathlib import Path
 import math
 import tomllib
+from dataclasses import dataclass, fields
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -47,9 +47,15 @@ class Config:
     def write(self) -> None:
         """Persist non-secret settings so independent subprocesses use the same policy."""
         import json
+
         self.home.mkdir(parents=True, exist_ok=True, mode=0o700)
-        text = "[regulator]\n" + "\n".join(
-            f"{f.name} = {json.dumps(getattr(self, f.name))}" for f in fields(self) if f.name != "home") + "\n"
+        text = (
+            "[regulator]\n"
+            + "\n".join(
+                f"{f.name} = {json.dumps(getattr(self, f.name))}" for f in fields(self) if f.name != "home"
+            )
+            + "\n"
+        )
         path = self.home / "config.toml"
         with path.open("x") as output:
             output.write(text)

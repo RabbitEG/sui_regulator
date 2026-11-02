@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
 import json
-from pathlib import Path
-import signal
 import subprocess
 import time
+from contextlib import AbstractContextManager
 
 from .adapters import MockWorkerAdapter, UnavailableWorkerAdapter, WorkerAdapter
 from .config import Config
@@ -22,6 +20,10 @@ class Controller(AbstractContextManager):
         self.protocol = SuiProtocol(self.service)
         self.runner = LocalMockRunner(self.service)
         self.adapters = adapters or {"mock": MockWorkerAdapter(), "unavailable": UnavailableWorkerAdapter()}
+        if adapters is None:
+            from .claude_adapter import ClaudeCodeAdapter
+
+            self.adapters["claude"] = ClaudeCodeAdapter()
         self.children: dict[int, subprocess.Popen] = {}
         self.lock = FileLock(config.home / "controller.lock")
         self.acquired = False
@@ -51,11 +53,27 @@ class Controller(AbstractContextManager):
             current = self.service._get(conn, "tasks", task["id"])
             if current["current_worker"] != worker["id"]:
                 return
-            conn.execute("UPDATE workers SET status=?,error=?,ended_at=?,lease_expires=0 WHERE id=?",
-                         ("FAILED" if failure else "RETIRED", reason, now, worker["id"]))
-            conn.execute("UPDATE tasks SET current_worker=NULL,status='READY',next_start_at=?,updated_at=? WHERE id=?",
-                         (now + self.config.restart_cooldown, now, task["id"]))
-            self.service.store.event(conn, task["id"], "WORKER_FAILED" if failure else "WORKER_ROTATED", "candleholder", worker["id"], {"reason": reason})
+            conn.execute(
+                "UPDATE workers SET status=?,error=?,ended_at=?,lease_expires=0 WHERE id=?",
+                ("FAILED" if failure else "RETIRED", reason, now, worker["id"]),
+            )
+            conn.execute(
+                "UPDATE tasks SET current_worker=NULL,status='READY',next_start_at=?,updated_at=? WHERE id=?",
+                (now + self.config.restart_cooldown, now, task["id"]),
+            )
+            self.service.store.event(
+                conn,
+                task["id"],
+                "WORKER_FAILED" if failure else "WORKER_ROTATED",
+                "candleholder",
+                worker["id"],
+                {"reason": reason},
+            )
+            if reason in {"AUTH_REQUIRED", "RESOURCE_BLOCKED", "SESSION_ID_MISMATCH"}:
+                conn.execute("UPDATE tasks SET status='QUARANTINED' WHERE id=?", (task["id"],))
+                self.service.store.event(
+                    conn, task["id"], "TASK_QUARANTINED", "candleholder", "controller", {"reason": reason}
+                )
         self._stop(worker)
 
     def _health_reason(self, worker: dict) -> str | None:
@@ -74,7 +92,8 @@ class Controller(AbstractContextManager):
             phase = task["declared"].get("phase", "")
             waiting = phase in {"WAITING_USER", "WAITING_RESOURCE", "WAITING_EXTERNAL"}
             running_job = phase == "WAITING_JOB" and any(
-                job["status"] == "RUNNING" and not job["stale"] for job in task["jobs"])
+                job["status"] == "RUNNING" and not job["stale"] for job in task["jobs"]
+            )
             if not waiting and not running_job:
                 return "STALLED"
         return None
@@ -95,27 +114,51 @@ class Controller(AbstractContextManager):
                 rows = self.service.store.rows("SELECT * FROM workers WHERE id=?", (task["current_worker"],))
                 worker = rows[0] if rows else None
             if worker:
-                if worker["rotation_at"] is not None and (worker["handoff"] or time.time() - worker["rotation_at"] >= self.config.rotation_grace):
+                if worker["rotation_at"] is not None and (
+                    worker["handoff"] or time.time() - worker["rotation_at"] >= self.config.rotation_grace
+                ):
                     self._retire(task, worker, "SESSION_ROTATION", False)
                 else:
                     reason = self._health_reason(worker)
                     if reason:
                         self._retire(task, worker, reason, True)
-                    elif time.time() - worker["created_at"] >= self.config.max_session_age and worker["rotation_at"] is None:
+                    elif (
+                        time.time() - worker["created_at"] >= self.config.max_session_age
+                        and worker["rotation_at"] is None
+                    ):
                         with self.service.store.transaction() as conn:
-                            conn.execute("UPDATE workers SET status='ROTATING',rotation_at=? WHERE id=?", (time.time(), worker["id"]))
-                            self.service.store.event(conn, task["id"], "HANDOFF_REQUESTED", "candleholder", worker["id"], {})
+                            conn.execute(
+                                "UPDATE workers SET status='ROTATING',rotation_at=? WHERE id=?",
+                                (time.time(), worker["id"]),
+                            )
+                            self.service.store.event(
+                                conn, task["id"], "HANDOFF_REQUESTED", "candleholder", worker["id"], {}
+                            )
                 continue
             if time.time() < task["next_start_at"]:
                 continue
-            failures = self.service.store.rows("SELECT COUNT(*) AS n FROM events WHERE task_id=? AND kind='WORKER_FAILED' AND created_at>=?",
-                (task["id"], max(time.time() - self.config.restart_window, task["recovery_reset_at"])))[0]["n"]
+            failures = self.service.store.rows(
+                "SELECT COUNT(*) AS n FROM events WHERE task_id=? AND kind='WORKER_FAILED' AND created_at>=?",
+                (task["id"], max(time.time() - self.config.restart_window, task["recovery_reset_at"])),
+            )[0]["n"]
             if failures >= self.config.max_restarts:
                 with self.service.store.transaction() as conn:
-                    conn.execute("UPDATE tasks SET status='QUARANTINED',updated_at=? WHERE id=?", (time.time(), task["id"]))
-                    self.service.store.event(conn, task["id"], "TASK_QUARANTINED", "candleholder", "controller", {"failures": failures})
+                    conn.execute(
+                        "UPDATE tasks SET status='QUARANTINED',updated_at=? WHERE id=?",
+                        (time.time(), task["id"]),
+                    )
+                    self.service.store.event(
+                        conn,
+                        task["id"],
+                        "TASK_QUARANTINED",
+                        "candleholder",
+                        "controller",
+                        {"failures": failures},
+                    )
                 continue
-            active = self.service.store.rows("SELECT COUNT(*) AS n FROM workers WHERE status IN ('STARTING','RUNNING','ROTATING')")[0]["n"]
+            active = self.service.store.rows(
+                "SELECT COUNT(*) AS n FROM workers WHERE status IN ('STARTING','RUNNING','ROTATING')"
+            )[0]["n"]
             if active >= self.config.max_workers:
                 continue
             credentials = self.protocol.register(task["id"])
@@ -124,13 +167,19 @@ class Controller(AbstractContextManager):
                 process = adapter.start(self.service, credentials)
                 self.children[process.pid] = process
                 with self.service.store.transaction() as conn:
-                    conn.execute("UPDATE workers SET pid=?,identity=? WHERE id=? AND identity IS NULL",
-                                 (process.pid, encode(identity(process.pid)), credentials.worker_id))
+                    conn.execute(
+                        "UPDATE workers SET pid=?,identity=? WHERE id=? AND identity IS NULL",
+                        (process.pid, encode(identity(process.pid)), credentials.worker_id),
+                    )
             except (OSError, DomainError) as exc:
-                worker = self.service.store.rows("SELECT * FROM workers WHERE id=?", (credentials.worker_id,))[0]
+                worker = self.service.store.rows(
+                    "SELECT * FROM workers WHERE id=?", (credentials.worker_id,)
+                )[0]
                 self._retire(task, worker, getattr(exc, "code", type(exc).__name__), True)
         # Only rows positively registered by this controller are eligible for cleanup.
-        for worker in self.service.store.rows("SELECT * FROM workers WHERE status IN ('REVOKED','RETIRED','FAILED')"):
+        for worker in self.service.store.rows(
+            "SELECT * FROM workers WHERE status IN ('REVOKED','RETIRED','FAILED')"
+        ):
             self._stop(worker)
 
     def run(self, stop=None) -> None:

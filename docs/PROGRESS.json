@@ -44,7 +44,18 @@
     },
     {
       "id": 3,
-      "status": "pending"
+      "status": "complete",
+      "evidence": [
+        "src/sui_regulator/claude_adapter.py",
+        "src/sui_regulator/gateway.py",
+        "src/sui_regulator/mcp.py",
+        "tests/test_claude.py"
+      ],
+      "tests": {
+        "default_passed": 36,
+        "opt_in_installed_cli_passed": 2
+      },
+      "verified": "Claude Code 2.1.316 with local fake Messages API and actual MCP; no real provider API"
     },
     {
       "id": 4,

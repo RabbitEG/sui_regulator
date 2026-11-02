@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 import json
 import sqlite3
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from sui_regulator.config import Config
 from sui_regulator.models import DomainError, mock_spec
@@ -33,6 +33,7 @@ class CoreTests(unittest.TestCase):
     def test_idempotency_is_atomic_under_competing_submissions(self):
         def submit(_):
             return self.service.command("submit_task", "tester", "same", {"title": "one"})["id"]
+
         with ThreadPoolExecutor(max_workers=8) as pool:
             ids = list(pool.map(submit, range(20)))
         self.assertEqual(len(set(ids)), 1)
@@ -60,7 +61,9 @@ class CoreTests(unittest.TestCase):
             self.service.command(kind, "tester", kind, {}, tid)
             self.service.process_commands()
             self.assertEqual(self.service.get_task(tid)["desired"], desired)
-        receipt = self.service.command("instruct_task", "tester", "append", {"instruction": "compare metrics"}, tid)
+        receipt = self.service.command(
+            "instruct_task", "tester", "append", {"instruction": "compare metrics"}, tid
+        )
         self.assertEqual(receipt["status"], "QUEUED")
         self.service.process_commands()
         applied = self.service.get_command(receipt["id"])
