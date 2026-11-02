@@ -9,9 +9,11 @@ claude --version
 
 版本文件位于 `~/.local/share/sui-regulator/tools/claude-code/2.1.316/`，`~/.local/bin/claude` 在不存在时建立符号链接。可在私有 config.toml 的 claude_binary 指定其他版本绝对路径。
 
-Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json、显式 session UUID、bare、strict-mcp-config、禁用内置 tools、受管 MCP allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
+Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json + include-partial-messages、显式 session UUID、bare、strict-mcp-config、禁用内置 tools、受管 MCP allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
 
 Wrapper 自动采集进程身份、真实 session_id、结构化流事件、API retry、工具成功/异常与结束结果，独立续租。stdout/stderr 同时排空，单行与 stderr 内存有上限。没有最终 result 或末行截断不视为成功。401/403、配额错误及时隔离；连续传输重试有上限；不会无限发送 Continue。
+
+v0.3 的 ClaudeStreamDetector 仅作兼容入口；ClaudeNormalizer 解码并去重 partial/full，DetectionEngine 执行版本规则，持久 Incident 由 Candleholder 决策。Worker 查询的 stream_observation 在真正收到 text_delta 前是 event-only，之后为 text-delta-observed，同时记录能力审计。thinking 只处理公开块，子 Agent 事件暂不混入根 Session。
 
 CLI turn 在 WAITING_JOB 结束后，Wrapper 可继续低成本观测原 Job；Job 到达终态后移交给 fresh Session。控制器不把模型的一句成功当作 Task/Job 完成。
 
@@ -21,15 +23,16 @@ CLI 子进程设置 Linux parent-death signal，Wrapper 被强杀时 CLI 同时�
 
 - CLI 模拟器：实际 stdio MCP、稳定 Job key、等待后 fresh Session、无重复 Job、401 隔离、截断 JSON、空 Bash 调用、大量 stderr。
 - **真实安装的 CLI + 本地 FakeAnthropic**：Messages SSE → Claude CLI → 本项目 MCP → get_task_context/report_progress/complete_task 全链路；401 API retry 观察与隔离。
+- **真实 CLI 的增量与故障测试**：后端结束前收到 text_delta；重复生成结束前产生 GEN-001 并应用恢复，不等待完整消息。
 - 测试仅使用 `127.0.0.1` 假服务与合成 API key；测试子进程清除代理设置，避免回环请求被环境代理转发。
 
 运行：
 
 ```bash
-PYTHONPATH=src SUI_TEST_REAL_CLAUDE=1 python3.11 -m unittest tests.test_claude.InstalledClaudeTests -v
+PYTHONPATH=src SUI_TEST_REAL_CLAUDE=1 python3.11 -m unittest tests.test_claude.InstalledClaudeTests tests.test_stream_capability -v
 ```
 
-默认无 API 测试不需要安装 Claude；上述两项测试需主动设置 SUI_TEST_REAL_CLAUDE=1，否则明确 skip。
+默认无 API 测试不需要安装 Claude；上述四项测试需主动设置 SUI_TEST_REAL_CLAUDE=1，否则明确 skip。
 
 ## 真实平台仍需验证
 

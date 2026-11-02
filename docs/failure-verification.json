@@ -1,0 +1,261 @@
+{
+  "scope": "Sui Regulator v0.3.0; see the containing Git commit",
+  "verified_at_utc": "2026-11-02T16:29:40.088638+00:00",
+  "python_311": "Python 3.11.13",
+  "python_312": "Python 3.12.15",
+  "claude_cli": "2.1.316 (Claude Code)",
+  "tests": [
+    {
+      "command": "SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src python3.11 -m unittest discover -s tests -v",
+      "run": 77,
+      "passed": 77,
+      "skipped": 0
+    },
+    {
+      "command": "PYTHONPATH=src python3.12 -m unittest discover -s tests -v",
+      "run": 77,
+      "passed": 73,
+      "skipped": 4
+    }
+  ],
+  "test_output": "docs/failure-test-output.txt",
+  "test_output_sha256": "30583546d44c707dd239f6ff56ae7cdc376292925a0c3710d19cd783f1fe7f2a",
+  "corpus": {
+    "cases": 40,
+    "positive_cases": 23,
+    "negative_cases": 17,
+    "case_recall": 1.0,
+    "false_positive_rate": 0.0,
+    "offline_policy_match_rate": 1.0,
+    "executed_recovery_correctness": null,
+    "passed": true,
+    "per_rule": {
+      "NET-004": {
+        "expected": 1,
+        "detected": 1,
+        "policy_matched": 1,
+        "delays": [
+          0
+        ],
+        "action_delays": [
+          0
+        ]
+      },
+      "GEN-002": {
+        "expected": 1,
+        "detected": 1,
+        "policy_matched": 1,
+        "delays": [
+          3
+        ],
+        "action_delays": [
+          5
+        ]
+      },
+      "ENV-001": {
+        "expected": 2,
+        "detected": 2,
+        "policy_matched": 2,
+        "delays": [
+          0,
+          0
+        ],
+        "action_delays": [
+          0,
+          0
+        ]
+      },
+      "TOOL-002": {
+        "expected": 1,
+        "detected": 1,
+        "policy_matched": 1,
+        "delays": [
+          5
+        ],
+        "action_delays": [
+          9
+        ]
+      },
+      "GEN-001": {
+        "expected": 4,
+        "detected": 4,
+        "policy_matched": 4,
+        "delays": [
+          0.1,
+          0,
+          0.30000000000000004,
+          0.1
+        ],
+        "action_delays": [
+          0.30000000000000004,
+          0,
+          0.30000000000000004,
+          0.30000000000000004
+        ]
+      },
+      "PROC-001": {
+        "expected": 2,
+        "detected": 2,
+        "policy_matched": 2,
+        "delays": [
+          0,
+          0
+        ],
+        "action_delays": [
+          0,
+          0
+        ]
+      },
+      "PROG-001": {
+        "expected": 3,
+        "detected": 3,
+        "policy_matched": 3,
+        "delays": [
+          121,
+          121,
+          0
+        ],
+        "action_delays": [
+          121,
+          121,
+          0
+        ]
+      },
+      "TOOL-001": {
+        "expected": 3,
+        "detected": 3,
+        "policy_matched": 3,
+        "delays": [
+          0,
+          0,
+          0.0
+        ],
+        "action_delays": [
+          2,
+          0,
+          2.0
+        ]
+      },
+      "NET-001": {
+        "expected": 2,
+        "detected": 2,
+        "policy_matched": 2,
+        "delays": [
+          0,
+          0
+        ],
+        "action_delays": [
+          0,
+          2
+        ]
+      },
+      "STATE-001": {
+        "expected": 1,
+        "detected": 1,
+        "policy_matched": 1,
+        "delays": [
+          0
+        ],
+        "action_delays": [
+          0
+        ]
+      },
+      "NET-002": {
+        "expected": 1,
+        "detected": 1,
+        "policy_matched": 1,
+        "delays": [
+          30
+        ],
+        "action_delays": [
+          60
+        ]
+      },
+      "NET-003": {
+        "expected": 1,
+        "detected": 1,
+        "policy_matched": 1,
+        "delays": [
+          0
+        ],
+        "action_delays": [
+          0
+        ]
+      },
+      "UNKNOWN-001": {
+        "expected": 1,
+        "detected": 1,
+        "policy_matched": 1,
+        "delays": [
+          0
+        ],
+        "action_delays": [
+          2
+        ]
+      }
+    }
+  },
+  "checks": {
+    "ruff": "passed",
+    "format": "passed",
+    "exported_schemas": "passed",
+    "wheel_build": "passed",
+    "wheel_install": "passed",
+    "installed_offline_evaluation": "passed",
+    "installed_console_demo": "passed",
+    "installed_import_outside_repository": "passed"
+  },
+  "wheel": {
+    "path": "dist/sui_regulator-0.3.0-py3-none-any.whl",
+    "sha256": "a1a345f4c5f65a166025041c3a508df2cf52d3a629e55c542c39b2cb126150cd",
+    "packaged_rules": 13,
+    "third_party_notices": [
+      "sui_regulator-0.3.0.dist-info/THIRD_PARTY_NOTICES.md",
+      "sui_regulator-0.3.0.dist-info/antiloop-MIT.txt"
+    ]
+  },
+  "native_cli_loopback": {
+    "tests_passed": 4,
+    "delta_before_backend_response_ends": true,
+    "repetition_incident_applied_before_backend_response_ends": true,
+    "mcp_roundtrip": true,
+    "authentication_error_quarantines": true,
+    "unit": "text delta; not tokenizer token"
+  },
+  "executed_recovery_scenarios": {
+    "early_interrupt_same_job_same_pid_single_execution": "passed",
+    "environment_wait_explicit_resume_single_execution": "passed",
+    "unknown_fatal_quarantine_job_continues": "passed",
+    "busy_output_without_progress_safe_probe": "passed",
+    "stale_generation_fenced": "passed",
+    "persistent_budget_and_dedup": "passed",
+    "uncertain_job_blocks_recovery": "passed",
+    "user_cancel_overrides_recovery": "passed",
+    "incident_query_pagination": "passed"
+  },
+  "installed_demo": {
+    "checks": {
+      "worker_sigkill": true,
+      "replacement_generation": true,
+      "single_job": true,
+      "single_execution": true,
+      "same_runner_pid": true,
+      "job_completed": true
+    },
+    "metric": {
+      "loss": 0.01666667,
+      "step": 60,
+      "total_steps": 60
+    }
+  },
+  "upstream_watchdog_tests_passed": 38,
+  "real_model_api_verified": false,
+  "internal_glm_verified": false,
+  "real_gpu_npu_verified": false,
+  "limitations": [
+    "Curated development/regression corpus, not a held-out statistical evaluation",
+    "Offline policy matching does not measure executed recovery correctness",
+    "No hidden reasoning, semantic quality or unobservable failure diagnosis",
+    "Real CLI uses only loopback synthetic API; real platform remains unverified"
+  ]
+}

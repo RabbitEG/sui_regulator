@@ -1,5 +1,7 @@
 # 第一轮交付报告
 
+本文保留首轮 54 项测试的历史结果。当前 v0.3 的 Registry、Replay 与分级恢复交付见 [故障检测与安全恢复验收](FAILURE_VALIDATION.md)。
+
 已完成需求中第一轮的源码调查、环境核验、最小架构、Python 项目骨架和可执行故障恢复原型，并增加用户要求的 Claude Code 安装/适配。每阶段独立提交并同步到 origin/main；结构化状态见 PROGRESS.json。
 
 ## 已交付

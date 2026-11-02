@@ -71,6 +71,7 @@ def run(config: Config, credentials: Credentials) -> None:
         FailureRegistry(Path(config.failure_registry)) if config.failure_registry else None,
     )
     final_seen, error, stderr_tail = False, None, b""
+    stream_capability_recorded = False
 
     def record_exit(reason: str, return_code=None):
         with service.store.transaction() as conn:
@@ -135,6 +136,27 @@ def run(config: Config, credentials: Credentials) -> None:
                         continue
                     event = detector.feed(line.decode(errors="replace"))
                     publish(service, credentials, event.incidents)
+                    if detector.normalizer.text_delta_seen and not stream_capability_recorded:
+                        with service.store.transaction() as conn:
+                            capabilities = json.loads(
+                                service._get(conn, "workers", credentials.worker_id)["capabilities"]
+                            )
+                            conn.execute(
+                                "UPDATE workers SET capabilities=? WHERE id=?",
+                                (
+                                    encode(sorted(set(capabilities) | {"claude-text-delta-observed"})),
+                                    credentials.worker_id,
+                                ),
+                            )
+                            service.store.event(
+                                conn,
+                                credentials.task_id,
+                                "WORKER_STREAM_CAPABILITY",
+                                "wrapper-observed",
+                                credentials.worker_id,
+                                {"text_delta_observed": True, "unit": "text fragment, not tokenizer token"},
+                            )
+                        stream_capability_recorded = True
                     if event.session_id and event.session_id != worker["session_id"]:
                         error = "SESSION_ID_MISMATCH"
                     if event.activity:

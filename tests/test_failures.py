@@ -34,6 +34,16 @@ class FailureReplayTests(unittest.TestCase):
             for path in rule.fixtures["negative"]:
                 self.assertEqual(replay(CORPUS / path)["incidents"], [])
 
+    def test_recall_and_policy_accuracy_are_measured_independently(self):
+        registry = FailureRegistry()
+        rules = [asdict(rule) for rule in registry.rules]
+        next(rule for rule in rules if rule["id"] == "GEN-001")["recovery"]["action"] = "quarantine"
+        registry.rules = tuple(Rule.parse(rule) for rule in rules)
+        report = evaluate(CORPUS, registry)
+        self.assertEqual(report["case_recall"], 1.0)
+        self.assertLess(report["offline_policy_match_rate"], 1.0)
+        self.assertFalse(report["passed"])
+
     def test_new_versioned_rule_can_reuse_algorithm_without_controller_changes(self):
         original = asdict(next(rule for rule in FailureRegistry().rules if rule.id == "GEN-001"))
         original.update(id="GEN-099", version=2, name="Synthetic custom threshold")

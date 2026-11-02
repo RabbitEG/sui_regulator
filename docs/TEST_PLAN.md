@@ -10,7 +10,7 @@ PYTHONPATH=src python3.11 -m sui_regulator demo
 python3.11 scripts/export_schemas.py --check
 ```
 
-默认测试不需要 API、Claude、GPU 或第三方库。两个 InstalledClaudeTests 在未设置 opt-in 或无 CLI 时明确 skip；启用后只连接测试启动的 127.0.0.1 假服务，使用合成 key，并清除测试子进程的代理变量。
+默认测试不需要 API、Claude、GPU 或第三方库。InstalledClaudeTests 和 StreamCapabilityTests 共四项，在未设置 opt-in 或无 CLI 时明确 skip；启用后只连接测试启动的 127.0.0.1 假服务，使用合成 key，并清除测试子进程的代理变量。
 
 | 需求 | 覆盖与证据 |
 |---|---|
@@ -31,7 +31,9 @@ python3.11 scripts/export_schemas.py --check
 | T15 | 追加指令持久化、回执可追踪；成功表示记录要求，不冒充模型已执行 |
 | T16 | 所有替代 Worker 不可用并隔离时，原 Job 仍完成，查询/新指令仍可工作 |
 
-额外测试：竞争领取、未知 Runner 不盲目重启、PID 身份、未知进程不清理、单 Controller 锁、跨 Task 越权、Artifact 路径逃逸、Handoff 权威字段、stdout/stderr 背压、截断流、鉴权即时隔离、v1→v2 迁移和一致性备份。
+额外测试：竞争领取、未知 Runner 不盲目重启、PID 身份、未知进程不清理、单 Controller 锁、跨 Task 越权、Artifact 路径逃逸、Handoff 权威字段、stdout/stderr 背压、截断流、鉴权即时隔离、v1→v2→v3 迁移和一致性备份。
+
+v0.3 增加版本规则、40 条离线故障/正常案例、独立召回/策略指标、实际流式中断和同 Job 接管、环境等待与明确恢复、未知异常隔离、无进展只读探测、持久 Incident/预算/分页、旧 generation 和人工取消优先。结果及限制见 [本轮验收](FAILURE_VALIDATION.md)、[本轮输出](failure-test-output.txt)。新增规则和案例的具体步骤见 FAILURE_CONTRIBUTING.md。
 
 持写锁故障使用专门的 `tests/fixtures/lock_holder.py`；它明确冻结测试 Worker，不操作训练进程。所有过程使用临时私有状态目录，清理只针对测试登记的进程。
 

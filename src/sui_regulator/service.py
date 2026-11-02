@@ -220,6 +220,14 @@ class Service:
                     "SELECT * FROM workers WHERE task_id=? ORDER BY generation", (task_id,)
                 )
             ]
+            for worker in task["workers"]:
+                worker["stream_observation"] = (
+                    "text-delta-observed"
+                    if "claude-text-delta-observed" in worker["capabilities"]
+                    else "event-only"
+                    if worker["adapter"] == "claude"
+                    else "not-applicable"
+                )
             task["artifacts"] = [
                 dict(row)
                 for row in conn.execute(

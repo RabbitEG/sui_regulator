@@ -45,7 +45,7 @@ class FakeAnthropic(AbstractContextManager):
                 index = len(owner.requests) - 1
                 operation = ["get_task_context", "report_progress", "complete_task"][min(index, 2)]
                 tool = next((tool for tool in tools if tool["name"].endswith("__" + operation)), None)
-                if owner.mode == "streaming":
+                if owner.mode in {"streaming", "degenerate"}:
                     blocks = [("text", {"text": "synthetic streaming capability probe"})]
                     stop_reason = "end_turn"
                 elif tool is None:
@@ -110,14 +110,19 @@ class FakeAnthropic(AbstractContextManager):
                                 index=number,
                                 content_block={"type": "text", "text": ""},
                             )
-                            if owner.mode == "streaming":
+                            if owner.mode in {"streaming", "degenerate"}:
                                 import time
 
                                 for part in range(20):
                                     event(
                                         "content_block_delta",
                                         index=number,
-                                        delta={"type": "text_delta", "text": f"synthetic part {part}. "},
+                                        delta={
+                                            "type": "text_delta",
+                                            "text": "echo " * 8
+                                            if owner.mode == "degenerate"
+                                            else f"synthetic part {part}. ",
+                                        },
                                     )
                                     time.sleep(0.05)
                                 owner.stream_finished.set()

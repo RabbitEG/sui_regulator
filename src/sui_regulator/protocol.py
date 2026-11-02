@@ -108,7 +108,11 @@ class SuiProtocol:
         now, token = time.time(), secrets.token_urlsafe(32)
         with self.store.transaction() as conn:
             task = self.service._get(conn, "tasks", task_id)
-            if task["desired"] != "ACTIVE" or task["status"] == "QUARANTINED" or task["current_worker"]:
+            if (
+                task["desired"] != "ACTIVE"
+                or task["status"] in {"QUARANTINED", "WAITING"}
+                or task["current_worker"]
+            ):
                 raise DomainError("NOT_CLAIMABLE", "task is not available for a new worker")
             worker_id, generation = identifier("sui"), task["generation"] + 1
             conn.execute(

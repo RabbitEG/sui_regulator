@@ -14,7 +14,7 @@ from .failures.engine import DetectionEngine
 from .failures.models import Observation
 from .failures.persistence import apply_pending, publish
 from .failures.registry import FailureRegistry
-from .models import Credentials, DomainError, encode
+from .models import Credentials, DomainError, digest, encode
 from .processes import FileLock, alive, identity, process_state, signal_owned
 from .protocol import SuiProtocol
 from .registry import WorkerRegistry
@@ -156,6 +156,20 @@ class Controller(AbstractContextManager):
                 )
             engine = self.detection_engines[row["id"]]
             task = self.service.get_task(row["task_id"])
+            declared = task["declared"]
+            progress_at = max(
+                row["created_at"],
+                declared.get("updated_at", 0) if declared.get("worker_id") == row["id"] else 0,
+            )
+            progress_marker = digest(
+                {
+                    "declared": {key: value for key, value in declared.items() if key != "updated_at"},
+                    "jobs": [
+                        {key: job.get(key) for key in ("id", "status", "observed", "exit_code")}
+                        for job in task["jobs"]
+                    ],
+                }
+            )
             observed = Observation(
                 max(time.time(), engine.last_time),
                 "health",
@@ -166,7 +180,8 @@ class Controller(AbstractContextManager):
                     "lease_expired": row["lease_expires"] <= time.time(),
                     "phase": task["declared"].get("phase", ""),
                     "jobs": task["jobs"],
-                    "last_progress_at": row["activity_at"],
+                    "last_progress_at": progress_at,
+                    "progress_marker": progress_marker,
                     "stall_seconds": self.config.stall_seconds,
                 },
                 "candleholder",

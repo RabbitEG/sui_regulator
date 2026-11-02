@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -13,11 +14,19 @@ from sui_regulator.controller import Controller
 from sui_regulator.failures.engine import DetectionEngine
 from sui_regulator.failures.models import Observation
 from sui_regulator.failures.persistence import apply_pending, list_incidents, publish
+from sui_regulator.gateway import Dispatcher
+from sui_regulator.models import DomainError
 from sui_regulator.protocol import SuiProtocol
 from tests.helpers import ProcessTestCase
 
 
 class NormalizationTests(unittest.TestCase):
+    def test_cli_silence_before_first_init_is_also_bounded(self):
+        detector = ClaudeStreamDetector()
+        self.assertEqual(detector.tick(now=0).incidents, [])
+        self.assertEqual(detector.tick(now=30).incidents[0].action, "probe")
+        self.assertEqual(detector.tick(now=60).incidents[0].action, "fresh_session")
+
     def test_streamed_text_is_detected_before_complete_message_and_result(self):
         detector = ClaudeStreamDetector()
         hits = []
@@ -113,6 +122,23 @@ class IncidentPolicyTests(ProcessTestCase):
             Observation(1, "assistant_text", {"message_id": "synthetic", "text": "echo " * 40})
         )
 
+    def test_active_output_without_protocol_or_job_progress_only_triggers_safe_probe(self):
+        tid = self.submit(adapter="unavailable")
+        credentials = self.owner(tid)
+        self.controller.config = replace(self.config, stall_seconds=0.1)
+        with self.service.store.transaction() as conn:
+            conn.execute(
+                "UPDATE workers SET created_at=?,activity_at=? WHERE id=?",
+                (time.time() - 2, time.time(), credentials.worker_id),
+            )
+        self.controller._observe_health()
+        apply_pending(self.controller)
+        incident = list_incidents(self.service, tid)[0]
+        self.assertEqual(incident["rule_id"], "PROG-001")
+        self.assertEqual(incident["action"], "probe")
+        self.assertTrue(incident["outcome"]["worker_alive"])
+        self.assertEqual(self.service.get_task(tid)["current_worker"], credentials.worker_id)
+
     def test_old_generation_incident_cannot_revoke_current_owner(self):
         tid = self.submit(adapter="unavailable")
         old = self.owner(tid)
@@ -141,6 +167,15 @@ class IncidentPolicyTests(ProcessTestCase):
         records = list_incidents(self.service, tid)
         self.assertEqual(len(records), 3)
         self.assertEqual(records[-1]["action"], "quarantine")
+        response = Dispatcher(self.service).dispatch(
+            {
+                "protocol_version": "0.1",
+                "method": "yan.get_incidents",
+                "params": {"task_id": tid, "after": records[0]["sequence"], "limit": 1},
+            },
+            "tester",
+        )
+        self.assertEqual(response["result"][0]["id"], records[1]["id"])
 
     def test_unresolved_job_outcome_blocks_automatic_fresh_session(self):
         tid = self.submit(adapter="unavailable")
@@ -207,6 +242,9 @@ class IncidentProcessTests(ProcessTestCase):
             tid = self.submit(adapter="claude", spec={"steps": 60, "interval": 0.02})
             self.until(lambda: self.service.get_task(tid)["status"] == "WAITING")
             generation = self.service.get_task(tid)["generation"]
+            with self.assertRaises(DomainError) as error:
+                SuiProtocol(self.service).register(tid)
+            self.assertEqual(error.exception.code, "NOT_CLAIMABLE")
             self.until(lambda: self.service.get_task(tid)["jobs"][0]["status"] == "COMPLETED")
             self.assertEqual(self.service.get_task(tid)["generation"], generation)
             self.assertTrue(
@@ -215,6 +253,10 @@ class IncidentProcessTests(ProcessTestCase):
                     for item in list_incidents(self.service, tid)
                 )
             )
+            self.service.command("resume_task", "tester", "environment-repaired", {}, tid)
+            self.until(lambda: self.service.get_task(tid)["status"] == "COMPLETED")
+            self.assertEqual(self.service.get_task(tid)["generation"], generation + 1)
+            self.assertEqual(len(self.service.store.rows("SELECT * FROM executions")), 1)
 
     def test_unknown_fatal_anomaly_quarantines_without_replaying_job(self):
         with patch.dict(os.environ, {"SUI_FAKE_CLAUDE_MODE": "unknown"}):

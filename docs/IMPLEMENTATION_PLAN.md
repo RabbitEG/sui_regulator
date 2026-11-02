@@ -11,3 +11,5 @@
 | 4 故障验收与交付 | T01–T16 映射、竞争/崩溃测试、示例、同步文档、交付报告 | 全套测试与可运行演示；明确真实平台待测事项；commit + push |
 
 后续：真实 GLM 与长训练/GPU/NPU 联调；认证远程传输；多机 Runner；依赖调度；结构化训练解析；可选 UI。没有用户授权不接入公司网络、终止真实训练或改宿主机配置。
+
+v0.3 按 A 调查/流式能力、B Registry/Corpus/Replay、C 持久 Incident 与分级恢复、D 真实 CLI 故障/打包/验收四阶段完成；每阶段单独提交并 push。范围和结果见 FAILURE_REQUIREMENTS_v0.3.md、FAILURE_VALIDATION.md 和 PROGRESS.json。真实科研执行能力没有在本轮扩展。

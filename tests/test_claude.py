@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from sui_regulator.claude_adapter import ClaudeStreamDetector, classify_error
 from sui_regulator.controller import Controller
+from sui_regulator.failures.persistence import list_incidents
 from tests.fake_api import FakeAnthropic
 from tests.helpers import ProcessTestCase
 
@@ -151,6 +152,41 @@ class ClaudeContractTests(ProcessTestCase):
     "opt-in real installed CLI + loopback fake API only; no provider credentials",
 )
 class InstalledClaudeTests(ProcessTestCase):
+    def test_installed_cli_repetition_is_interrupted_before_api_response_finishes(self):
+        with (
+            FakeAnthropic("degenerate") as backend,
+            patch.dict(
+                os.environ,
+                {
+                    "ANTHROPIC_BASE_URL": backend.url,
+                    "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+                    "ANTHROPIC_AUTH_TOKEN": "",
+                    **NO_PROXIES,
+                },
+            ),
+        ):
+            tid = self.submit(adapter="claude")
+            self.until(
+                lambda: any(
+                    item["rule_id"] == "GEN-001" and item["status"] == "APPLIED"
+                    for item in list_incidents(self.service, tid)
+                ),
+                timeout=15,
+            )
+            self.assertFalse(backend.stream_finished.is_set())
+            incident = next(item for item in list_incidents(self.service, tid) if item["status"] == "APPLIED")
+            self.assertEqual(incident["payload"]["evidence"]["signal"], "text_delta")
+            self.assertEqual(incident["action"], "fresh_session")
+            self.assertEqual(
+                self.service.get_task(tid)["workers"][0]["stream_observation"], "text-delta-observed"
+            )
+            self.assertTrue(
+                any(event["kind"] == "WORKER_STREAM_CAPABILITY" for event in self.service.events(tid))
+            )
+            # End this dedicated probe without allowing another synthetic response.
+            self.service.command("hold_task", "tester", "end-native-stream-probe", {}, tid)
+            self.controller.tick()
+
     def test_installed_cli_calls_our_mcp_against_loopback_api(self):
         with (
             FakeAnthropic() as backend,

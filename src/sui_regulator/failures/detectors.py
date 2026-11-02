@@ -194,6 +194,12 @@ def progress(obs, state, config):
         job.get("status") == "RUNNING" and not job.get("stale", True) for job in jobs
     )
     last = obs.data.get("last_progress_at", obs.time)
+    if "progress_marker" in obs.data:
+        marker = obs.data["progress_marker"]
+        if marker != state.get("marker"):
+            state["last_change"] = obs.time if "marker" in state else last
+            state["marker"] = marker
+        last = state["last_change"]
     stalled = (
         not waiting
         and not progressing

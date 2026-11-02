@@ -45,7 +45,8 @@ class ClaudeNormalizer:
         self.final_seen = False
         self.streaming_observed = False
         self.text_delta_seen = False
-        self.awaiting_response = False
+        # The wrapper has already submitted a prompt, even before system/init.
+        self.awaiting_response = True
         self.last_stream_at: float | None = None
         self.message_id = "stream-message"
         self.serial = 0

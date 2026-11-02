@@ -42,12 +42,28 @@ class Rule:
 
     @classmethod
     def parse(cls, value):
-        rule = cls(**value)
-        if not re.fullmatch(r"[A-Z]+-\d{3}", rule.id) or type(rule.version) is not int or rule.version < 1:
+        try:
+            rule = cls(**value)
+        except TypeError as exc:
+            raise ValueError("invalid rule fields") from exc
+        if not all(isinstance(item, dict) for item in (rule.detector, rule.recovery, rule.fixtures)):
+            raise ValueError("detector, recovery and fixtures must be objects")
+        if not isinstance(rule.detector.get("config", {}), dict):
+            raise ValueError("detector config must be an object")
+        if (
+            not isinstance(rule.id, str)
+            or not re.fullmatch(r"[A-Z]+-\d{3}", rule.id)
+            or type(rule.version) is not int
+            or rule.version < 1
+        ):
             raise ValueError("invalid rule identity/version")
         if rule.category not in CATEGORIES or rule.detector.get("type") not in ALGORITHMS:
             raise ValueError("unknown category or detector; arbitrary code plugins are not supported")
-        if not rule.signals or not all(isinstance(item, str) for item in rule.signals):
+        if (
+            not isinstance(rule.signals, list)
+            or not rule.signals
+            or not all(isinstance(item, str) and item for item in rule.signals)
+        ):
             raise ValueError("rule signals are required")
         if (
             rule.severity not in {"low", "medium", "high", "critical"}
@@ -65,7 +81,16 @@ class Rule:
         if type(rule.recovery.get("max_attempts")) is not int or not 1 <= rule.recovery["max_attempts"] <= 10:
             raise ValueError("bounded recovery attempts required")
         config = rule.detector.get("config", {})
-        for key in ("warn_after", "act_after", "stall_seconds", "min_run", "min_words"):
+        for key in (
+            "warn_after",
+            "act_after",
+            "stall_seconds",
+            "min_run",
+            "min_words",
+            "min_frequency",
+            "min_period_chars",
+            "block_min_words",
+        ):
             value = config.get(key, 1)
             if type(value) not in {int, float} or not math.isfinite(value) or not 1 <= value <= 1000000:
                 raise ValueError("detector thresholds must be finite and bounded")
@@ -74,10 +99,19 @@ class Rule:
         window = config.get("window_chars", 8192)
         if type(window) is not int or not 64 <= window <= 65536:
             raise ValueError("text window must be bounded")
-        for key in ("similarity", "argument_similarity"):
+        if config.get("block_min_words", 120) < 5:
+            raise ValueError("n-gram detection requires at least five words")
+        for key in ("similarity", "argument_similarity", "min_share"):
             value = config.get(key, 0.95)
             if type(value) not in {int, float} or not math.isfinite(value) or not 0 <= value <= 1:
                 raise ValueError("invalid similarity threshold")
+        codes = config.get("codes", [])
+        if (
+            not isinstance(codes, list)
+            or len(codes) > 128
+            or not all(type(code) in {int, str} for code in codes)
+        ):
+            raise ValueError("error codes must be a bounded list of integers or strings")
         if config.get("early_action", "warn") not in ACTIONS:
             raise ValueError("unknown early action")
         retry = rule.recovery.get("retry_seconds", 1.0)

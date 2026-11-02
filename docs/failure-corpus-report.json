@@ -1,8 +1,8 @@
 {
   "schema_version": "0.1",
-  "cases": 38,
-  "positive_cases": 22,
-  "negative_cases": 16,
+  "cases": 40,
+  "positive_cases": 23,
+  "negative_cases": 17,
   "case_recall": 1.0,
   "false_positive_rate": 0.0,
   "offline_policy_match_rate": 1.0,
@@ -11,21 +11,34 @@
     "NET-004": {
       "expected": 1,
       "detected": 1,
+      "policy_matched": 1,
       "delays": [
+        0
+      ],
+      "action_delays": [
         0
       ]
     },
     "GEN-002": {
       "expected": 1,
       "detected": 1,
+      "policy_matched": 1,
       "delays": [
+        3
+      ],
+      "action_delays": [
         5
       ]
     },
     "ENV-001": {
       "expected": 2,
       "detected": 2,
+      "policy_matched": 2,
       "delays": [
+        0,
+        0
+      ],
+      "action_delays": [
         0,
         0
       ]
@@ -33,14 +46,25 @@
     "TOOL-002": {
       "expected": 1,
       "detected": 1,
+      "policy_matched": 1,
       "delays": [
+        5
+      ],
+      "action_delays": [
         9
       ]
     },
     "GEN-001": {
       "expected": 4,
       "detected": 4,
+      "policy_matched": 4,
       "delays": [
+        0.1,
+        0,
+        0.30000000000000004,
+        0.1
+      ],
+      "action_delays": [
         0.30000000000000004,
         0,
         0.30000000000000004,
@@ -50,32 +74,55 @@
     "PROC-001": {
       "expected": 2,
       "detected": 2,
+      "policy_matched": 2,
       "delays": [
         0,
+        0
+      ],
+      "action_delays": [
+        0,
+        0
+      ]
+    },
+    "PROG-001": {
+      "expected": 3,
+      "detected": 3,
+      "policy_matched": 3,
+      "delays": [
+        121,
+        121,
+        0
+      ],
+      "action_delays": [
+        121,
+        121,
         0
       ]
     },
     "TOOL-001": {
       "expected": 3,
       "detected": 3,
+      "policy_matched": 3,
       "delays": [
+        0,
+        0,
+        0.0
+      ],
+      "action_delays": [
         2,
         0,
         2.0
       ]
     },
-    "PROG-001": {
-      "expected": 2,
-      "detected": 2,
-      "delays": [
-        121,
-        0
-      ]
-    },
     "NET-001": {
       "expected": 2,
       "detected": 2,
+      "policy_matched": 2,
       "delays": [
+        0,
+        0
+      ],
+      "action_delays": [
         0,
         2
       ]
@@ -83,28 +130,44 @@
     "STATE-001": {
       "expected": 1,
       "detected": 1,
+      "policy_matched": 1,
       "delays": [
+        0
+      ],
+      "action_delays": [
         0
       ]
     },
     "NET-002": {
       "expected": 1,
       "detected": 1,
+      "policy_matched": 1,
       "delays": [
+        30
+      ],
+      "action_delays": [
         60
       ]
     },
     "NET-003": {
       "expected": 1,
       "detected": 1,
+      "policy_matched": 1,
       "delays": [
+        0
+      ],
+      "action_delays": [
         0
       ]
     },
     "UNKNOWN-001": {
       "expected": 1,
       "detected": 1,
+      "policy_matched": 1,
       "delays": [
+        0
+      ],
+      "action_delays": [
         2
       ]
     }
@@ -164,6 +227,9 @@
         {
           "rule_id": "NET-004",
           "action": "quarantine",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -248,6 +314,9 @@
         {
           "rule_id": "GEN-002",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 3,
+          "action_matched": true,
           "matched": true,
           "delay": 5
         }
@@ -308,6 +377,9 @@
         {
           "rule_id": "ENV-001",
           "action": "wait",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -394,6 +466,9 @@
         {
           "rule_id": "TOOL-002",
           "action": "quarantine",
+          "detected": true,
+          "detection_delay": 5,
+          "action_matched": true,
           "matched": true,
           "delay": 9
         }
@@ -484,6 +559,9 @@
         {
           "rule_id": "GEN-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0.1,
+          "action_matched": true,
           "matched": true,
           "delay": 0.30000000000000004
         }
@@ -542,8 +620,76 @@
         {
           "rule_id": "PROC-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
+        }
+      ],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "positive-ineffective-activity",
+        "label": "positive",
+        "provenance": {
+          "type": "synthetic",
+          "source": null,
+          "contains_real_transcript": false
+        },
+        "expectations": [
+          {
+            "rule_id": "PROG-001",
+            "action": "probe",
+            "onset": 0,
+            "max_delay": 121
+          }
+        ],
+        "forbid_actions": [
+          "fresh_session",
+          "quarantine"
+        ]
+      },
+      "passed": true,
+      "incidents": [
+        {
+          "id": "incident-50fbbc11f74d0e9c65ef8aba828fd03a",
+          "rule_id": "PROG-001",
+          "rule_version": 2,
+          "category": "progress",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "progress not observed; perform a safe probe, do not infer model degradation",
+          "detected_at": 121,
+          "onset_at": 0,
+          "action": "probe",
+          "evidence": {
+            "signal": "health",
+            "observation_source": "synthetic",
+            "completion_conflict": false,
+            "no_progress_seconds": 121,
+            "phase": "ANALYSING"
+          },
+          "session_id": "positive-ineffective-activity",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "unknown",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        }
+      ],
+      "expectations": [
+        {
+          "rule_id": "PROG-001",
+          "action": "probe",
+          "detected": true,
+          "detection_delay": 121,
+          "action_matched": true,
+          "matched": true,
+          "delay": 121
         }
       ],
       "forbidden_actions": []
@@ -626,6 +772,9 @@
         {
           "rule_id": "TOOL-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 2
         }
@@ -687,6 +836,9 @@
         {
           "rule_id": "GEN-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -745,6 +897,9 @@
         {
           "rule_id": "PROC-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -776,9 +931,9 @@
       "passed": true,
       "incidents": [
         {
-          "id": "incident-167206c1eeabda16dc53f8c95752399a",
+          "id": "incident-5cf02bb8898695a586ff88d0731048c2",
           "rule_id": "PROG-001",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "progress",
           "severity": "warning",
           "confidence": 0.99,
@@ -807,6 +962,9 @@
         {
           "rule_id": "PROG-001",
           "action": "probe",
+          "detected": true,
+          "detection_delay": 121,
+          "action_matched": true,
           "matched": true,
           "delay": 121
         }
@@ -838,9 +996,9 @@
       "passed": true,
       "incidents": [
         {
-          "id": "incident-2d70eca10dcd11e9f3e10776385d3c06",
+          "id": "incident-ccb92fb5fefdeb170b2712052b60a539",
           "rule_id": "PROG-001",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "progress",
           "severity": "warning",
           "confidence": 0.99,
@@ -869,6 +1027,9 @@
         {
           "rule_id": "PROG-001",
           "action": "probe",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -1034,6 +1195,9 @@
         {
           "rule_id": "TOOL-001",
           "action": "warn",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -1204,6 +1368,9 @@
         {
           "rule_id": "NET-001",
           "action": "bounded_retry",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -1261,6 +1428,9 @@
         {
           "rule_id": "STATE-001",
           "action": "quarantine",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -1345,6 +1515,9 @@
         {
           "rule_id": "NET-002",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 30,
+          "action_matched": true,
           "matched": true,
           "delay": 60
         }
@@ -1405,6 +1578,9 @@
         {
           "rule_id": "ENV-001",
           "action": "wait",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -1491,6 +1667,9 @@
         {
           "rule_id": "NET-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 2
         }
@@ -1548,6 +1727,9 @@
         {
           "rule_id": "NET-003",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 0
         }
@@ -1609,6 +1791,9 @@
         {
           "rule_id": "GEN-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0.30000000000000004,
+          "action_matched": true,
           "matched": true,
           "delay": 0.30000000000000004
         }
@@ -1693,6 +1878,9 @@
         {
           "rule_id": "UNKNOWN-001",
           "action": "quarantine",
+          "detected": true,
+          "detection_delay": 0,
+          "action_matched": true,
           "matched": true,
           "delay": 2
         }
@@ -1776,6 +1964,9 @@
         {
           "rule_id": "TOOL-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0.0,
+          "action_matched": true,
           "matched": true,
           "delay": 2.0
         }
@@ -1865,6 +2056,9 @@
         {
           "rule_id": "GEN-001",
           "action": "fresh_session",
+          "detected": true,
+          "detection_delay": 0.1,
+          "action_matched": true,
           "matched": true,
           "delay": 0.30000000000000004
         }
@@ -1984,6 +2178,26 @@
         },
         "expectations": [],
         "forbid_actions": []
+      },
+      "passed": true,
+      "incidents": [],
+      "expectations": [],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "negative-progress-markers",
+        "label": "negative",
+        "provenance": {
+          "type": "synthetic",
+          "source": null,
+          "contains_real_transcript": false
+        },
+        "expectations": [],
+        "forbid_actions": [
+          "fresh_session",
+          "quarantine"
+        ]
       },
       "passed": true,
       "incidents": [],

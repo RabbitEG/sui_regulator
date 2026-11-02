@@ -26,9 +26,18 @@ class DetectionEngine:
             # across successful work or suppress alerts in a later episode.
             successful_work = observed.kind == "tool_result" and not observed.data.get("is_error")
             if (
-                algorithm in {"cross_message", "malformed", "failed_tools"}
-                and (successful_work or observed.kind == "user_input")
-            ) or (algorithm == "transport" and observed.kind == "response_completed"):
+                (
+                    algorithm in {"cross_message", "malformed", "failed_tools"}
+                    and (successful_work or observed.kind == "user_input")
+                )
+                or (algorithm == "transport" and observed.kind == "response_completed")
+                or (
+                    algorithm == "progress"
+                    and "progress_marker" in observed.data
+                    and "marker" in self.state[rule.id]
+                    and observed.data.get("progress_marker") != self.state[rule.id]["marker"]
+                )
+            ):
                 self.emitted = {key for key in self.emitted if key[0] != rule.id}
             config = rule.detector["config"]
             finding = DETECTORS[algorithm](observed, self.state[rule.id], config)

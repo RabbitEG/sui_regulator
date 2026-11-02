@@ -89,7 +89,7 @@
     "remote transport authorization"
   ],
   "git_transport": "SSH verified; stage 0 synced through connected GitHub app after HTTPS credential failure",
-  "completed_scope": "First-round MVP and Claude Code adapter with local fake API; real platform integration remains unverified",
+  "completed_scope": "v0.3 Failure Registry, Corpus, Replay and durable graded recovery; real platform/model integration remains unverified",
   "v0_3": {
     "scope": "Failure Registry & Recovery Validation",
     "stages": [
@@ -148,8 +148,30 @@
       },
       {
         "id": "D",
-        "status": "pending"
+        "status": "complete",
+        "evidence": [
+          "docs/FAILURE_VALIDATION.md",
+          "docs/FAILURE_CONTRIBUTING.md",
+          "docs/failure-verification.json",
+          "docs/failure-test-output.txt",
+          "tests/test_claude.py"
+        ],
+        "verification": {
+          "python311_passed": 77,
+          "python312_passed": 73,
+          "python312_skipped": 4,
+          "rules": 13,
+          "corpus_positive": 23,
+          "corpus_negative": 17,
+          "case_recall": 1.0,
+          "false_positive_rate": 0.0,
+          "offline_policy_match_rate": 1.0,
+          "real_glm_verified": false,
+          "native_cli_early_repetition_interruption": true,
+          "installed_wheel_version": "0.3.0"
+        }
       }
-    ]
+    ],
+    "status": "complete"
   }
 }

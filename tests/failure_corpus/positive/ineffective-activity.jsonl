@@ -1,0 +1,6 @@
+{"case": {"id": "positive-ineffective-activity", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "PROG-001", "action": "probe", "onset": 0, "max_delay": 121}], "forbid_actions": ["fresh_session", "quarantine"]}}
+{"time": 0, "kind": "health", "data": {"alive": true, "phase": "ANALYSING", "jobs": [], "last_progress_at": 0, "progress_marker": "unchanged-step"}}
+{"time": 60, "kind": "health", "data": {"alive": true, "phase": "ANALYSING", "jobs": [], "last_progress_at": 60, "progress_marker": "unchanged-step"}}
+{"time": 121, "kind": "health", "data": {"alive": true, "phase": "ANALYSING", "jobs": [], "last_progress_at": 121, "progress_marker": "unchanged-step"}}
+{"time": 180, "kind": "health", "data": {"alive": true, "phase": "ANALYSING", "jobs": [], "last_progress_at": 180, "progress_marker": "unchanged-step"}}
+{"time": 240, "kind": "health", "data": {"alive": true, "phase": "ANALYSING", "jobs": [], "last_progress_at": 240, "progress_marker": "unchanged-step"}}

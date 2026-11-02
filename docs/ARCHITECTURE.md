@@ -1,6 +1,6 @@
 # 最小架构
 
-状态：首轮实施方案；实际验证与进度见 `PROGRESS.json`、`DELIVERY.md`。
+状态：首轮基础架构已交付，v0.3 增加故障检测与 Incident 恢复；实际验证与进度见 `PROGRESS.json`、`FAILURE_VALIDATION.md`、`DELIVERY.md`。
 
 控制主轴是 Python 3.11 标准库程序。SQLite WAL 是账本，Controller 周期性协调，Candleholder 负责确定性的 Worker 健康判断。两者不调用 LLM。Yan 提供 JSON CLI 和本地 Unix socket RPC；Sui 通过实际协议方法操作账本。任务的 desired、Worker 的 declared 和 Runner 的 observed 分开保存。
 
@@ -21,6 +21,7 @@ Yan CLI / Unix socket RPC → Command ledger → Controller / Candleholder
 - `runner.py` / `job_process.py`：稳定 Job ID、幂等启动、执行端授权复核、独立进程、客观指标与结果。首轮只执行合成训练，不暴露任意 shell。
 - `adapters.py` / `worker_process.py`：可替换 WorkerAdapter；自动采集进程、流/工具活动、会话退出；Mock 与 Claude Code 共用生命周期。
 - `registry.py`：独立私有 Worker 进程登记与心跳，为数据库锁住时的清理提供身份核验；不授予 lease。
+- `failures/`：与进程登记不同的版本化故障库、固定检测算法、Claude 事件解码、Incident 持久化/恢复和离线重放；详见 FAILURE_ARCHITECTURE.md。
 - `controller.py`：单实例 flock；先协调 Job，再检查 Worker，回收后增 generation，新 Worker 从账本取上下文。
 - `gateway.py` / `cli.py` / `mcp.py`：共享领域服务；Unix socket 基于文件权限和 Linux SO_PEERCRED 授权；MCP stdio 从受管启动环境取得 Worker 凭据。
 

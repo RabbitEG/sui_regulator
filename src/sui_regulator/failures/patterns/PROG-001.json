@@ -1,7 +1,7 @@
 {
   "id": "PROG-001",
   "name": "No progress evidence or completion conflict",
-  "version": 1,
+  "version": 2,
   "category": "progress",
   "signals": [
     "health"
@@ -25,10 +25,12 @@
   },
   "fixtures": {
     "positive": [
-      "positive/progress.jsonl"
+      "positive/progress.jsonl",
+      "positive/ineffective-activity.jsonl"
     ],
     "negative": [
-      "negative/progress.jsonl"
+      "negative/progress.jsonl",
+      "negative/progress-markers.jsonl"
     ]
   },
   "origin": "unknown",
