@@ -97,7 +97,7 @@ class CoreTests(unittest.TestCase):
     def test_migration_and_wal_and_future_version_guard(self):
         with self.service.store.connection() as conn:
             self.assertEqual(conn.execute("PRAGMA journal_mode").fetchone()[0], "wal")
-            self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
             conn.execute("PRAGMA user_version=999")
         with self.assertRaises(ValueError):
             Service(self.config)

@@ -1,11 +1,12 @@
 {
   "id": "TOOL-002",
   "name": "Repeated identical failed outcomes",
-  "version": 1,
+  "version": 2,
   "category": "tool_use",
   "signals": [
     "tool_call",
-    "tool_result"
+    "tool_result",
+    "user_input"
   ],
   "detector": {
     "type": "failed_tools",
@@ -18,7 +19,7 @@
   "severity": "high",
   "confidence_required": 0.95,
   "recovery": {
-    "action": "fresh_session",
+    "action": "quarantine",
     "preserve_task": true,
     "preserve_running_jobs": true,
     "max_attempts": 2,

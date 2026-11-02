@@ -1,0 +1,11 @@
+{"case": {"id": "positive-recovered-malformed", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "TOOL-001", "action": "warn", "onset": 0, "max_delay": 0}], "forbid_actions": ["fresh_session", "quarantine"]}}
+{"time": 0, "kind": "malformed_call", "data": {"reason": "one invalid call, then successful recovery"}}
+{"time": 1, "kind": "tool_result", "data": {"call_id": "0", "is_error": false, "result": {"ok": true}}}
+{"time": 2, "kind": "malformed_call", "data": {"reason": "one invalid call, then successful recovery"}}
+{"time": 3, "kind": "tool_result", "data": {"call_id": "1", "is_error": false, "result": {"ok": true}}}
+{"time": 4, "kind": "malformed_call", "data": {"reason": "one invalid call, then successful recovery"}}
+{"time": 5, "kind": "tool_result", "data": {"call_id": "2", "is_error": false, "result": {"ok": true}}}
+{"time": 6, "kind": "malformed_call", "data": {"reason": "one invalid call, then successful recovery"}}
+{"time": 7, "kind": "tool_result", "data": {"call_id": "3", "is_error": false, "result": {"ok": true}}}
+{"time": 8, "kind": "malformed_call", "data": {"reason": "one invalid call, then successful recovery"}}
+{"time": 9, "kind": "tool_result", "data": {"call_id": "4", "is_error": false, "result": {"ok": true}}}

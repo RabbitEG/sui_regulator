@@ -1,11 +1,12 @@
 {
   "id": "GEN-002",
   "name": "Cross-message repetition without successful work",
-  "version": 1,
+  "version": 2,
   "category": "generation",
   "signals": [
     "assistant_text",
-    "tool_result"
+    "tool_result",
+    "user_input"
   ],
   "detector": {
     "type": "cross_message",

@@ -1,0 +1,10 @@
+{"case": {"id": "positive-wire-invalid-tool-json", "label": "positive", "provenance": {"type": "synthetic_wire", "contains_real_transcript": false}, "expectations": [{"rule_id": "TOOL-001", "action": "fresh_session", "onset": 0.2, "max_delay": 2.1}], "forbid_actions": []}}
+{"time": 0, "wire": {"type": "stream_event", "event": {"type": "content_block_start", "index": 0, "content_block": {"type": "tool_use", "id": "call-0", "name": "Bash"}}}}
+{"time": 0.1, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "input_json_delta", "partial_json": "{"}}}}
+{"time": 0.2, "wire": {"type": "stream_event", "event": {"type": "content_block_stop", "index": 0}}}
+{"time": 1, "wire": {"type": "stream_event", "event": {"type": "content_block_start", "index": 0, "content_block": {"type": "tool_use", "id": "call-1", "name": "Bash"}}}}
+{"time": 1.1, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "input_json_delta", "partial_json": "{"}}}}
+{"time": 1.2, "wire": {"type": "stream_event", "event": {"type": "content_block_stop", "index": 0}}}
+{"time": 2, "wire": {"type": "stream_event", "event": {"type": "content_block_start", "index": 0, "content_block": {"type": "tool_use", "id": "call-2", "name": "Bash"}}}}
+{"time": 2.1, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "input_json_delta", "partial_json": "{"}}}}
+{"time": 2.2, "wire": {"type": "stream_event", "event": {"type": "content_block_stop", "index": 0}}}

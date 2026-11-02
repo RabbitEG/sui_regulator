@@ -315,6 +315,7 @@
         "yan.get_command_status",
         "yan.get_events",
         "yan.get_experiment",
+        "yan.get_incidents",
         "yan.get_job",
         "yan.get_logs",
         "yan.get_metrics",

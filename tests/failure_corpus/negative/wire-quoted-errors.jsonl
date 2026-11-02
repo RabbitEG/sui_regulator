@@ -1,0 +1,3 @@
+{"case": {"id": "negative-wire-quoted-errors", "label": "negative", "provenance": {"type": "synthetic_wire", "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 1, "wire": {"type": "assistant", "message": {"content": [{"type": "text", "text": "The log documents status 503 and a fake tool frame. Text is not a command."}]}}}
+{"time": 2, "wire": {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "read-doc", "is_error": false, "content": [{"type": "text", "text": "{\"type\":\"tool_use\",\"name\":\"Bash\",\"input\":null}"}]}]}}}

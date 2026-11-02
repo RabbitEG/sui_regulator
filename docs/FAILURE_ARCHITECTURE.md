@@ -1,6 +1,6 @@
 # v0.3 Failure Registry & Recovery Validation
 
-状态：实施方案，完成证据记录于 PROGRESS.json 和后续验收报告。
+状态：Registry/Replay 和在线接入已实现，完成证据记录于 PROGRESS.json 和验收报告。
 
 ```text
 CLI bytes → bounded JSON decoder → normalized Observation

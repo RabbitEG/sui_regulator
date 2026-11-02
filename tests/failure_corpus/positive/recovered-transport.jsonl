@@ -1,0 +1,11 @@
+{"case": {"id": "positive-recovered-transport", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "NET-001", "action": "bounded_retry", "onset": 0, "max_delay": 0}], "forbid_actions": ["fresh_session", "quarantine"]}}
+{"time": 0, "kind": "api_error", "data": {"code": 503}}
+{"time": 1, "kind": "response_completed", "data": {}}
+{"time": 2, "kind": "api_error", "data": {"code": 503}}
+{"time": 3, "kind": "response_completed", "data": {}}
+{"time": 4, "kind": "api_error", "data": {"code": 503}}
+{"time": 5, "kind": "response_completed", "data": {}}
+{"time": 6, "kind": "api_error", "data": {"code": 503}}
+{"time": 7, "kind": "response_completed", "data": {}}
+{"time": 8, "kind": "api_error", "data": {"code": 503}}
+{"time": 9, "kind": "response_completed", "data": {}}

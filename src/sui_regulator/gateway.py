@@ -18,6 +18,7 @@ from .service import COMMAND_KINDS, Service, unpack
 MAX_MESSAGE_BYTES = 262144
 
 QUERY_FIELDS = {
+    "get_incidents": {"task_id", "after", "limit"},
     "get_overview": set(),
     "list_tasks": set(),
     "get_task": {"task_id"},
@@ -181,6 +182,10 @@ class Dispatcher:
 
     def query(self, method: str, params: dict):
         service = self.service
+        if method == "get_incidents":
+            from .failures.persistence import list_incidents
+
+            return list_incidents(service, **params)
         if method == "get_overview":
             return {
                 "tasks": len(service.list_tasks()),

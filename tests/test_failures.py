@@ -53,6 +53,8 @@ class FailureReplayTests(unittest.TestCase):
         for change in [
             {"detector": {"type": "os.system", "config": {}}},
             {"recovery": {"action": "shell", "max_attempts": 999}},
+            {"detector": {"type": "intra_repetition", "config": {"window_chars": 1000000000}}},
+            {"detector": {"type": "transport", "config": {"act_after": float("nan")}}},
         ]:
             value = asdict(FailureRegistry().rules[0])
             value.update(change)
@@ -72,6 +74,19 @@ class FailureReplayTests(unittest.TestCase):
         self.assertTrue(incidents)
         self.assertNotIn("synthetic synthetic", json.dumps([item.to_dict() for item in incidents]))
         self.assertLessEqual(len(incidents), 2)
+
+    def test_success_resets_failure_episode_and_later_warnings_remain_visible(self):
+        for fault, success, rule_id in [
+            ("api_error", "response_completed", "NET-001"),
+            ("malformed_call", "tool_result", "TOOL-001"),
+        ]:
+            engine, incidents = DetectionEngine(), []
+            for index in range(5):
+                incidents.extend(engine.feed(Observation(index * 2, fault, {"code": 503})))
+                incidents.extend(engine.feed(Observation(index * 2 + 1, success, {"is_error": False})))
+            self.assertEqual(len(incidents), 5, rule_id)
+            self.assertTrue(all(item.rule_id == rule_id for item in incidents))
+            self.assertFalse(any(item.action in {"fresh_session", "quarantine"} for item in incidents))
 
     def test_replay_uses_explicit_time_and_rejects_backwards_clock(self):
         engine = DetectionEngine()

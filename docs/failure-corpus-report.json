@@ -1,8 +1,8 @@
 {
   "schema_version": "0.1",
-  "cases": 30,
-  "positive_cases": 17,
-  "negative_cases": 13,
+  "cases": 38,
+  "positive_cases": 22,
+  "negative_cases": 16,
   "case_recall": 1.0,
   "false_positive_rate": 0.0,
   "offline_policy_match_rate": 1.0,
@@ -38,26 +38,30 @@
       ]
     },
     "GEN-001": {
-      "expected": 3,
-      "detected": 3,
+      "expected": 4,
+      "detected": 4,
       "delays": [
         0.30000000000000004,
         0,
+        0.30000000000000004,
         0.30000000000000004
       ]
     },
-    "TOOL-001": {
-      "expected": 1,
-      "detected": 1,
+    "PROC-001": {
+      "expected": 2,
+      "detected": 2,
       "delays": [
-        2
+        0,
+        0
       ]
     },
-    "PROC-001": {
-      "expected": 1,
-      "detected": 1,
+    "TOOL-001": {
+      "expected": 3,
+      "detected": 3,
       "delays": [
-        0
+        2,
+        0,
+        2.0
       ]
     },
     "PROG-001": {
@@ -66,6 +70,14 @@
       "delays": [
         121,
         0
+      ]
+    },
+    "NET-001": {
+      "expected": 2,
+      "detected": 2,
+      "delays": [
+        0,
+        2
       ]
     },
     "STATE-001": {
@@ -80,13 +92,6 @@
       "detected": 1,
       "delays": [
         60
-      ]
-    },
-    "NET-001": {
-      "expected": 1,
-      "detected": 1,
-      "delays": [
-        2
       ]
     },
     "NET-003": {
@@ -139,8 +144,11 @@
           "onset_at": 1,
           "action": "quarantine",
           "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
             "code": 401,
-            "occurrences": 1
+            "occurrences": 1,
+            "terminal": false
           },
           "session_id": "positive-authentication",
           "max_attempts": 2,
@@ -184,9 +192,9 @@
       "passed": true,
       "incidents": [
         {
-          "id": "incident-4b4c3bef6d1a59575d3c7440fbfb35c7",
+          "id": "incident-afc1d607dcd15386902865c5fa945f06",
           "rule_id": "GEN-002",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "generation",
           "severity": "warning",
           "confidence": 0.99,
@@ -195,6 +203,8 @@
           "onset_at": 1,
           "action": "warn",
           "evidence": {
+            "signal": "assistant_text",
+            "observation_source": "synthetic",
             "message_hash": "735d0d3768c61c6f87de6ea6b2bd0cadd401d80f9ccb02bab61fb186bca2a545",
             "repeated_messages": 4
           },
@@ -208,9 +218,9 @@
           "preserve_running_jobs": true
         },
         {
-          "id": "incident-538a274d789c26cd1de87479f9e7f47d",
+          "id": "incident-80bb0009cf7b759b138b0fc1235c3ba6",
           "rule_id": "GEN-002",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "generation",
           "severity": "high",
           "confidence": 0.99,
@@ -219,6 +229,8 @@
           "onset_at": 1,
           "action": "fresh_session",
           "evidence": {
+            "signal": "assistant_text",
+            "observation_source": "synthetic",
             "message_hash": "735d0d3768c61c6f87de6ea6b2bd0cadd401d80f9ccb02bab61fb186bca2a545",
             "repeated_messages": 6
           },
@@ -278,6 +290,8 @@
           "onset_at": 1,
           "action": "wait",
           "evidence": {
+            "signal": "environment_error",
+            "observation_source": "synthetic",
             "code": "EROFS"
           },
           "session_id": "positive-environment",
@@ -312,7 +326,7 @@
         "expectations": [
           {
             "rule_id": "TOOL-002",
-            "action": "fresh_session",
+            "action": "quarantine",
             "onset": 1,
             "max_delay": 9
           }
@@ -322,9 +336,9 @@
       "passed": true,
       "incidents": [
         {
-          "id": "incident-83ff6d1ec3c8ade720a2f396e58e6413",
+          "id": "incident-4c991ec476589fee3a969e577075a5bf",
           "rule_id": "TOOL-002",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "tool_use",
           "severity": "warning",
           "confidence": 0.99,
@@ -333,6 +347,8 @@
           "onset_at": 2,
           "action": "warn",
           "evidence": {
+            "signal": "tool_result",
+            "observation_source": "synthetic",
             "tool": "Bash",
             "failure_hash": "ec00bef2c7d8c02f60f3617bceea7038263f1a7fdb3acee4deb4d09bf7b4060d",
             "same_failed_outcomes": 3
@@ -347,17 +363,19 @@
           "preserve_running_jobs": true
         },
         {
-          "id": "incident-4349494325d531835fdf6faa8fd98473",
+          "id": "incident-1f59aa8dc8146ebc5a8e854ce506c084",
           "rule_id": "TOOL-002",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "tool_use",
           "severity": "high",
           "confidence": 0.99,
           "symptom": "repeated near-identical failing tool attempts; root cause unconfirmed",
           "detected_at": 10,
           "onset_at": 2,
-          "action": "fresh_session",
+          "action": "quarantine",
           "evidence": {
+            "signal": "tool_result",
+            "observation_source": "synthetic",
             "tool": "Bash",
             "failure_hash": "ec00bef2c7d8c02f60f3617bceea7038263f1a7fdb3acee4deb4d09bf7b4060d",
             "same_failed_outcomes": 5
@@ -375,7 +393,7 @@
       "expectations": [
         {
           "rule_id": "TOOL-002",
-          "action": "fresh_session",
+          "action": "quarantine",
           "matched": true,
           "delay": 9
         }
@@ -415,6 +433,8 @@
           "onset_at": 0.1,
           "action": "warn",
           "evidence": {
+            "signal": "text_delta",
+            "observation_source": "synthetic",
             "method": "word_run_or_frequency",
             "repeats": 16,
             "units": 16,
@@ -442,6 +462,8 @@
           "onset_at": 0.1,
           "action": "fresh_session",
           "evidence": {
+            "signal": "text_delta",
+            "observation_source": "synthetic",
             "method": "word_run_or_frequency",
             "repeats": 32,
             "units": 32,
@@ -470,6 +492,64 @@
     },
     {
       "case": {
+        "id": "positive-heartbeat-lease",
+        "label": "positive",
+        "provenance": {
+          "type": "synthetic",
+          "source": null,
+          "contains_real_transcript": false
+        },
+        "expectations": [
+          {
+            "rule_id": "PROC-001",
+            "action": "fresh_session",
+            "onset": 15,
+            "max_delay": 0
+          }
+        ],
+        "forbid_actions": []
+      },
+      "passed": true,
+      "incidents": [
+        {
+          "id": "incident-1c239bd9d9486498c9417895f0efd8dd",
+          "rule_id": "PROC-001",
+          "rule_version": 2,
+          "category": "process",
+          "severity": "high",
+          "confidence": 0.99,
+          "symptom": "registered worker process exited or its heartbeat lease expired",
+          "detected_at": 15,
+          "onset_at": 15,
+          "action": "fresh_session",
+          "evidence": {
+            "signal": "health",
+            "observation_source": "synthetic",
+            "alive": true,
+            "lease_expired": true
+          },
+          "session_id": "positive-heartbeat-lease",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "process_observed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        }
+      ],
+      "expectations": [
+        {
+          "rule_id": "PROC-001",
+          "action": "fresh_session",
+          "matched": true,
+          "delay": 0
+        }
+      ],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
         "id": "positive-malformed",
         "label": "positive",
         "provenance": {
@@ -490,9 +570,9 @@
       "passed": true,
       "incidents": [
         {
-          "id": "incident-336453f1a90f60262833d85d8f66acc8",
+          "id": "incident-a5ab48e239615c68bf78308f820ff1ea",
           "rule_id": "TOOL-001",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "tool_use",
           "severity": "warning",
           "confidence": 0.99,
@@ -501,6 +581,8 @@
           "onset_at": 1,
           "action": "warn",
           "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "synthetic",
             "reason": "empty Bash command",
             "occurrences": 1
           },
@@ -514,9 +596,9 @@
           "preserve_running_jobs": true
         },
         {
-          "id": "incident-802a2974755d0eaf82f599c00a7b8435",
+          "id": "incident-43dc2a33b2f81479ebfd71e61d3159c5",
           "rule_id": "TOOL-001",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "tool_use",
           "severity": "high",
           "confidence": 0.99,
@@ -525,6 +607,8 @@
           "onset_at": 1,
           "action": "fresh_session",
           "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "synthetic",
             "reason": "empty Bash command",
             "occurrences": 3
           },
@@ -581,6 +665,8 @@
           "onset_at": 1,
           "action": "fresh_session",
           "evidence": {
+            "signal": "assistant_text",
+            "observation_source": "synthetic",
             "method": "sentence_replay",
             "repeats": 192,
             "units": 48,
@@ -629,18 +715,21 @@
       "passed": true,
       "incidents": [
         {
-          "id": "incident-2b82c9196717a3e17ce44e86816544b1",
+          "id": "incident-c6cdeb474857530ff9a2a47cadf72744",
           "rule_id": "PROC-001",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "process",
           "severity": "high",
           "confidence": 0.99,
-          "symptom": "registered worker process is not alive",
+          "symptom": "registered worker process exited or its heartbeat lease expired",
           "detected_at": 1,
           "onset_at": 1,
           "action": "fresh_session",
           "evidence": {
-            "alive": false
+            "signal": "health",
+            "observation_source": "synthetic",
+            "alive": false,
+            "lease_expired": false
           },
           "session_id": "positive-process",
           "max_attempts": 2,
@@ -698,6 +787,8 @@
           "onset_at": 0,
           "action": "probe",
           "evidence": {
+            "signal": "health",
+            "observation_source": "synthetic",
             "completion_conflict": false,
             "no_progress_seconds": 121,
             "phase": "ANALYSING"
@@ -758,6 +849,8 @@
           "onset_at": 1,
           "action": "probe",
           "evidence": {
+            "signal": "health",
+            "observation_source": "synthetic",
             "completion_conflict": true,
             "no_progress_seconds": 0,
             "phase": "COMPLETED"
@@ -776,6 +869,341 @@
         {
           "rule_id": "PROG-001",
           "action": "probe",
+          "matched": true,
+          "delay": 0
+        }
+      ],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "positive-recovered-malformed",
+        "label": "positive",
+        "provenance": {
+          "type": "synthetic",
+          "source": null,
+          "contains_real_transcript": false
+        },
+        "expectations": [
+          {
+            "rule_id": "TOOL-001",
+            "action": "warn",
+            "onset": 0,
+            "max_delay": 0
+          }
+        ],
+        "forbid_actions": [
+          "fresh_session",
+          "quarantine"
+        ]
+      },
+      "passed": true,
+      "incidents": [
+        {
+          "id": "incident-62919798df038695fa4b0ee4e5ba2811",
+          "rule_id": "TOOL-001",
+          "rule_version": 2,
+          "category": "tool_use",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "invalid structured tool/CLI frame",
+          "detected_at": 0,
+          "onset_at": 0,
+          "action": "warn",
+          "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "synthetic",
+            "reason": "one invalid call, then successful recovery",
+            "occurrences": 1
+          },
+          "session_id": "positive-recovered-malformed",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_or_cli_unconfirmed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-14ff20a281755a579a737e3f27572930",
+          "rule_id": "TOOL-001",
+          "rule_version": 2,
+          "category": "tool_use",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "invalid structured tool/CLI frame",
+          "detected_at": 2,
+          "onset_at": 2,
+          "action": "warn",
+          "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "synthetic",
+            "reason": "one invalid call, then successful recovery",
+            "occurrences": 1
+          },
+          "session_id": "positive-recovered-malformed",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_or_cli_unconfirmed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-7ce94094870f57aef10d4e220f11d1af",
+          "rule_id": "TOOL-001",
+          "rule_version": 2,
+          "category": "tool_use",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "invalid structured tool/CLI frame",
+          "detected_at": 4,
+          "onset_at": 4,
+          "action": "warn",
+          "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "synthetic",
+            "reason": "one invalid call, then successful recovery",
+            "occurrences": 1
+          },
+          "session_id": "positive-recovered-malformed",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_or_cli_unconfirmed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-e01ecbad53fda94a220f9d500b5fe229",
+          "rule_id": "TOOL-001",
+          "rule_version": 2,
+          "category": "tool_use",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "invalid structured tool/CLI frame",
+          "detected_at": 6,
+          "onset_at": 6,
+          "action": "warn",
+          "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "synthetic",
+            "reason": "one invalid call, then successful recovery",
+            "occurrences": 1
+          },
+          "session_id": "positive-recovered-malformed",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_or_cli_unconfirmed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-cc5ad2e476c68760593bbe90ce373ffc",
+          "rule_id": "TOOL-001",
+          "rule_version": 2,
+          "category": "tool_use",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "invalid structured tool/CLI frame",
+          "detected_at": 8,
+          "onset_at": 8,
+          "action": "warn",
+          "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "synthetic",
+            "reason": "one invalid call, then successful recovery",
+            "occurrences": 1
+          },
+          "session_id": "positive-recovered-malformed",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_or_cli_unconfirmed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        }
+      ],
+      "expectations": [
+        {
+          "rule_id": "TOOL-001",
+          "action": "warn",
+          "matched": true,
+          "delay": 0
+        }
+      ],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "positive-recovered-transport",
+        "label": "positive",
+        "provenance": {
+          "type": "synthetic",
+          "source": null,
+          "contains_real_transcript": false
+        },
+        "expectations": [
+          {
+            "rule_id": "NET-001",
+            "action": "bounded_retry",
+            "onset": 0,
+            "max_delay": 0
+          }
+        ],
+        "forbid_actions": [
+          "fresh_session",
+          "quarantine"
+        ]
+      },
+      "passed": true,
+      "incidents": [
+        {
+          "id": "incident-897aead9d7c970b659a97ff7dfbc270b",
+          "rule_id": "NET-001",
+          "rule_version": 2,
+          "category": "transport",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "structured transport failure; no side-effect replay authorized",
+          "detected_at": 0,
+          "onset_at": 0,
+          "action": "bounded_retry",
+          "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
+            "code": 503,
+            "occurrences": 1,
+            "terminal": false
+          },
+          "session_id": "positive-recovered-transport",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "transport_observed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-4e9b7b8475095042d924ba5643f65dca",
+          "rule_id": "NET-001",
+          "rule_version": 2,
+          "category": "transport",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "structured transport failure; no side-effect replay authorized",
+          "detected_at": 2,
+          "onset_at": 2,
+          "action": "bounded_retry",
+          "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
+            "code": 503,
+            "occurrences": 1,
+            "terminal": false
+          },
+          "session_id": "positive-recovered-transport",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "transport_observed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-58d85ea4fe61f55e1fe8eb7f42c04181",
+          "rule_id": "NET-001",
+          "rule_version": 2,
+          "category": "transport",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "structured transport failure; no side-effect replay authorized",
+          "detected_at": 4,
+          "onset_at": 4,
+          "action": "bounded_retry",
+          "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
+            "code": 503,
+            "occurrences": 1,
+            "terminal": false
+          },
+          "session_id": "positive-recovered-transport",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "transport_observed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-1ba6770cfcf3cb39454b3f25caf36f60",
+          "rule_id": "NET-001",
+          "rule_version": 2,
+          "category": "transport",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "structured transport failure; no side-effect replay authorized",
+          "detected_at": 6,
+          "onset_at": 6,
+          "action": "bounded_retry",
+          "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
+            "code": 503,
+            "occurrences": 1,
+            "terminal": false
+          },
+          "session_id": "positive-recovered-transport",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "transport_observed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-8e81ba7be89d631f2a7be0c256da225f",
+          "rule_id": "NET-001",
+          "rule_version": 2,
+          "category": "transport",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "structured transport failure; no side-effect replay authorized",
+          "detected_at": 8,
+          "onset_at": 8,
+          "action": "bounded_retry",
+          "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
+            "code": 503,
+            "occurrences": 1,
+            "terminal": false
+          },
+          "session_id": "positive-recovered-transport",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "transport_observed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        }
+      ],
+      "expectations": [
+        {
+          "rule_id": "NET-001",
+          "action": "bounded_retry",
           "matched": true,
           "delay": 0
         }
@@ -815,6 +1243,8 @@
           "onset_at": 1,
           "action": "quarantine",
           "evidence": {
+            "signal": "session_state",
+            "observation_source": "synthetic",
             "code": "SESSION_ID_MISMATCH"
           },
           "session_id": "positive-session",
@@ -870,6 +1300,8 @@
           "onset_at": 0,
           "action": "probe",
           "evidence": {
+            "signal": "clock",
+            "observation_source": "synthetic",
             "silent_seconds": 30,
             "streaming_observed": true
           },
@@ -894,6 +1326,8 @@
           "onset_at": 0,
           "action": "fresh_session",
           "evidence": {
+            "signal": "clock",
+            "observation_source": "synthetic",
             "silent_seconds": 60,
             "streaming_observed": true
           },
@@ -953,6 +1387,8 @@
           "onset_at": 2,
           "action": "wait",
           "evidence": {
+            "signal": "environment_error",
+            "observation_source": "synthetic",
             "code": "EROFS"
           },
           "session_id": "positive-tool-errors-environment",
@@ -997,9 +1433,9 @@
       "passed": true,
       "incidents": [
         {
-          "id": "incident-6082d2667a6a219f6ccb5f8c65a3acb8",
+          "id": "incident-f0e307bc8b3583abcd573124ff787c8e",
           "rule_id": "NET-001",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "transport",
           "severity": "warning",
           "confidence": 0.99,
@@ -1008,8 +1444,11 @@
           "onset_at": 1,
           "action": "bounded_retry",
           "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
             "code": 503,
-            "occurrences": 1
+            "occurrences": 1,
+            "terminal": false
           },
           "session_id": "positive-transport",
           "max_attempts": 2,
@@ -1021,9 +1460,9 @@
           "preserve_running_jobs": true
         },
         {
-          "id": "incident-69b22612de19ba4eba3aedf439b4cfda",
+          "id": "incident-66b085139ac44a80c2d3f1b5b8501bac",
           "rule_id": "NET-001",
-          "rule_version": 1,
+          "rule_version": 2,
           "category": "transport",
           "severity": "high",
           "confidence": 0.99,
@@ -1032,8 +1471,11 @@
           "onset_at": 1,
           "action": "fresh_session",
           "evidence": {
+            "signal": "api_error",
+            "observation_source": "synthetic",
             "code": 503,
-            "occurrences": 3
+            "occurrences": 3,
+            "terminal": false
           },
           "session_id": "positive-transport",
           "max_attempts": 2,
@@ -1088,6 +1530,8 @@
           "onset_at": 1,
           "action": "fresh_session",
           "evidence": {
+            "signal": "stream_end",
+            "observation_source": "synthetic",
             "partial_line": true
           },
           "session_id": "positive-truncated",
@@ -1143,6 +1587,8 @@
           "onset_at": 0.1,
           "action": "fresh_session",
           "evidence": {
+            "signal": "text_delta",
+            "observation_source": "synthetic",
             "method": "character_period",
             "repeats": 256,
             "units": 256,
@@ -1202,6 +1648,8 @@
           "onset_at": 1,
           "action": "probe",
           "evidence": {
+            "signal": "unknown_error",
+            "observation_source": "synthetic",
             "code": "UNRECOGNIZED_VENDOR_FAILURE",
             "occurrences": 1
           },
@@ -1226,6 +1674,8 @@
           "onset_at": 1,
           "action": "quarantine",
           "evidence": {
+            "signal": "unknown_error",
+            "observation_source": "synthetic",
             "code": "UNRECOGNIZED_VENDOR_FAILURE",
             "occurrences": 3
           },
@@ -1245,6 +1695,178 @@
           "action": "quarantine",
           "matched": true,
           "delay": 2
+        }
+      ],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "positive-wire-invalid-tool-json",
+        "label": "positive",
+        "provenance": {
+          "type": "synthetic_wire",
+          "contains_real_transcript": false
+        },
+        "expectations": [
+          {
+            "rule_id": "TOOL-001",
+            "action": "fresh_session",
+            "onset": 0.2,
+            "max_delay": 2.1
+          }
+        ],
+        "forbid_actions": []
+      },
+      "passed": true,
+      "incidents": [
+        {
+          "id": "incident-3eeeaa91b3df4e7e01c68ccf53a8aed0",
+          "rule_id": "TOOL-001",
+          "rule_version": 2,
+          "category": "tool_use",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "invalid structured tool/CLI frame",
+          "detected_at": 0.2,
+          "onset_at": 0.2,
+          "action": "warn",
+          "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "claude-wrapper",
+            "reason": "invalid completed tool argument JSON",
+            "occurrences": 1
+          },
+          "session_id": "positive-wire-invalid-tool-json",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_or_cli_unconfirmed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-4722a2826f55061d8b7d365d07c728a3",
+          "rule_id": "TOOL-001",
+          "rule_version": 2,
+          "category": "tool_use",
+          "severity": "high",
+          "confidence": 0.99,
+          "symptom": "invalid structured tool/CLI frame",
+          "detected_at": 2.2,
+          "onset_at": 0.2,
+          "action": "fresh_session",
+          "evidence": {
+            "signal": "malformed_call",
+            "observation_source": "claude-wrapper",
+            "reason": "invalid completed tool argument JSON",
+            "occurrences": 3
+          },
+          "session_id": "positive-wire-invalid-tool-json",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_or_cli_unconfirmed",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        }
+      ],
+      "expectations": [
+        {
+          "rule_id": "TOOL-001",
+          "action": "fresh_session",
+          "matched": true,
+          "delay": 2.0
+        }
+      ],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "positive-wire-repetition",
+        "label": "positive",
+        "provenance": {
+          "type": "synthetic_wire",
+          "contains_real_transcript": false
+        },
+        "expectations": [
+          {
+            "rule_id": "GEN-001",
+            "action": "fresh_session",
+            "onset": 0.1,
+            "max_delay": 0.4
+          }
+        ],
+        "forbid_actions": []
+      },
+      "passed": true,
+      "incidents": [
+        {
+          "id": "incident-66fc0360065740005b8dd3da91ffa207",
+          "rule_id": "GEN-001",
+          "rule_version": 1,
+          "category": "generation",
+          "severity": "warning",
+          "confidence": 0.99,
+          "symptom": "intra-generation repetition; text units, not tokenizer tokens",
+          "detected_at": 0.2,
+          "onset_at": 0.1,
+          "action": "warn",
+          "evidence": {
+            "signal": "text_delta",
+            "observation_source": "claude-wrapper",
+            "method": "word_run_or_frequency",
+            "repeats": 16,
+            "units": 16,
+            "share": 1.0,
+            "message_hash": "eea5eda0ed610e2fc1d38f66a45de8ab53624cf3b099eac7fbfbbb03851eccf5"
+          },
+          "session_id": "positive-wire-repetition",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_suspected",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        },
+        {
+          "id": "incident-c7082412221e2ea4997ce006283d3d55",
+          "rule_id": "GEN-001",
+          "rule_version": 1,
+          "category": "generation",
+          "severity": "high",
+          "confidence": 0.99,
+          "symptom": "intra-generation repetition; text units, not tokenizer tokens",
+          "detected_at": 0.4,
+          "onset_at": 0.1,
+          "action": "fresh_session",
+          "evidence": {
+            "signal": "text_delta",
+            "observation_source": "claude-wrapper",
+            "method": "word_run_or_frequency",
+            "repeats": 32,
+            "units": 32,
+            "share": 1.0,
+            "message_hash": "ee5b30f7ec5c547499e15f8ea88ba7a2de1b1c5caaad737f1214b120dcfeffe1"
+          },
+          "session_id": "positive-wire-repetition",
+          "max_attempts": 2,
+          "retry_seconds": 1.0,
+          "suspected_origin": "model_suspected",
+          "schema_version": "0.1",
+          "cause_confirmed": false,
+          "preserve_task": true,
+          "preserve_running_jobs": true
+        }
+      ],
+      "expectations": [
+        {
+          "rule_id": "GEN-001",
+          "action": "fresh_session",
+          "matched": true,
+          "delay": 0.30000000000000004
         }
       ],
       "forbidden_actions": []
@@ -1456,6 +2078,55 @@
     {
       "case": {
         "id": "negative-unknown",
+        "label": "negative",
+        "provenance": {
+          "type": "synthetic",
+          "source": null,
+          "contains_real_transcript": false
+        },
+        "expectations": [],
+        "forbid_actions": []
+      },
+      "passed": true,
+      "incidents": [],
+      "expectations": [],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "negative-wire-duplicate-complete-message",
+        "label": "negative",
+        "provenance": {
+          "type": "synthetic_wire",
+          "contains_real_transcript": false
+        },
+        "expectations": [],
+        "forbid_actions": []
+      },
+      "passed": true,
+      "incidents": [],
+      "expectations": [],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "negative-wire-quoted-errors",
+        "label": "negative",
+        "provenance": {
+          "type": "synthetic_wire",
+          "contains_real_transcript": false
+        },
+        "expectations": [],
+        "forbid_actions": []
+      },
+      "passed": true,
+      "incidents": [],
+      "expectations": [],
+      "forbidden_actions": []
+    },
+    {
+      "case": {
+        "id": "negative-wire-user-request-repetition",
         "label": "negative",
         "provenance": {
           "type": "synthetic",

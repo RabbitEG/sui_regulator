@@ -9,7 +9,7 @@ from typing import Iterator
 
 from .models import encode
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MIGRATIONS = {
     1: [
         """CREATE TABLE tasks (
@@ -60,6 +60,15 @@ MIGRATIONS = {
         "CREATE INDEX workers_task_idx ON workers(task_id, created_at)",
     ],
     2: ["ALTER TABLE jobs ADD COLUMN cancel_auth TEXT"],
+    3: [
+        """CREATE TABLE incidents (
+        id TEXT PRIMARY KEY,task_id TEXT NOT NULL REFERENCES tasks(id),
+        worker_id TEXT NOT NULL REFERENCES workers(id),generation INTEGER NOT NULL,
+        rule_id TEXT NOT NULL,payload TEXT NOT NULL,action TEXT NOT NULL,status TEXT NOT NULL,
+        outcome TEXT NOT NULL DEFAULT '{}',created_at REAL NOT NULL,applied_at REAL)""",
+        "CREATE INDEX incidents_pending_idx ON incidents(status,created_at)",
+        "CREATE INDEX incidents_task_idx ON incidents(task_id,rule_id,created_at)",
+    ],
 }
 
 

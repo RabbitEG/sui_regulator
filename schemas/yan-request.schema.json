@@ -150,6 +150,36 @@
     {
       "properties": {
         "method": {
+          "const": "yan.get_incidents"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "limit": {
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "task_id"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
           "const": "yan.get_job"
         },
         "params": {
@@ -563,6 +593,7 @@
         "yan.get_command_status",
         "yan.get_events",
         "yan.get_experiment",
+        "yan.get_incidents",
         "yan.get_job",
         "yan.get_logs",
         "yan.get_metrics",

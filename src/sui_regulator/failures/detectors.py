@@ -34,7 +34,7 @@ def intra_repetition(obs, state, config):
 
 
 def cross_message(obs, state, config):
-    if obs.kind == "tool_result" and not obs.data.get("is_error"):
+    if obs.kind == "user_input" or (obs.kind == "tool_result" and not obs.data.get("is_error")):
         state.clear()
         return None
     if obs.kind != "assistant_text" or len(obs.data.get("text", "")) < 32:
@@ -55,6 +55,11 @@ def cross_message(obs, state, config):
 
 
 def malformed(obs, state, config):
+    if obs.kind == "user_input" or (obs.kind == "tool_result" and not obs.data.get("is_error")):
+        state.clear()
+        return None
+    if obs.kind != "malformed_call":
+        return None
     state["count"] = state.get("count", 0) + 1
     state.setdefault("onset", obs.time)
     return Finding(
@@ -78,6 +83,9 @@ def clean(value):
 
 
 def failed_tools(obs, state, config):
+    if obs.kind == "user_input":
+        state["failures"] = deque(maxlen=20)
+        return None
     if obs.kind == "tool_call":
         pending = state.setdefault("pending", {})
         if len(pending) >= 128:
@@ -115,6 +123,9 @@ def failed_tools(obs, state, config):
 
 
 def transport(obs, state, config):
+    if obs.kind == "response_completed":
+        state.clear()
+        return None
     code = obs.data.get("code")
     if code not in config.get("codes", []):
         return None
@@ -122,7 +133,7 @@ def transport(obs, state, config):
     state["count"] = state.get("count", 0) + 1
     return Finding(
         state["count"],
-        {"code": code, "occurrences": state["count"]},
+        {"code": code, "occurrences": state["count"], "terminal": bool(obs.data.get("terminal"))},
         state["onset"],
         "structured transport failure; no side-effect replay authorized",
     )
@@ -153,8 +164,15 @@ def truncated(obs, state, config):
 
 
 def process_exit(obs, state, config):
-    if obs.data.get("alive") is False and not obs.data.get("expected_exit"):
-        return Finding(1, {"alive": False}, obs.time, "registered worker process is not alive")
+    if obs.data.get("expected_exit"):
+        return None
+    if obs.data.get("alive") is False or obs.data.get("lease_expired"):
+        return Finding(
+            1,
+            {"alive": obs.data.get("alive"), "lease_expired": bool(obs.data.get("lease_expired"))},
+            obs.time,
+            "registered worker process exited or its heartbeat lease expired",
+        )
 
 
 def session_state(obs, state, config):
@@ -176,7 +194,11 @@ def progress(obs, state, config):
         job.get("status") == "RUNNING" and not job.get("stale", True) for job in jobs
     )
     last = obs.data.get("last_progress_at", obs.time)
-    stalled = not waiting and not progressing and obs.time - last >= config.get("stall_seconds", 120)
+    stalled = (
+        not waiting
+        and not progressing
+        and obs.time - last >= obs.data.get("stall_seconds", config.get("stall_seconds", 120))
+    )
     if conflict or stalled:
         return Finding(
             1,
@@ -200,7 +222,7 @@ def environment(obs, state, config):
 
 def unknown(obs, state, config):
     state.setdefault("onset", obs.time)
-    state["count"] = state.get("count", 0) + 1
+    state["count"] = config.get("act_after", 3) if obs.data.get("terminal") else state.get("count", 0) + 1
     return Finding(
         state["count"],
         {"code": str(obs.data.get("code", "UNKNOWN_ANOMALY"))[:128], "occurrences": state["count"]},

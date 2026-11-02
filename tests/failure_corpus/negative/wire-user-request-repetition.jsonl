@@ -1,0 +1,13 @@
+{"case": {"id": "negative-wire-user-request-repetition", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 0, "wire": {"type": "user", "message": {"content": [{"type": "text", "text": "Repeat the same short status sentence."}]}}}
+{"time": 1, "wire": {"type": "assistant", "message": {"id": "answer-0", "content": [{"type": "text", "text": "The synthetic training job remains healthy and continues running."}]}}}
+{"time": 2, "wire": {"type": "user", "message": {"content": [{"type": "text", "text": "Repeat the same short status sentence."}]}}}
+{"time": 3, "wire": {"type": "assistant", "message": {"id": "answer-1", "content": [{"type": "text", "text": "The synthetic training job remains healthy and continues running."}]}}}
+{"time": 4, "wire": {"type": "user", "message": {"content": [{"type": "text", "text": "Repeat the same short status sentence."}]}}}
+{"time": 5, "wire": {"type": "assistant", "message": {"id": "answer-2", "content": [{"type": "text", "text": "The synthetic training job remains healthy and continues running."}]}}}
+{"time": 6, "wire": {"type": "user", "message": {"content": [{"type": "text", "text": "Repeat the same short status sentence."}]}}}
+{"time": 7, "wire": {"type": "assistant", "message": {"id": "answer-3", "content": [{"type": "text", "text": "The synthetic training job remains healthy and continues running."}]}}}
+{"time": 8, "wire": {"type": "user", "message": {"content": [{"type": "text", "text": "Repeat the same short status sentence."}]}}}
+{"time": 9, "wire": {"type": "assistant", "message": {"id": "answer-4", "content": [{"type": "text", "text": "The synthetic training job remains healthy and continues running."}]}}}
+{"time": 10, "wire": {"type": "user", "message": {"content": [{"type": "text", "text": "Repeat the same short status sentence."}]}}}
+{"time": 11, "wire": {"type": "assistant", "message": {"id": "answer-5", "content": [{"type": "text", "text": "The synthetic training job remains healthy and continues running."}]}}}

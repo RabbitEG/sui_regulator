@@ -80,7 +80,7 @@ class Incident:
             observed.time,
             finding.onset,
             action,
-            finding.evidence,
+            {"signal": observed.kind, "observation_source": observed.source, **finding.evidence},
             session_id,
             rule.recovery["max_attempts"],
             rule.recovery.get("retry_seconds", 1.0),

@@ -1,0 +1,2 @@
+{"case": {"id": "positive-heartbeat-lease", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "PROC-001", "action": "fresh_session", "onset": 15, "max_delay": 0}], "forbid_actions": []}}
+{"time": 15, "kind": "health", "data": {"alive": true, "lease_expired": true}}

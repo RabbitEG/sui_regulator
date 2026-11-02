@@ -1,6 +1,6 @@
 {
   "project": "Sui Regulator",
-  "updated_on": "2026-11-02",
+  "updated_on": "2026-11-03",
   "push_policy": "commit and push after every completed stage",
   "stages": [
     {
@@ -124,7 +124,27 @@
       },
       {
         "id": "C",
-        "status": "pending"
+        "status": "complete",
+        "evidence": [
+          "src/sui_regulator/failures/claude.py",
+          "src/sui_regulator/failures/persistence.py",
+          "tests/test_incident_recovery.py",
+          "docs/RECOVERY_POLICY.md"
+        ],
+        "verification": {
+          "full_suite_passed": 73,
+          "native_cli_loopback_passed": 3,
+          "corpus_cases": 38,
+          "safe_recovery": [
+            "early stream interruption and same running Job takeover",
+            "environment wait preserves Job",
+            "unknown fatal quarantine preserves Job",
+            "stale generation fenced",
+            "persistent per-rule budget and incident dedup",
+            "user cancellation takes priority",
+            "ambiguous Job blocks automatic replay"
+          ]
+        }
       },
       {
         "id": "D",

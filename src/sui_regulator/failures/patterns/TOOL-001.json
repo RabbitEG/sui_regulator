@@ -1,10 +1,12 @@
 {
   "id": "TOOL-001",
   "name": "Malformed structured call/frame",
-  "version": 1,
+  "version": 2,
   "category": "tool_use",
   "signals": [
-    "malformed_call"
+    "malformed_call",
+    "tool_result",
+    "user_input"
   ],
   "detector": {
     "type": "malformed",

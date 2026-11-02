@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import asdict, dataclass
 from importlib.resources import files
@@ -50,6 +51,8 @@ class Rule:
             raise ValueError("rule signals are required")
         if (
             rule.severity not in {"low", "medium", "high", "critical"}
+            or type(rule.confidence_required) not in {int, float}
+            or not math.isfinite(rule.confidence_required)
             or not 0 <= rule.confidence_required <= 1
         ):
             raise ValueError("invalid rule severity/confidence")
@@ -62,10 +65,28 @@ class Rule:
         if type(rule.recovery.get("max_attempts")) is not int or not 1 <= rule.recovery["max_attempts"] <= 10:
             raise ValueError("bounded recovery attempts required")
         config = rule.detector.get("config", {})
+        for key in ("warn_after", "act_after", "stall_seconds", "min_run", "min_words"):
+            value = config.get(key, 1)
+            if type(value) not in {int, float} or not math.isfinite(value) or not 1 <= value <= 1000000:
+                raise ValueError("detector thresholds must be finite and bounded")
         if not 1 <= config.get("warn_after", 1) <= config.get("act_after", 1):
             raise ValueError("invalid escalation thresholds")
-        if not rule.fixtures.get("positive") or not rule.fixtures.get("negative"):
-            raise ValueError("every rule requires positive and negative fixtures")
+        window = config.get("window_chars", 8192)
+        if type(window) is not int or not 64 <= window <= 65536:
+            raise ValueError("text window must be bounded")
+        for key in ("similarity", "argument_similarity"):
+            value = config.get(key, 0.95)
+            if type(value) not in {int, float} or not math.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError("invalid similarity threshold")
+        if config.get("early_action", "warn") not in ACTIONS:
+            raise ValueError("unknown early action")
+        retry = rule.recovery.get("retry_seconds", 1.0)
+        if type(retry) not in {int, float} or not math.isfinite(retry) or not 0 <= retry <= 3600:
+            raise ValueError("retry interval must be finite and bounded")
+        for label in ("positive", "negative"):
+            paths = rule.fixtures.get(label)
+            if not isinstance(paths, list) or not paths or not all(isinstance(p, str) and p for p in paths):
+                raise ValueError("every rule requires positive and negative fixture lists")
         return rule
 
 

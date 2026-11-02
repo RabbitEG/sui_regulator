@@ -18,6 +18,7 @@ COMMAND_KINDS = {
     "cancel_job",
 }
 JSON_COLUMNS = {
+    "outcome",
     "payload",
     "result",
     "spec",
@@ -174,7 +175,11 @@ class Service:
             raise DomainError("INVALID_ARGUMENT", "control command payload must be empty")
         desired = {"hold_task": "HOLD", "resume_task": "ACTIVE", "cancel_task": "CANCELLED"}[kind]
         status = "READY" if desired == "ACTIVE" else desired
-        if kind == "resume_task" and task["desired"] == "ACTIVE" and task["status"] != "QUARANTINED":
+        if (
+            kind == "resume_task"
+            and task["desired"] == "ACTIVE"
+            and task["status"] not in {"QUARANTINED", "WAITING"}
+        ):
             return {"task_id": tid, "effect": "already active"}
         conn.execute(
             "UPDATE workers SET status='REVOKED',ended_at=?,lease_expires=0 WHERE id=?",
@@ -196,6 +201,13 @@ class Service:
     def get_task(self, task_id: str) -> dict:
         with self.store.connection() as conn:
             task = unpack(self._get(conn, "tasks", task_id))
+            task["incidents"] = [
+                unpack(row)
+                for row in conn.execute(
+                    "SELECT rowid AS sequence,* FROM incidents WHERE task_id=? ORDER BY rowid DESC LIMIT 20",
+                    (task_id,),
+                )
+            ]
             task["jobs"] = [
                 self._job_view(row)
                 for row in conn.execute(

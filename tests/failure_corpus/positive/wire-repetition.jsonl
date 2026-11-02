@@ -1,0 +1,8 @@
+{"case": {"id": "positive-wire-repetition", "label": "positive", "provenance": {"type": "synthetic_wire", "contains_real_transcript": false}, "expectations": [{"rule_id": "GEN-001", "action": "fresh_session", "onset": 0.1, "max_delay": 0.4}], "forbid_actions": []}}
+{"time": 0, "wire": {"type": "stream_event", "event": {"type": "message_start", "message": {"id": "synthetic-stream"}}}}
+{"time": 0.1, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "echo echo echo echo echo echo echo echo "}}}}
+{"time": 0.2, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "echo echo echo echo echo echo echo echo "}}}}
+{"time": 0.3, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "echo echo echo echo echo echo echo echo "}}}}
+{"time": 0.4, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "echo echo echo echo echo echo echo echo "}}}}
+{"time": 0.5, "wire": {"type": "assistant", "message": {"id": "synthetic-stream", "content": [{"type": "text", "text": "echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo echo "}]}}}
+{"time": 0.6, "wire": {"type": "result", "subtype": "success", "is_error": false}}

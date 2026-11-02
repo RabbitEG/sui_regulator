@@ -1,6 +1,6 @@
 # 数据模型
 
-Schema v2（v1→v2 增加取消授权快照），使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDIATE。`PRAGMA user_version` 驱动逐版本事务迁移；拒绝打开未来版本。禁止直接复制运行中的主数据库文件作为备份，使用 `yan backup` 的 SQLite backup API。
+Schema v3（v1→v2 增加取消授权快照；v2→v3 增加 incidents），使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDIATE。`PRAGMA user_version` 驱动逐版本事务迁移；拒绝打开未来版本。禁止直接复制运行中的主数据库文件作为备份，使用 `yan backup` 的 SQLite backup API。
 
 | 表 | 主键/约束 | 含义 |
 |---|---|---|
@@ -12,10 +12,13 @@ Schema v2（v1→v2 增加取消授权快照），使用 SQLite WAL、foreign_ke
 | executions | job_id 唯一 | Runner 已开始执行的持久去重记录 |
 | artifacts | id；UNIQUE(task_id,path) | 路径、来源、种类；Worker 声明与 Runner 产物有来源区别 |
 | events | 自增 id，task 索引 | 结构化审计，支持 after/limit 游标 |
+| incidents | id 唯一，task/worker 外键，generation | 规则版本、脱敏证据、建议动作、最终动作、处理状态与回执 |
 
 WorkerLease 合并在 workers 中，以 lease hash、到期时间及 Task current_worker/generation 实现。首轮 Metric 保存在 Job 最新观测 JSON；历史合成日志与结果落在私有 Job 目录，不自建指标平台。Approval 尚未实现：首轮接口不提供真实 shell/真实训练终止等需要审批的能力。
 
-Task desired：ACTIVE/HOLD/CANCELLED/COMPLETED；执行 status 另有 READY/RUNNING/QUARANTINED。终态任务不能 resume。HOLD/CANCEL 撤销 Worker lease，但保留运行 Job。
+Task desired：ACTIVE/HOLD/CANCELLED/COMPLETED；执行 status 另有 READY/RUNNING/WAITING/QUARANTINED。WAITING 表示已观测到环境故障，暂停 Session 分配但保留运行 Job。终态任务不能 resume。HOLD/CANCEL 撤销 Worker lease，但保留运行 Job。
+
+Incident：PENDING → OBSERVED/APPLIED/STALE/IGNORED。payload 是不可变的规则建议；action/outcome 记录最终决策和原因。created_at/applied_at 为数据库墙钟；payload 的 onset_at/detected_at 在离线重放中使用轨迹的显式时间。置信分数是确定性启发式阈值，不是经实测校准的概率。原始聊天、完整工具参数和凭据不写入 Incident。
 
 Command：QUEUED → SUCCEEDED 或 REJECTED。本地纯数据库命令在一个事务中完成，外部看不到半个执行结果；预留 EXECUTING/FAILED/UNKNOWN 给后续远端操作。SUCCEEDED 只代表该命令定义的效果，例如「指令已记录」，不代表模型已执行分析。
 

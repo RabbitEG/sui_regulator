@@ -6,10 +6,15 @@ import sqlite3
 import subprocess
 import time
 from contextlib import AbstractContextManager
+from pathlib import Path
 
 from .adapters import MockWorkerAdapter, UnavailableWorkerAdapter, WorkerAdapter
 from .config import Config
-from .models import DomainError, encode
+from .failures.engine import DetectionEngine
+from .failures.models import Observation
+from .failures.persistence import apply_pending, publish
+from .failures.registry import FailureRegistry
+from .models import Credentials, DomainError, encode
 from .processes import FileLock, alive, identity, process_state, signal_owned
 from .protocol import SuiProtocol
 from .registry import WorkerRegistry
@@ -21,6 +26,10 @@ class Controller(AbstractContextManager):
     def __init__(self, config: Config, adapters: dict[str, WorkerAdapter] | None = None):
         self.config, self.registry = config, WorkerRegistry(config.home)
         self.watchdog_actions: list[dict] = []
+        self.detection_engines: dict[str, DetectionEngine] = {}
+        self.failure_rules = (
+            FailureRegistry(Path(config.failure_registry)) if config.failure_registry else FailureRegistry()
+        )
         self.adapters = adapters or {"mock": MockWorkerAdapter(), "unavailable": UnavailableWorkerAdapter()}
         if adapters is None:
             from .claude_adapter import ClaudeCodeAdapter
@@ -131,16 +140,45 @@ class Controller(AbstractContextManager):
             return "LEASE_EXPIRED"
         if worker["anomaly_count"] >= 3:
             return "MALFORMED_OR_REPEATED_TOOL_CALLS"
-        if now - worker["activity_at"] > self.config.stall_seconds:
-            task = self.service.get_task(worker["task_id"])
-            phase = task["declared"].get("phase", "")
-            waiting = phase in {"WAITING_USER", "WAITING_RESOURCE", "WAITING_EXTERNAL"}
-            running_job = phase == "WAITING_JOB" and any(
-                job["status"] == "RUNNING" and not job["stale"] for job in task["jobs"]
-            )
-            if not waiting and not running_job:
-                return "STALLED"
         return None
+
+    def _observe_health(self):
+        active = set()
+        for row in self.service.store.rows(
+            "SELECT w.* FROM workers w JOIN tasks t ON t.current_worker=w.id WHERE t.desired='ACTIVE' AND t.status NOT IN ('WAITING','QUARANTINED')"
+        ):
+            active.add(row["id"])
+            if row["status"] == "STARTING" and time.time() - row["created_at"] < self.config.startup_grace:
+                continue
+            if row["id"] not in self.detection_engines:
+                self.detection_engines[row["id"]] = DetectionEngine(
+                    self.failure_rules, session_id=row["session_id"]
+                )
+            engine = self.detection_engines[row["id"]]
+            task = self.service.get_task(row["task_id"])
+            observed = Observation(
+                max(time.time(), engine.last_time),
+                "health",
+                {
+                    "alive": alive(json.loads(row["identity"]) if row["identity"] else None)
+                    and row["status"] != "EXITED",
+                    "expected_exit": bool(row["rotation_at"] and row["handoff"]),
+                    "lease_expired": row["lease_expires"] <= time.time(),
+                    "phase": task["declared"].get("phase", ""),
+                    "jobs": task["jobs"],
+                    "last_progress_at": row["activity_at"],
+                    "stall_seconds": self.config.stall_seconds,
+                },
+                "candleholder",
+            )
+            publish(
+                self.service,
+                Credentials(row["task_id"], row["id"], row["generation"], ""),
+                engine.feed(observed),
+            )
+        self.detection_engines = {
+            key: value for key, value in self.detection_engines.items() if key in active
+        }
 
     def tick(self) -> None:
         if not self.acquired:
@@ -149,11 +187,13 @@ class Controller(AbstractContextManager):
         self._audit_watchdog()
         self.service.process_commands()
         self.runner.reconcile()
+        self._observe_health()
+        apply_pending(self)
         for pid, process in list(self.children.items()):
             if process.poll() is not None:
                 del self.children[pid]
         for task in self.service.store.rows("SELECT * FROM tasks ORDER BY created_at,id"):
-            if task["desired"] != "ACTIVE" or task["status"] == "QUARANTINED":
+            if task["desired"] != "ACTIVE" or task["status"] in {"QUARANTINED", "WAITING"}:
                 continue
             worker = None
             if task["current_worker"]:

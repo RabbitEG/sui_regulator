@@ -14,3 +14,5 @@ stale_seconds = 10.0
 claude_binary = "claude"
 claude_model = ""
 claude_max_turns = 20
+# Empty uses the versioned rules bundled with the wheel.
+failure_registry = ""

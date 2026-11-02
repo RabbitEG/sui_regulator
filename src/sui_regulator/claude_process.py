@@ -13,6 +13,8 @@ from pathlib import Path
 
 from .claude_adapter import ClaudeStreamDetector, build_command, classify_error, runtime_environment
 from .config import Config
+from .failures.persistence import publish
+from .failures.registry import FailureRegistry
 from .models import Credentials, DomainError, encode
 from .processes import identity
 from .protocol import SuiProtocol
@@ -64,7 +66,11 @@ def run(config: Config, credentials: Credentials) -> None:
     assert process.stdin and process.stdout and process.stderr
     process.stdin.write(prompt.encode())
     process.stdin.close()
-    detector, final_seen, error, stderr_tail = ClaudeStreamDetector(), False, None, b""
+    detector = ClaudeStreamDetector(
+        worker["session_id"],
+        FailureRegistry(Path(config.failure_registry)) if config.failure_registry else None,
+    )
+    final_seen, error, stderr_tail = False, None, b""
 
     def record_exit(reason: str, return_code=None):
         with service.store.transaction() as conn:
@@ -91,13 +97,20 @@ def run(config: Config, credentials: Credentials) -> None:
             if time.monotonic() - last_heartbeat >= config.heartbeat_seconds:
                 protocol.heartbeat(credentials)
                 last_heartbeat = time.monotonic()
+                clock_event = detector.tick()
+                publish(service, credentials, clock_event.incidents)
+                if clock_event.error:
+                    record_exit(clock_event.error)
+                    return
             for key, _ in selector.select(timeout=min(config.heartbeat_seconds, 0.1)):
                 fd = key.fd
                 chunk = os.read(fd, 65536)
                 if not chunk:
                     selector.unregister(key.fileobj)
-                    if buffers[fd] and fd == process.stdout.fileno():
-                        error = error or "TRUNCATED_STREAM"
+                    if fd == process.stdout.fileno():
+                        ended = detector.end(partial_line=bool(buffers[fd]))
+                        publish(service, credentials, ended.incidents)
+                        error = error or ended.error
                     continue
                 if fd == process.stderr.fileno():
                     stderr_tail = (stderr_tail + chunk)[-8192:]
@@ -109,6 +122,11 @@ def run(config: Config, credentials: Credentials) -> None:
                         dropping.remove(fd)
                         continue
                     if len(line) > MAX_LINE_BYTES:
+                        oversized = detector.feed("{}")
+                        publish(service, credentials, oversized.incidents)
+                        if oversized.error:
+                            record_exit(oversized.error)
+                            return
                         with service.store.transaction() as conn:
                             conn.execute(
                                 "UPDATE workers SET anomaly_count=anomaly_count+1 WHERE id=?",
@@ -116,6 +134,7 @@ def run(config: Config, credentials: Credentials) -> None:
                             )
                         continue
                     event = detector.feed(line.decode(errors="replace"))
+                    publish(service, credentials, event.incidents)
                     if event.session_id and event.session_id != worker["session_id"]:
                         error = "SESSION_ID_MISMATCH"
                     if event.activity:
@@ -139,6 +158,11 @@ def run(config: Config, credentials: Credentials) -> None:
                 if len(buffers[fd]) > MAX_LINE_BYTES:
                     buffers[fd] = b""
                     dropping.add(fd)
+                    oversized = detector.feed("{}")
+                    publish(service, credentials, oversized.incidents)
+                    if oversized.error:
+                        record_exit(oversized.error)
+                        return
                     with service.store.transaction() as conn:
                         conn.execute(
                             "UPDATE workers SET anomaly_count=anomaly_count+1 WHERE id=?",

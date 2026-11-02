@@ -1,0 +1,12 @@
+{"case": {"id": "negative-wire-duplicate-complete-message", "label": "negative", "provenance": {"type": "synthetic_wire", "contains_real_transcript": false}, "expectations": [], "forbid_actions": []}}
+{"time": 0, "wire": {"type": "stream_event", "event": {"type": "message_start", "message": {"id": "normal-message"}}}}
+{"time": 1, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "A first synthetic observation. "}}}}
+{"time": 2, "wire": {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "A different second observation."}}}}
+{"time": 3, "wire": {"type": "assistant", "message": {"id": "normal-message", "content": [{"type": "text", "text": "A first synthetic observation. A different second observation."}]}}}
+{"time": 4, "wire": {"type": "assistant", "message": {"id": "normal-message", "content": [{"type": "text", "text": "A first synthetic observation. A different second observation."}]}}}
+{"time": 5, "wire": {"type": "assistant", "message": {"id": "normal-message", "content": [{"type": "text", "text": "A first synthetic observation. A different second observation."}]}}}
+{"time": 6, "wire": {"type": "assistant", "message": {"id": "normal-message", "content": [{"type": "text", "text": "A first synthetic observation. A different second observation."}]}}}
+{"time": 7, "wire": {"type": "assistant", "message": {"id": "normal-message", "content": [{"type": "text", "text": "A first synthetic observation. A different second observation."}]}}}
+{"time": 8, "wire": {"type": "assistant", "message": {"id": "normal-message", "content": [{"type": "text", "text": "A first synthetic observation. A different second observation."}]}}}
+{"time": 9, "wire": {"type": "assistant", "message": {"id": "normal-message", "content": [{"type": "text", "text": "A first synthetic observation. A different second observation."}]}}}
+{"time": 10, "wire": {"type": "result", "subtype": "success", "is_error": false}}

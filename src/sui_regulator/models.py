@@ -15,6 +15,7 @@ class DesiredState(StrEnum):
 
 
 class TaskStatus(StrEnum):
+    WAITING = "WAITING"
     READY = "READY"
     RUNNING = "RUNNING"
     HOLD = "HOLD"

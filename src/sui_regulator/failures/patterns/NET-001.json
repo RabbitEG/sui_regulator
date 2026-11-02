@@ -1,10 +1,11 @@
 {
   "id": "NET-001",
   "name": "Bounded transient transport failures",
-  "version": 1,
+  "version": 2,
   "category": "transport",
   "signals": [
-    "api_error"
+    "api_error",
+    "response_completed"
   ],
   "detector": {
     "type": "transport",

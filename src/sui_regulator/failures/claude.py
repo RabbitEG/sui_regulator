@@ -1,0 +1,291 @@
+"""Claude wire decoding only. No recovery decisions or arbitrary log keywords."""
+
+from __future__ import annotations
+
+import json
+import re
+from collections import deque
+from dataclasses import dataclass, field
+
+from ..models import digest, encode
+from .detectors import ENV_CODES
+from .models import Observation
+
+
+def classify_error(text: str) -> str:
+    """Legacy provider error-text fallback, used only in CLI error envelopes."""
+    if re.search(
+        r"\b(?:401|403)\b|unauth|authentication|invalid.api.key|not.logged.in|login.required|api.key.*required",
+        text,
+        re.I,
+    ):
+        return "AUTH_REQUIRED"
+    if re.search(
+        r"ECONNRESET|ECONNREFUSED|\b503\b|overloaded|mid.stream|mid.response|connection.lost|timed.out|fetch.failed",
+        text,
+        re.I,
+    ):
+        return "TRANSPORT_FAILURE"
+    if re.search(r"quota|credit|rate.limit|\b429\b", text, re.I):
+        return "RESOURCE_BLOCKED"
+    return "RUNTIME_ERROR"
+
+
+@dataclass
+class Decoded:
+    observations: list[Observation] = field(default_factory=list)
+    final: bool = False
+    terminal_error: str | None = None
+    session_id: str | None = None
+
+
+class ClaudeNormalizer:
+    def __init__(self, expected_session: str | None = None):
+        self.expected_session = expected_session
+        self.final_seen = False
+        self.streaming_observed = False
+        self.text_delta_seen = False
+        self.awaiting_response = False
+        self.last_stream_at: float | None = None
+        self.message_id = "stream-message"
+        self.serial = 0
+        self.blocks: dict[int, dict] = {}
+        self.seen_calls = deque(maxlen=512)
+        self.seen_messages = deque(maxlen=128)
+        self.pending: set[str] = set()
+
+    def _obs(self, time, kind, **data):
+        return Observation(time, kind, data, "claude-wrapper")
+
+    def _call(self, block: dict, time) -> list[Observation]:
+        call_id, name, arguments = block.get("id"), block.get("name"), block.get("input")
+        if (
+            not isinstance(call_id, str)
+            or not call_id
+            or not isinstance(name, str)
+            or not name
+            or not isinstance(arguments, dict)
+        ):
+            return [
+                self._obs(
+                    time, "malformed_call", reason="missing call identity/name or invalid argument object"
+                )
+            ]
+        if call_id in self.seen_calls:
+            return []
+        self.seen_calls.append(call_id)
+        if name.casefold() in {"bash", "shell"} and not str(arguments.get("command", "")).strip():
+            return [self._obs(time, "malformed_call", reason="empty Bash command")]
+        if len(self.pending) >= 128:
+            self.pending.pop()
+        self.pending.add(call_id)
+        self.awaiting_response = False
+        return [self._obs(time, "tool_call", call_id=call_id, name=name[:256], arguments=arguments)]
+
+    def _result(self, block, time):
+        call_id = block.get("tool_use_id")
+        self.pending.discard(call_id)
+        self.awaiting_response = not self.pending
+        content = block.get("content", {})
+        value = content
+        if isinstance(content, list):
+            value = [
+                part.get("text", "")
+                for part in content
+                if isinstance(part, dict) and part.get("type") == "text"
+            ]
+            if len(value) == 1:
+                try:
+                    value = json.loads(value[0])
+                except (ValueError, TypeError):
+                    pass
+        code = value.get("code") if isinstance(value, dict) else None
+        failed = bool(block.get("is_error"))
+        observations = [
+            self._obs(
+                time,
+                "tool_result",
+                call_id=call_id,
+                is_error=failed,
+                error_code=code,
+                result=value if isinstance(value, dict) else {"content_hash": digest(value)},
+            )
+        ]
+        if failed and code in ENV_CODES:
+            observations.insert(0, self._obs(time, "environment_error", code=code))
+        return observations
+
+    def feed(self, line: str, time: float) -> Decoded:
+        try:
+            return self._decode(line, time)
+        except (ValueError, TypeError, AttributeError, KeyError, IndexError, RecursionError):
+            return Decoded(
+                [self._obs(time, "malformed_call", reason="unsupported or malformed CLI event shape")]
+            )
+
+    def _decode(self, line: str, time: float) -> Decoded:
+        self.serial += 1
+        try:
+            value = json.loads(line)
+        except (ValueError, TypeError):
+            return Decoded([self._obs(time, "malformed_call", reason="invalid CLI JSON")])
+        if not isinstance(value, dict) or not isinstance(value.get("type"), str):
+            return Decoded([self._obs(time, "malformed_call", reason="invalid CLI event envelope")])
+        if value.get("parent_tool_use_id"):
+            return Decoded()
+        result = Decoded()
+        kind = value["type"]
+        if kind in {"stream_event", "assistant", "user", "result", "error"} or value.get("subtype") in {
+            "init",
+            "api_retry",
+        }:
+            self.last_stream_at = time
+        if kind == "system":
+            if value.get("subtype") == "init":
+                result.session_id = value.get("session_id")
+                self.awaiting_response = True
+                if self.expected_session and result.session_id != self.expected_session:
+                    result.observations.append(self._obs(time, "session_state", mismatch=True))
+            elif value.get("subtype") == "api_retry":
+                code = value.get("error_status")
+                if code is None:
+                    code = classify_error(encode({"error": value.get("error")}))
+                result.observations.append(self._obs(time, "api_error", code=code, terminal=False))
+            elif value.get("subtype") in {"compact_error", "compaction_error"}:
+                result.observations.append(self._obs(time, "session_state", code="COMPACTION_FAILED"))
+        elif kind == "stream_event":
+            self.streaming_observed = True
+            event = value.get("event", {})
+            if not isinstance(event, dict):
+                return Decoded([self._obs(time, "malformed_call", reason="invalid stream event")])
+            event_type = event.get("type")
+            if event_type == "message_start":
+                self.message_id = event.get("message", {}).get("id", f"stream-{self.serial}")
+                self.blocks.clear()
+                self.awaiting_response = True
+            elif event_type == "content_block_start":
+                if len(self.blocks) >= 32:
+                    self.blocks.clear()
+                block = event.get("content_block", {})
+                self.blocks[event.get("index", 0)] = {**block, "partial_json": ""}
+            elif event_type == "content_block_delta":
+                delta = event.get("delta", {})
+                if delta.get("type") in {"text_delta", "thinking_delta"}:
+                    text = delta.get("text", delta.get("thinking", ""))
+                    if isinstance(text, str):
+                        self.text_delta_seen |= delta["type"] == "text_delta"
+                        result.observations.append(
+                            self._obs(
+                                time,
+                                "text_delta",
+                                message_id=str(self.message_id) + ":" + str(event.get("index", 0)),
+                                text=text,
+                                channel=delta["type"],
+                            )
+                        )
+                elif delta.get("type") == "input_json_delta":
+                    block = self.blocks.get(event.get("index", 0))
+                    if block:
+                        block["partial_json"] = (block["partial_json"] + delta.get("partial_json", ""))[
+                            :65537
+                        ]
+            elif event_type == "content_block_stop":
+                block = self.blocks.pop(event.get("index", 0), {})
+                if block.get("type") == "tool_use":
+                    try:
+                        block["input"] = (
+                            json.loads(block["partial_json"])
+                            if block.get("partial_json")
+                            else block.get("input", {})
+                        )
+                        result.observations.extend(self._call(block, time))
+                    except (ValueError, TypeError):
+                        result.observations.append(
+                            self._obs(time, "malformed_call", reason="invalid completed tool argument JSON")
+                        )
+        elif kind in {"assistant", "user"}:
+            message = value.get("message", {})
+            content = message.get("content", []) if isinstance(message, dict) else None
+            if not isinstance(content, list):
+                return Decoded([self._obs(time, "malformed_call", reason="invalid message content")])
+            message_id = message.get("id", f"message-{self.serial}")
+            if kind == "assistant" and message_id in self.seen_messages:
+                return result
+            if kind == "assistant":
+                self.seen_messages.append(message_id)
+            for block in content:
+                if not isinstance(block, dict):
+                    result.observations.append(
+                        self._obs(time, "malformed_call", reason="invalid content block")
+                    )
+                elif block.get("type") == "tool_use":
+                    result.observations.extend(self._call(block, time))
+                elif block.get("type") == "tool_result":
+                    result.observations.extend(self._result(block, time))
+                elif kind == "assistant" and block.get("type") in {"text", "thinking"}:
+                    text = block.get("text", block.get("thinking", ""))
+                    if isinstance(text, str):
+                        result.observations.append(
+                            self._obs(time, "assistant_text", message_id=message_id, text=text)
+                        )
+            if (
+                kind == "assistant"
+                and not value.get("error")
+                and not any(item.kind == "malformed_call" for item in result.observations)
+            ):
+                result.observations.append(self._obs(time, "response_completed"))
+            elif (
+                kind == "user"
+                and any(isinstance(block, dict) and block.get("type") == "text" for block in content)
+                and not any(
+                    isinstance(block, dict) and block.get("type") == "tool_result" for block in content
+                )
+            ):
+                result.observations.append(self._obs(time, "user_input"))
+        elif kind in {"result", "error"}:
+            result.final = kind == "result"
+            self.final_seen |= result.final
+            self.awaiting_response = False
+            if kind == "error" or value.get("is_error") or value.get("subtype", "success") != "success":
+                code = classify_error(
+                    encode(
+                        {
+                            "errors": value.get("errors", []),
+                            "error": value.get("error", {}),
+                            "result": value.get("result", ""),
+                        }
+                    )
+                )
+                result.terminal_error = code
+                result.observations.append(
+                    self._obs(
+                        time,
+                        "unknown_error" if code == "RUNTIME_ERROR" else "api_error",
+                        code=code,
+                        terminal=True,
+                    )
+                )
+            else:
+                result.observations.append(self._obs(time, "response_completed"))
+        return result
+
+    def clock(self, time: float) -> Observation:
+        if self.last_stream_at is None:
+            self.last_stream_at = time
+        return self._obs(
+            time,
+            "clock",
+            awaiting_response=self.awaiting_response,
+            tool_pending=bool(self.pending),
+            last_stream_at=self.last_stream_at,
+            streaming_observed=self.streaming_observed,
+        )
+
+    def end(self, time: float, partial_line=False, authorized_stop=False) -> Observation:
+        return self._obs(
+            time,
+            "stream_end",
+            final_seen=self.final_seen,
+            partial_line=partial_line,
+            authorized_stop=authorized_stop,
+        )

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import json
-import re
 import subprocess
 import sys
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from .models import Credentials, digest, encode
+from .failures.claude import ClaudeNormalizer, Decoded
+from .failures.claude import classify_error as classify_error
+from .failures.engine import DetectionEngine
+from .models import Credentials, encode
 from .processes import child_environment, detached
 from .protocol import SuiProtocol
 from .service import Service
@@ -21,102 +23,67 @@ class StreamEvent:
     final: bool = False
     error: str | None = None
     session_id: str | None = None
-
-
-def classify_error(text: str) -> str:
-    if re.search(
-        r"\b(?:401|403)\b|unauth|authentication|invalid.api.key|not.logged.in|login.required|api.key.*required",
-        text,
-        re.I,
-    ):
-        return "AUTH_REQUIRED"
-    if re.search(
-        r"ECONNRESET|ECONNREFUSED|\b503\b|overloaded|mid.stream|mid.response|connection.lost|timed.out|fetch.failed",
-        text,
-        re.I,
-    ):
-        return "TRANSPORT_FAILURE"
-    if re.search(r"quota|credit|rate.limit|\b429\b", text, re.I):
-        return "RESOURCE_BLOCKED"
-    return "RUNTIME_ERROR"
+    incidents: list = field(default_factory=list)
 
 
 class ClaudeStreamDetector:
-    """Bounded deterministic observations; never interprets prose as a control command."""
+    """Compatibility facade; decoding, rules and policy live in separate modules."""
 
-    def __init__(self):
-        self.last_text_hash = self.last_failed_call = None
-        self.text_repeats = self.failed_repeats = 0
-        self.api_failures = 0
-        self.pending_calls: dict[str, str] = {}
+    def __init__(self, session_id=None, registry=None):
+        self.normalizer = ClaudeNormalizer(session_id)
+        self.engine = DetectionEngine(registry, session_id or "offline")
 
-    def feed(self, line: str) -> StreamEvent:
-        try:
-            value = json.loads(line)
-        except (ValueError, TypeError):
-            return StreamEvent(anomaly=True)
-        if not isinstance(value, dict) or not isinstance(value.get("type"), str):
-            return StreamEvent(anomaly=True)
-        event = StreamEvent()
-        if value["type"] == "system" and value.get("subtype") == "init":
-            event.session_id = value.get("session_id")
-        if value["type"] == "system" and value.get("subtype") == "api_retry":
-            self.api_failures += 1
-            reason = classify_error(
-                encode({"status": value.get("error_status"), "error": value.get("error")})
-            )
-            # The installed CLI retries even authentication failures. Stop those
-            # immediately; bound repeated transient retries independently of age.
-            if reason in {"AUTH_REQUIRED", "RESOURCE_BLOCKED"} or self.api_failures >= 3:
-                event.error = reason
-            return event
-        if value["type"] == "result":
-            event.final = True
-            if value.get("is_error") or value.get("subtype", "success") != "success":
-                event.error = classify_error(encode(value))
-            return event
-        if value["type"] == "error":
-            return StreamEvent(error=classify_error(encode(value)))
-        if value["type"] not in {"assistant", "user"}:
-            return event
-        message = value.get("message", {})
-        content = message.get("content", []) if isinstance(message, dict) else []
-        if not isinstance(content, list):
-            return StreamEvent(anomaly=True)
-        for block in content:
-            if not isinstance(block, dict):
-                event.anomaly = True
-                continue
-            if block.get("type") == "tool_use":
-                name, arguments = block.get("name"), block.get("input")
-                if not isinstance(name, str) or not name or not isinstance(arguments, dict):
-                    event.anomaly = True
-                    continue
-                if name.lower() in {"bash", "shell"} and not str(arguments.get("command", "")).strip():
-                    event.anomaly = True
-                event.activity = True
-                if len(self.pending_calls) >= 128:
-                    self.pending_calls.clear()
-                self.pending_calls[str(block.get("id", ""))] = digest([name, arguments])
-            elif block.get("type") == "tool_result":
-                fingerprint = self.pending_calls.pop(str(block.get("tool_use_id", "")), None)
-                if block.get("is_error"):
-                    self.failed_repeats = (
-                        self.failed_repeats + 1 if fingerprint and fingerprint == self.last_failed_call else 1
-                    )
-                    self.last_failed_call = fingerprint
-                    event.anomaly |= self.failed_repeats >= 3
-                else:
-                    self.failed_repeats = 0
-                    event.successful_tool = event.activity = True
-            elif block.get("type") == "text" and isinstance(block.get("text"), str):
-                text = block["text"]
-                fingerprint = digest(text)
-                self.text_repeats = self.text_repeats + 1 if fingerprint == self.last_text_hash else 1
-                self.last_text_hash = fingerprint
-                event.anomaly |= len(text) >= 32 and self.text_repeats >= 4
-                event.activity = True
-        return event
+    def _convert(self, decoded):
+        incidents = []
+        for observed in decoded.observations:
+            incidents.extend(self.engine.feed(observed))
+        disruptive = next(
+            (item for item in reversed(incidents) if item.action in {"fresh_session", "quarantine", "wait"}),
+            None,
+        )
+        reasons = {
+            "TOOL-001": "MALFORMED_OR_REPEATED_TOOL_CALLS",
+            "GEN-001": "GENERATION_REPETITION",
+            "GEN-002": "GENERATION_REPETITION",
+            "NET-001": "TRANSPORT_FAILURE",
+            "NET-002": "STREAM_STALLED",
+            "NET-003": "TRUNCATED_STREAM",
+            "STATE-001": "SESSION_ID_MISMATCH",
+            "ENV-001": "ENVIRONMENT_BLOCKED",
+            "UNKNOWN-001": "UNKNOWN_ANOMALY",
+        }
+        error = (
+            reasons.get(disruptive.rule_id, decoded.terminal_error or disruptive.rule_id)
+            if disruptive
+            else decoded.terminal_error
+        )
+        return StreamEvent(
+            activity=any(
+                item.kind in {"assistant_text", "text_delta", "tool_call", "tool_result"}
+                for item in decoded.observations
+            ),
+            anomaly=any(item.kind == "malformed_call" for item in decoded.observations)
+            or any(item.category == "generation" for item in incidents),
+            successful_tool=any(
+                item.kind == "tool_result" and not item.data.get("is_error") for item in decoded.observations
+            ),
+            final=decoded.final,
+            error=error,
+            session_id=decoded.session_id,
+            incidents=incidents,
+        )
+
+    def feed(self, line, now=None):
+        now = max(time.time() if now is None else now, self.engine.last_time)
+        return self._convert(self.normalizer.feed(line, now))
+
+    def tick(self, now=None):
+        now = max(time.time() if now is None else now, self.engine.last_time)
+        return self._convert(Decoded([self.normalizer.clock(now)]))
+
+    def end(self, now=None, partial_line=False, authorized_stop=False):
+        now = max(time.time() if now is None else now, self.engine.last_time)
+        return self._convert(Decoded([self.normalizer.end(now, partial_line, authorized_stop)]))
 
 
 def build_command(config, session_id: str) -> list[str]:
@@ -136,6 +103,7 @@ def build_command(config, session_id: str) -> list[str]:
         "--output-format",
         "stream-json",
         "--verbose",
+        "--include-partial-messages",
         "--session-id",
         session_id,
         "--no-session-persistence",

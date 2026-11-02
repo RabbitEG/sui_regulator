@@ -4,6 +4,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from .claude import ClaudeNormalizer
 from .engine import DetectionEngine
 from .models import Observation
 from .registry import FailureRegistry
@@ -15,14 +16,23 @@ def replay(path: Path, registry: FailureRegistry | None = None) -> dict:
         first = source.readline(262145)
         metadata = json.loads(first)["case"]
         engine = DetectionEngine(registry, metadata["id"])
+        normalizer = ClaudeNormalizer(metadata.get("context", {}).get("expected_session_id"))
         incidents = []
-        for number, line in enumerate(source, 2):
+        for number, line in enumerate(iter(lambda: source.readline(262145), ""), 2):
             if len(line.encode()) > 262144 or number > 20000:
                 raise ValueError("corpus input exceeds bounded replay limits")
             if line.strip():
-                incidents.extend(
-                    incident.to_dict() for incident in engine.feed(Observation(**json.loads(line)))
+                value = json.loads(line)
+                observations = (
+                    normalizer.feed(
+                        json.dumps(value["wire"]) if isinstance(value.get("wire"), dict) else value["wire"],
+                        value["time"],
+                    ).observations
+                    if "wire" in value
+                    else [Observation(**value)]
                 )
+                for observed in observations:
+                    incidents.extend(incident.to_dict() for incident in engine.feed(observed))
     matches, delays = [], []
     for expected in metadata.get("expectations", []):
         hits = [

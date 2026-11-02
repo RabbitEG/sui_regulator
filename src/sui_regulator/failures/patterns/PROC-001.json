@@ -1,7 +1,7 @@
 {
   "id": "PROC-001",
-  "name": "Unexpected registered process exit",
-  "version": 1,
+  "name": "Owned process exit or heartbeat lease loss",
+  "version": 2,
   "category": "process",
   "signals": [
     "health"
@@ -24,7 +24,8 @@
   },
   "fixtures": {
     "positive": [
-      "positive/process.jsonl"
+      "positive/process.jsonl",
+      "positive/heartbeat-lease.jsonl"
     ],
     "negative": [
       "negative/process.jsonl"

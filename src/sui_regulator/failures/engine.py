@@ -21,8 +21,17 @@ class DetectionEngine:
         for rule in self.registry.rules:
             if observed.kind not in rule.signals:
                 continue
+            algorithm = rule.detector["type"]
+            # Recovery starts a new episode; old warnings must not accumulate
+            # across successful work or suppress alerts in a later episode.
+            successful_work = observed.kind == "tool_result" and not observed.data.get("is_error")
+            if (
+                algorithm in {"cross_message", "malformed", "failed_tools"}
+                and (successful_work or observed.kind == "user_input")
+            ) or (algorithm == "transport" and observed.kind == "response_completed"):
+                self.emitted = {key for key in self.emitted if key[0] != rule.id}
             config = rule.detector["config"]
-            finding = DETECTORS[rule.detector["type"]](observed, self.state[rule.id], config)
+            finding = DETECTORS[algorithm](observed, self.state[rule.id], config)
             if (
                 not finding
                 or finding.count < config.get("warn_after", 1)

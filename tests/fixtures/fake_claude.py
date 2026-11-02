@@ -140,6 +140,77 @@ def main():
                     "job_ids": [job["id"]],
                 },
             )
+            if (
+                mode in {"stream_degenerate", "environment", "unknown", "transport_once"}
+                and task["generation"] == 1
+            ):
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline:
+                    current = tool("get_task_context", {})
+                    if current["jobs"] and current["jobs"][0]["status"] == "RUNNING":
+                        break
+                    time.sleep(0.02)
+                if mode == "stream_degenerate":
+                    emit(
+                        {
+                            "type": "stream_event",
+                            "event": {"type": "message_start", "message": {"id": "synthetic-repetition"}},
+                        }
+                    )
+                    for index in range(100):
+                        emit(
+                            {
+                                "type": "stream_event",
+                                "event": {
+                                    "type": "content_block_delta",
+                                    "index": 0,
+                                    "delta": {"type": "text_delta", "text": "echo " * 8},
+                                },
+                            }
+                        )
+                        time.sleep(0.01)
+                    from pathlib import Path
+
+                    Path(os.environ["SUI_FAKE_FINISHED_MARKER"]).write_text(
+                        "generation completed without interruption"
+                    )
+                elif mode == "environment":
+                    emit(
+                        {
+                            "type": "assistant",
+                            "message": {
+                                "content": [
+                                    {
+                                        "type": "tool_use",
+                                        "id": "env-call",
+                                        "name": "Bash",
+                                        "input": {"command": "synthetic write"},
+                                    }
+                                ]
+                            },
+                        }
+                    )
+                    emit(
+                        {
+                            "type": "user",
+                            "message": {
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": "env-call",
+                                        "is_error": True,
+                                        "content": [{"type": "text", "text": '{"code":"EROFS"}'}],
+                                    }
+                                ]
+                            },
+                        }
+                    )
+                    time.sleep(1)
+                elif mode == "unknown":
+                    emit({"type": "error", "error": {"type": "unrecognized_vendor_failure"}})
+                else:
+                    emit({"type": "result", "is_error": True, "errors": ["503 overloaded"]})
+                return
         mcp.stdin.close()
         mcp.wait(timeout=3)
     emit({"type": "result", "subtype": "success", "is_error": False, "session_id": sid})
