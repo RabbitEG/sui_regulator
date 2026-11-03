@@ -44,6 +44,11 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("serve", help="run the independent controller")
     console = commands.add_parser("console", help="run the independent localhost Yan Console")
     console.add_argument("--port", type=int, default=8765)
+    console_demo = commands.add_parser("console-demo", help="run an isolated synthetic Yan Console drill")
+    console_demo.add_argument(
+        "--state-dir", type=Path, help="must not already exist; defaults to a private temporary directory"
+    )
+    console_demo.add_argument("--port", type=int, default=8765)
     commands.add_parser("demo", help="run an isolated real-process worker-death drill")
     rpc = commands.add_parser("rpc", help="call the authenticated local Unix gateway")
     rpc.add_argument("method")
@@ -64,6 +69,11 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
     try:
+        if args.command == "console-demo":
+            from .console_demo import run_console_demo
+
+            run_console_demo(args.state_dir, args.port)
+            return
         if args.command == "console":
             from .console import run_console
 

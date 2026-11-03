@@ -26,6 +26,10 @@ class Config:
     claude_max_turns: int = 20
     failure_registry: str = ""
 
+    @property
+    def max_proxies(self) -> int:
+        return self.max_workers
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "home", Path(self.home).expanduser().absolute())
         for f in fields(self):
@@ -43,7 +47,12 @@ class Config:
     def load(cls, home: Path) -> Config:
         path = home.expanduser().absolute() / "config.toml"
         data = tomllib.loads(path.read_text()) if path.exists() else {}
-        return cls(home, **data.get("regulator", {}))
+        settings = dict(data.get("regulator", {}))
+        if "max_proxies" in settings:
+            if "max_workers" in settings:
+                raise ValueError("use max_proxies or legacy max_workers, not both")
+            settings["max_workers"] = settings.pop("max_proxies")
+        return cls(home, **settings)
 
     def write(self) -> None:
         """Persist non-secret settings so independent subprocesses use the same policy."""
@@ -53,7 +62,9 @@ class Config:
         text = (
             "[regulator]\n"
             + "\n".join(
-                f"{f.name} = {json.dumps(getattr(self, f.name))}" for f in fields(self) if f.name != "home"
+                f"{'max_proxies' if f.name == 'max_workers' else f.name} = {json.dumps(getattr(self, f.name))}"
+                for f in fields(self)
+                if f.name != "home"
             )
             + "\n"
         )

@@ -27,6 +27,7 @@ QUERY_FIELDS = {
     "get_metrics": {"job_id"},
     "get_logs": {"job_id", "limit"},
     "get_worker_health": {"task_id"},
+    "get_proxy_health": {"task_id"},
     "get_command_status": {"command_id"},
     "get_events": {"task_id", "after", "limit"},
     "list_artifacts": {"task_id"},
@@ -98,7 +99,7 @@ def request_schema() -> dict:
                 properties["limit"] = {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 500 if name == "get_logs" else 1000,
+                    "maximum": 100 if name == "get_console_snapshot" else 500 if name == "get_logs" else 1000,
                 }
             required = (
                 [] if name == "get_events" else sorted(field for field in properties if field.endswith("_id"))
@@ -220,9 +221,9 @@ class Dispatcher:
             return service.get_command(params["command_id"])
         if method == "get_events":
             return service.events(**params)
-        if method in {"get_worker_health", "list_artifacts"}:
+        if method in {"get_worker_health", "get_proxy_health", "list_artifacts"}:
             task = service.get_task(params["task_id"])
-            return task["workers" if method == "get_worker_health" else "artifacts"]
+            return task["artifacts" if method == "list_artifacts" else "workers"]
         if method == "list_experiments":
             service.get_task(params["task_id"])
             return [

@@ -58,6 +58,14 @@ class Credentials:
     generation: int
     lease_token: str
 
+    @property
+    def proxy_id(self) -> str:
+        """Canonical role name; worker_id remains the v0.1 wire field."""
+        return self.worker_id
+
+
+ProxyCredentials = Credentials
+
 
 def identifier(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex}"

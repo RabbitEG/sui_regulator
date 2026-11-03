@@ -107,7 +107,7 @@
           "additionalProperties": false,
           "properties": {
             "limit": {
-              "maximum": 1000,
+              "maximum": 100,
               "minimum": 1,
               "type": "integer"
             },
@@ -286,6 +286,27 @@
           "additionalProperties": false,
           "properties": {},
           "required": [],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
+          "const": "yan.get_proxy_health"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "task_id"
+          ],
           "type": "object"
         }
       }
@@ -631,6 +652,7 @@
         "yan.get_logs",
         "yan.get_metrics",
         "yan.get_overview",
+        "yan.get_proxy_health",
         "yan.get_task",
         "yan.get_worker_health",
         "yan.hold_task",

@@ -4,10 +4,12 @@ import http.client
 import json
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 from sui_regulator.console import Console
 from sui_regulator.console_read import snapshot
 from sui_regulator.gateway import Gateway
+from sui_regulator.models import DomainError
 from sui_regulator.processes import alive
 from sui_regulator.protocol import SuiProtocol
 from tests.helpers import ProcessTestCase
@@ -112,6 +114,37 @@ class ConsoleTests(ProcessTestCase):
         self.assertFalse(data["connection"]["available"])
         self.assertIsNone(data["response"])
         self.assertFalse(absent.exists())
+
+    def test_lost_command_reply_is_not_replayed_or_replaced_with_fake_receipt(self):
+        from sui_regulator.console import Broker
+
+        health = {"result": {"controller": {"state": "ONLINE"}}}
+        request = {
+            "method": "yan.instruct_task",
+            "params": {
+                "task_id": "synthetic",
+                "idempotency_key": "stable",
+                "payload": {"instruction": "inspect"},
+            },
+        }
+        with patch(
+            "sui_regulator.console.call", side_effect=[health, ConnectionResetError("lost reply")]
+        ) as rpc:
+            with self.assertRaises(DomainError) as error:
+                Broker(self.config.home).write(request)
+            self.assertEqual(error.exception.code, "DELIVERY_UNCONFIRMED")
+            self.assertEqual(rpc.call_count, 2)
+            self.assertEqual(rpc.call_args.args[2]["idempotency_key"], "stable")
+
+    def test_query_size_error_is_not_reported_as_controller_offline(self):
+        from sui_regulator.console import Broker
+
+        with patch(
+            "sui_regulator.console.call", side_effect=DomainError("MESSAGE_TOO_LARGE", "narrow query")
+        ):
+            result = Broker(self.config.home).read("yan.get_task", {"task_id": "synthetic"})
+        self.assertTrue(result["connection"]["available"])
+        self.assertEqual(result["response"]["error"]["code"], "MESSAGE_TOO_LARGE")
 
     def test_http_security_rejects_cross_origin_rebinding_and_unsupported_operations(self):
         for headers in [

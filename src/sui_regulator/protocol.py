@@ -14,7 +14,7 @@ from pathlib import Path
 from . import PROTOCOL_VERSION
 from .models import Credentials, DomainError, digest, encode, identifier, mock_spec, require_text
 from .processes import identity
-from .registry import WorkerRegistry
+from .registry import ProxyRegistry
 from .service import Service, unpack
 
 
@@ -167,7 +167,7 @@ class SuiProtocol:
                 (os.getpid(), encode(identity(os.getpid())), credentials.worker_id),
             )
             created_at = worker["created_at"]
-        WorkerRegistry(self.config.home).publish(
+        ProxyRegistry(self.config.home).publish(
             credentials.worker_id,
             credentials.task_id,
             credentials.generation,
@@ -185,7 +185,7 @@ class SuiProtocol:
             )
             if effective_activity:
                 conn.execute("UPDATE workers SET activity_at=? WHERE id=?", (now, credentials.worker_id))
-        WorkerRegistry(self.config.home).heartbeat(credentials.worker_id)
+        ProxyRegistry(self.config.home).heartbeat(credentials.worker_id)
 
     def get_task_context(self, credentials: Credentials) -> dict:
         with self.store.connection() as conn:
@@ -433,3 +433,6 @@ class SuiProtocol:
     @staticmethod
     def credentials_json(credentials: Credentials) -> str:
         return encode(asdict(credentials))
+
+
+SuiProxyProtocol = SuiProtocol

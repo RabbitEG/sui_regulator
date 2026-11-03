@@ -13,7 +13,7 @@ Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 pri
 
 Wrapper 自动采集进程身份、真实 session_id、结构化流事件、API retry、工具成功/异常与结束结果，独立续租。stdout/stderr 同时排空，单行与 stderr 内存有上限。没有最终 result 或末行截断不视为成功。401/403、配额错误及时隔离；连续传输重试有上限；不会无限发送 Continue。
 
-v0.3 的 ClaudeStreamDetector 仅作兼容入口；ClaudeNormalizer 解码并去重 partial/full，DetectionEngine 执行版本规则，持久 Incident 由 Candleholder 决策。Worker 查询的 stream_observation 在真正收到 text_delta 前是 event-only，之后为 text-delta-observed，同时记录能力审计。thinking 只处理公开块，子 Agent 事件暂不混入根 Session。
+v0.3 的 ClaudeStreamDetector 仅作兼容入口；ClaudeNormalizer 解码并去重 partial/full，DetectionEngine 执行版本规则，持久 Incident 由 Candleholder 决策。Sui Proxy 查询的 stream_observation 在真正收到 text_delta 前是 event-only，之后为 text-delta-observed，同时记录能力审计。thinking 只处理公开块，子 Agent 事件暂不混入根 Session。
 
 CLI turn 在 WAITING_JOB 结束后，Wrapper 可继续低成本观测原 Job；Job 到达终态后移交给 fresh Session。控制器不把模型的一句成功当作 Task/Job 完成。
 

@@ -171,7 +171,7 @@ def process_exit(obs, state, config):
             1,
             {"alive": obs.data.get("alive"), "lease_expired": bool(obs.data.get("lease_expired"))},
             obs.time,
-            "registered worker process exited or its heartbeat lease expired",
+            "registered Sui Proxy process exited or its heartbeat lease expired",
         )
 
 

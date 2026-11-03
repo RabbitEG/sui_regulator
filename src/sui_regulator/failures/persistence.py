@@ -156,6 +156,14 @@ def apply_pending(controller) -> None:
                             "controller",
                             {"incident_id": incident["id"]},
                         )
+                    outcome.update(
+                        lease_revoked=True,
+                        proxy_id=worker["id"],
+                        generation=worker["generation"],
+                        task_status=status,
+                        jobs_retained=True,
+                        next_start_at=now + delay,
+                    )
                     stop, state = dict(worker), "APPLIED"
                 elif action == "probe":
                     jobs = conn.execute(

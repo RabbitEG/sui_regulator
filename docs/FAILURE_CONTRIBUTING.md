@@ -30,6 +30,6 @@ bounded_retry 只容许 CLI 已有的有限传输重试；如果 CLI 已终止�
 
 ## 私有规则目录
 
-离线可用 `--registry /absolute/path/to/rules` 指定 JSON 规则目录；在线在私有 config.toml 的 `[regulator]` 设置 `failure_registry = "/absolute/path/to/rules"`，然后重启 Controller 并让后续新 Worker 使用该配置。该目录替代默认集合，应保留需要的默认安全规则，不应只放一条试验规则。
+离线可用 `--registry /absolute/path/to/rules` 指定 JSON 规则目录；在线在私有 config.toml 的 `[regulator]` 设置 `failure_registry = "/absolute/path/to/rules"`，然后重启 Controller 并让后续新 Sui Proxy 使用该配置。该目录替代默认集合，应保留需要的默认安全规则，不应只放一条试验规则。
 
 `test_new_versioned_rule_can_reuse_algorithm_without_controller_changes` 演示新 ID/version/阈值直接接入。evaluate 会拒绝缺少正反例、重复 ID、缺失标注或未知算法的集合。离线 passed 证明这些案例的检测及建议动作满足期望；不能证明恢复副作用已经执行或真实平台表现相同。

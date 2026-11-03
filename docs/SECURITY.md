@@ -4,7 +4,7 @@
 
 - 状态目录由当前 UID 拥有，权限 0700；数据库、socket、备份和合成产物采用私有权限；拒绝状态目录/数据库的直接符号链接。不要将 home 指向共享目录或源码根目录。
 - Yan 仅 Unix socket，SO_PEERCRED 验证 UID；CLI/MCP owner 角色继承本地操作员权限。远程 SSH/TLS、独立用户身份与角色授权仍待实现；没有公网监听。
-- Worker token 随机生成，数据库只存 hash；generation 和 lease 在领域事务与 Runner 执行端校验。Worker 无 register/抢占工具，Task 取消不能自动复活。
+- Sui Proxy token 随机生成，数据库只存 hash；generation 和 lease 在领域事务与 Runner 执行端校验。Sui Proxy 无 register/抢占工具，Task 取消不能自动复活。
 - Claude 默认 bare、strict MCP、禁用内置 tools 和 slash commands，不加载仓库自定义 hooks，不允许任意 Shell，也不使用 dangerously-skip-permissions。没有自动读取或上传内部数据。
 - 仅提供受管合成 Job 的显式取消并在 Runner 复核身份。真实训练启动/终止、抢占其他用户资源、宿主机修改等操作未开放。因此首轮没有以「提示词审批」冒充执行端 Approval；未来开放时必须提供真实授权对象和执行端验证。
 - 任务文本、日志和 Handoff 只保存为数据；模型自述保留 worker-declared 来源，不直接覆盖 Runner 观测。

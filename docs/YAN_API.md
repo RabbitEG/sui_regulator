@@ -31,6 +31,8 @@ python3.11 -m sui_regulator schema
 | yan.get_command_status | command_id |
 | yan.get_events | 可选 task_id、after（Event ID）、limit（1–1000） |
 | yan.get_incidents | task_id、可选 after（sequence 游标，默认 0）、limit（1–1000，默认 100） |
+| yan.get_console_snapshot | 可选 section（overview/sessions/tasks/incidents）、offset、limit（1–100，默认 50） |
+| yan.get_proxy_health | task_id；规范角色名为 Sui Proxy，get_worker_health 是兼容别名 |
 
 Job/指标查询返回 source、observed_at、stale；Task 包含三个状态来源。日志只是数据，不作为控制指令。没有数据时不伪造观测时间。
 
@@ -42,7 +44,7 @@ v0.3 的 get_task 还包含最近 20 条 incidents，完整历史用 get_inciden
 
 接收返回 QUEUED Command（含预分配 task_id）。Controller 在纯数据库事务中完成操作，然后回执 SUCCEEDED/REJECTED。`request_analysis` 的成功表示分析要求已记录，`analysis_executed:false`，不伪称模型已完成分析。参数不合法的已接受请求会有 REJECTED 回执；幂等键冲突立即报 IDEMPOTENCY_CONFLICT。查询无需可用 LLM。
 
-HOLD 停止 Worker、保留运行 Job；CANCEL 是持久终态，同样保留运行 Job。`yan.cancel_job` 需 task_id 和 payload.job_id，是单独的合成 Job 取消指令；Runner 检查 Command 授权后才改变客观状态。此原型不提供终止真实训练的接口。
+HOLD 停止 Sui Proxy、保留运行 Job；CANCEL 是持久终态，同样保留运行 Job。`yan.cancel_job` 需 task_id 和 payload.job_id，是单独的合成 Job 取消指令；Runner 检查 Command 授权后才改变客观状态。此原型不提供终止真实训练的接口。
 
 ## MCP
 
@@ -54,6 +56,8 @@ HOLD 停止 Worker、保留运行 Job；CANCEL 是持久终态，同样保留运
 
 工具为 `yan_request`，arguments.request 是上述完整 Yan 请求。它继承本地 UID 权限，不是远程鉴权服务。
 
-受管 Sui 的 MCP 启动由 Adapter 自动配置，默认 worker 角色，只公开 Sui Protocol 工具；没有 register 或 Yan 管理能力。Worker 凭据仅经私有进程输入/环境传递，不进入模型提示词或命令行。
+受管 Sui 的 MCP 启动由 Adapter 自动配置，默认 worker 角色，只公开 Sui Protocol 工具；没有 register 或 Yan 管理能力。Sui Proxy 凭据仅经私有进程输入/环境传递，不进入模型提示词或命令行。
 
 MCP 实现支持 stdio JSON-RPC、initialize、ping、tools/list、tools/call 以及初始化通知；没有宣称支持 MCP 全套扩展或远程传输。Schema 见 `schemas/` 和 `yan schema`。
+
+v0.4 只新增跨任务的只读分页投影，其他详情和人工操作复用既有接口。get_task 另给出 current_proxy、每个代理的 proxy_id/心跳健康和实际 execution_count；旧 workers/worker_id 字段保持兼容。Console 的 HTTP 只代理 Unix RPC，不初始化账本。详情见 [Yan Console](YAN_CONSOLE.md)。

@@ -146,7 +146,7 @@ def runtime_environment(config, credentials: Credentials) -> dict:
     return env
 
 
-class ClaudeCodeAdapter:
+class ClaudeProxyAdapter:
     def start(self, service: Service, credentials: Credentials) -> subprocess.Popen:
         task = service.get_task(credentials.task_id)
         Path(task["workspace"]).mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -155,3 +155,6 @@ class ClaudeCodeAdapter:
             ["--home", str(service.config.home)],
             input_data=SuiProtocol.credentials_json(credentials),
         )
+
+
+ClaudeCodeAdapter = ClaudeProxyAdapter  # v0.3 import compatibility

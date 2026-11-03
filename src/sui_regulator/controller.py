@@ -9,7 +9,7 @@ import time
 from contextlib import AbstractContextManager
 from pathlib import Path
 
-from .adapters import MockWorkerAdapter, UnavailableWorkerAdapter, WorkerAdapter
+from .adapters import MockSuiProxyAdapter, SuiProxyAdapter, UnavailableSuiProxyAdapter
 from .config import Config
 from .failures.engine import DetectionEngine
 from .failures.models import Observation
@@ -18,24 +18,27 @@ from .failures.registry import FailureRegistry
 from .models import Credentials, DomainError, digest, encode
 from .processes import FileLock, alive, identity, process_state, signal_owned
 from .protocol import SuiProtocol
-from .registry import WorkerRegistry
+from .registry import ProxyRegistry
 from .runner import LocalMockRunner
 from .service import Service
 
 
 class Controller(AbstractContextManager):
-    def __init__(self, config: Config, adapters: dict[str, WorkerAdapter] | None = None):
-        self.config, self.registry = config, WorkerRegistry(config.home)
+    def __init__(self, config: Config, adapters: dict[str, SuiProxyAdapter] | None = None):
+        self.config, self.registry = config, ProxyRegistry(config.home)
         self.watchdog_actions: list[dict] = []
         self.detection_engines: dict[str, DetectionEngine] = {}
         self.failure_rules = (
             FailureRegistry(Path(config.failure_registry)) if config.failure_registry else FailureRegistry()
         )
-        self.adapters = adapters or {"mock": MockWorkerAdapter(), "unavailable": UnavailableWorkerAdapter()}
+        self.adapters = adapters or {
+            "mock": MockSuiProxyAdapter(),
+            "unavailable": UnavailableSuiProxyAdapter(),
+        }
         if adapters is None:
-            from .claude_adapter import ClaudeCodeAdapter
+            from .claude_adapter import ClaudeProxyAdapter
 
-            self.adapters["claude"] = ClaudeCodeAdapter()
+            self.adapters["claude"] = ClaudeProxyAdapter()
         self.children: dict[int, subprocess.Popen] = {}
         self.lock = FileLock(config.home / "controller.lock")
         self.acquired = False
@@ -265,11 +268,11 @@ class Controller(AbstractContextManager):
             active = self.service.store.rows(
                 "SELECT COUNT(*) AS n FROM workers WHERE status IN ('STARTING','RUNNING','ROTATING')"
             )[0]["n"]
-            if active >= self.config.max_workers:
+            if active >= self.config.max_proxies:
                 continue
             credentials = self.protocol.register(task["id"])
             try:
-                adapter = self.adapters.get(task["adapter"], UnavailableWorkerAdapter())
+                adapter = self.adapters.get(task["adapter"], UnavailableSuiProxyAdapter())
                 process = adapter.start(self.service, credentials)
                 self.children[process.pid] = process
                 self.registry.publish(

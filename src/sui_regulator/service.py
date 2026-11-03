@@ -205,6 +205,7 @@ class Service:
                 "SELECT COUNT(*) FROM executions e JOIN jobs j ON j.id=e.job_id WHERE j.task_id=?",
                 (task_id,),
             ).fetchone()[0]
+            task["current_proxy"] = task["current_worker"]
             task["incidents"] = [
                 unpack(row)
                 for row in conn.execute(
@@ -228,6 +229,7 @@ class Service:
                 from .console_read import session_view
 
                 worker.update(session_view(worker, self.config, task["current_worker"]))
+                worker["proxy_id"] = worker["id"]
                 worker["stream_observation"] = (
                     "text-delta-observed"
                     if "claude-text-delta-observed" in worker["capabilities"]

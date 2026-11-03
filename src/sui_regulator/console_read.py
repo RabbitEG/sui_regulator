@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import time
 
-from .models import DomainError
-from .processes import alive
+from .models import DomainError, digest
+from .processes import alive, process_state
 from .service import unpack
 
 SECTIONS = {"overview", "sessions", "tasks", "incidents"}
@@ -38,10 +38,13 @@ def session_view(value, config, current_worker=None, now=None):
     value = dict(value)
     value["is_current"] = value["id"] == current_worker
     value["process_alive"] = alive(value.get("identity")) if value.get("identity") else None
+    value["process_state"] = process_state(value.get("identity")) if value.get("identity") else None
     value["heartbeat_age_seconds"] = max(0, now - value["heartbeat_at"])
     value["runtime_seconds"] = max(0, (value.get("ended_at") or now) - value["created_at"])
     if value["status"] in TERMINAL_WORKERS:
         health = "HISTORICAL"
+    elif value["process_state"] in {"T", "t"}:
+        health = "FROZEN"
     elif value["status"] == "STARTING" and now - value["created_at"] < config.startup_grace:
         health = "STARTING"
     elif value["process_alive"] is False or now >= value["lease_expires"]:
@@ -80,6 +83,7 @@ def snapshot(service, section="overview", offset=0, limit=50):
                 """SELECT t.id,t.title,t.adapter,t.desired,t.status,t.generation,t.current_worker,
                 t.declared,t.created_at,t.updated_at,
                 (SELECT COUNT(*) FROM jobs j WHERE j.task_id=t.id) AS job_count,
+                EXISTS(SELECT 1 FROM jobs j WHERE j.task_id=t.id AND j.status='UNKNOWN') AS has_unknown_job,
                 (SELECT COUNT(*) FROM executions e JOIN jobs j ON j.id=e.job_id WHERE j.task_id=t.id) AS execution_count
                 FROM tasks t ORDER BY t.created_at DESC,t.id DESC LIMIT ? OFFSET ?""",
                 (limit, offset),
@@ -122,6 +126,9 @@ def snapshot(service, section="overview", offset=0, limit=50):
             ]
     return {
         "section": section,
+        "workspace_id": digest(
+            [str(service.config.home), service.store.path.stat().st_dev, service.store.path.stat().st_ino]
+        )[:24],
         "queried_at": now,
         "source": "sqlite ledger + owned process observations",
         "controller": controller_status(service, now),

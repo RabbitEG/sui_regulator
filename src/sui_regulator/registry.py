@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 
-class WorkerRegistry:
+class ProxyRegistry:
     def __init__(self, home: Path):
         if home.is_symlink():
             raise ValueError("state directory cannot be a symlink")
@@ -23,11 +23,11 @@ class WorkerRegistry:
         self.directory = home / "worker-registry"
         self.directory.mkdir(mode=0o700, exist_ok=True)
         if self.directory.is_symlink():
-            raise ValueError("worker registry cannot be a symlink")
+            raise ValueError("proxy registry cannot be a symlink")
 
     def _path(self, worker_id: str) -> Path:
         if not re.fullmatch(r"sui-[0-9a-f]{32}", worker_id):
-            raise ValueError("invalid worker registry ID")
+            raise ValueError("invalid proxy registry ID")
         return self.directory / f"{worker_id}.json"
 
     def read(self, worker_id: str) -> dict | None:
@@ -93,3 +93,7 @@ class WorkerRegistry:
             except ValueError:
                 continue
         return result
+
+
+# The on-disk worker-registry path remains compatible with v0.3.
+WorkerRegistry = ProxyRegistry

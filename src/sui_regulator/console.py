@@ -73,7 +73,9 @@ class Broker:
                 return self.wrapped(old[0], old[1], cached=True)
             try:
                 response = call(self.home, method, params, timeout=1.5)
-            except (OSError, ValueError, DomainError) as exc:
+            except DomainError as exc:
+                return self.wrapped({"error": {"code": exc.code, "message": str(exc)}}, time.time())
+            except (OSError, ValueError) as exc:
                 self.failed_at = time.monotonic()
                 self.failure = {"code": "CONTROLLER_UNREACHABLE", "message": str(exc)}
                 return self.wrapped(
@@ -118,8 +120,10 @@ class Broker:
                 raise DomainError(
                     "DELIVERY_UNCONFIRMED", "delivery unconfirmed; retain the same idempotency key"
                 ) from exc
-            self.cache.clear()
-            self.bytes = 0
+            # Expire reads after a command, but retain the last observation for
+            # an offline fallback. A mutation never erases observation history.
+            for key, old in list(self.cache.items()):
+                self.cache[key] = (old[0], old[1], -1000000.0, old[3])
             self.failure = None
             return self.wrapped(response, time.time())
 

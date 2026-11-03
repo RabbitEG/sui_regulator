@@ -10,21 +10,27 @@ from .protocol import SuiProtocol
 from .service import Service
 
 
-class WorkerAdapter(Protocol):
+class SuiProxyAdapter(Protocol):
     def start(self, service: Service, credentials: Credentials) -> subprocess.Popen: ...
 
 
-class MockWorkerAdapter:
+class MockSuiProxyAdapter:
     def start(self, service: Service, credentials: Credentials) -> subprocess.Popen:
         task = service.get_task(credentials.task_id)
         Path(task["workspace"]).mkdir(parents=True, exist_ok=True, mode=0o700)
         return detached(
-            "sui_regulator.worker_process",
+            "sui_regulator.proxy_process",
             ["--home", str(service.config.home)],
             input_data=SuiProtocol.credentials_json(credentials),
         )
 
 
-class UnavailableWorkerAdapter:
+class UnavailableSuiProxyAdapter:
     def start(self, service: Service, credentials: Credentials) -> subprocess.Popen:
-        raise DomainError("ADAPTER_UNAVAILABLE", "worker runtime unavailable; jobs remain managed")
+        raise DomainError("ADAPTER_UNAVAILABLE", "Sui Proxy runtime unavailable; jobs remain managed")
+
+
+# v0.3 import compatibility; these names refer to the same implementations.
+WorkerAdapter = SuiProxyAdapter
+MockWorkerAdapter = MockSuiProxyAdapter
+UnavailableWorkerAdapter = UnavailableSuiProxyAdapter

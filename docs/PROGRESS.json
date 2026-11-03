@@ -198,7 +198,26 @@
       },
       {
         "id": "B",
-        "status": "pending"
+        "status": "complete",
+        "evidence": [
+          "src/sui_regulator/static",
+          "src/sui_regulator/console_demo.py",
+          "scripts/verify_console_browser.py",
+          "docs/console-browser-report.json",
+          "docs/screenshots",
+          "docs/NAMING.md",
+          "README.md"
+        ],
+        "verification": {
+          "python311_passed": 88,
+          "python312_passed": 84,
+          "python312_skipped": 4,
+          "browser_checks_passed": 15,
+          "screenshots": 11,
+          "canonical_role": "Sui Proxy (岁兽代理人)",
+          "legacy_schema_and_client_compatibility": "verified",
+          "new_schema_migrations": 0
+        }
       },
       {
         "id": "C",
