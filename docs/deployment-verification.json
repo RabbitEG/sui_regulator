@@ -1,0 +1,37 @@
+{
+  "checks": {
+    "fresh_clone_noneditable_release_install": true,
+    "private_persistent_state_and_config": true,
+    "rendered_units_verify_systemd_239": true,
+    "unit_commands_start_controller_and_console": true,
+    "main_process_restart_preserves_job_pid_and_execution": true,
+    "online_backup_integrity": true,
+    "persistent_task_controls_and_real_receipts": true,
+    "owned_synthetic_job_authorized_cleanup": true
+  },
+  "systemd_services_installed_or_started": false,
+  "linger_modified": false,
+  "install_mode": "offline wheelhouse; online package proxy unavailable",
+  "wheel_sha256": "7caa1cfd7d1dda215de8e0359f2451e65ac78017717b8ed0107c14cf2404467c",
+  "runtime_source_commit": "9c1f17266b6308c6388432aad1cc284477731abf",
+  "installed_module": {
+    "version": "0.4.0",
+    "path": "/tmp/sui-deployment-check-mv9qm5hg/account/sui-regulator/releases/9c1f17266b6308c6388432aad1cc284477731abf/venv/lib64/python3.11/site-packages/sui_regulator/__init__.py"
+  },
+  "python": "3.11.13",
+  "sqlite": "3.26.0",
+  "unit_sha256": {
+    "sui-regulator-controller.service": "192ca3d9db96458fdad857a894215326a02c25710ec51e304341eaa68aa1a1c9",
+    "yan-console.service": "2e7872e64f2f8eff4ef5fab22dc8b219cbbbd337b64775a46283b92d67fe08c6"
+  },
+  "systemd_validation_scope": "Static rendered unit verification and direct execution of ExecStart arguments; no PID 1/user-manager lifecycle test",
+  "console_port_in_test": "ephemeral, template default 8765 separately checked",
+  "sqlite_patch_status": "not established; target administrator must confirm vendor WAL-reset fix",
+  "passed": true,
+  "source_clone_transport": "fresh local Git clone --no-hardlinks; target GitHub authentication untested",
+  "documentation_checks": {
+    "bash_blocks_syntax": 14,
+    "local_links": "passed",
+    "unit_hashes_match": "passed"
+  }
+}

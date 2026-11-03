@@ -3,7 +3,7 @@
 威胁模型：单个 Linux UID 下的本地控制平面，处理可能错误的 AI 声明和过期请求。它不是针对已取得同 UID 任意代码执行权的恶意进程的沙箱，也不是多租户远程服务。
 
 - 状态目录由当前 UID 拥有，权限 0700；数据库、socket、备份和合成产物采用私有权限；拒绝状态目录/数据库的直接符号链接。不要将 home 指向共享目录或源码根目录。
-- Yan 仅 Unix socket，SO_PEERCRED 验证 UID；CLI/MCP owner 角色继承本地操作员权限。远程 SSH/TLS、独立用户身份与角色授权仍待实现；没有公网监听。
+- Yan RPC 仅 Unix socket，SO_PEERCRED 验证 UID；CLI/MCP owner 角色继承本地操作员权限。Yan Console 仅绑定 127.0.0.1，可经授权 SSH 转发；同源保护不是多用户鉴权。独立远程身份、TLS/RBAC 与公网 RPC 没有实现。
 - Sui Proxy token 随机生成，数据库只存 hash；generation 和 lease 在领域事务与 Runner 执行端校验。Sui Proxy 无 register/抢占工具，Task 取消不能自动复活。
 - Claude 默认 bare、strict MCP、禁用内置 tools 和 slash commands，不加载仓库自定义 hooks，不允许任意 Shell，也不使用 dangerously-skip-permissions。没有自动读取或上传内部数据。
 - 仅提供受管合成 Job 的显式取消并在 Runner 复核身份。真实训练启动/终止、抢占其他用户资源、宿主机修改等操作未开放。因此首轮没有以「提示词审批」冒充执行端 Approval；未来开放时必须提供真实授权对象和执行端验证。

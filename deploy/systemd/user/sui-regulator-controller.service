@@ -1,0 +1,26 @@
+[Unit]
+Description=Sui Regulator Controller and Candleholder
+Documentation=https://github.com/RabbitEG/sui_regulator/blob/main/docs/DEPLOYMENT.md
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sui-regulator/current
+ExecStartPre=/usr/bin/test -r %h/.local/state/sui-regulator/config.toml
+ExecStart=%h/sui-regulator/current/venv/bin/yan --home %h/.local/state/sui-regulator serve
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONNOUSERSITE=1
+Environment=PYTHONPATH=
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-%h/.config/sui-regulator/controller.env
+UMask=0077
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=15s
+# Deliberate: Sui Proxies and independent Jobs must survive controller restart.
+# Stopping this unit does NOT stop all application processes. See DEPLOYMENT.md.
+KillMode=process
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

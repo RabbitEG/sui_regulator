@@ -2,6 +2,8 @@
 
 Yan Console 是大炎入口的本地 Web 管理界面，用来观察 Sui Proxy（岁兽代理人）、持久 Task、独立 Job、Incident 与秉烛人的自动恢复。Console 是独立进程，通过已有 Unix Yan RPC 查询与提交指令，不打开 SQLite，不启动/终止代理或 Runner。
 
+在另一台服务器克隆后做持久部署，请先读 [部署与验收指南](DEPLOYMENT.md)，其中包含独立 release、用户服务、开机/退出登录、SSH 转发和目标机验收步骤。下文的源码运行命令用于开发与演示。
+
 ## 启动
 
 Python 3.11+ / Linux，运行时只有标准库，前端是随包安装的原生 HTML/CSS/JavaScript，无 CDN、npm 或构建步骤。

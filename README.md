@@ -6,6 +6,8 @@
 
 v0.4 提供 **Yan Console**：四个本地 Web 页面，用来观察代理身份与换代、Task/Job、故障证据、自动恢复及人工指令回执。Python 3.11+ / Linux，运行时仅用标准库；前端为原生 HTML/CSS/JavaScript，无框架、CDN 或 npm 构建依赖。当前执行端只运行合成 Job，真实 GLM、GPU/NPU 与远程 Runner 尚未验证。
 
+**另一台服务器从克隆到部署：** 见 [部署与验收指南](docs/DEPLOYMENT.md)，包括固定版本安装、持久状态、systemd 用户服务、SSH 访问、Mock/GLM 验收、备份与升级回滚；[服务模板](deploy/systemd/user/sui-regulator-controller.service) 随仓库提供。
+
 ## 命名与世界观
 
 项目借用《明日方舟》大炎、司岁台与岁兽的意象，并保留清晰的工程概念。
@@ -151,6 +153,7 @@ Claude 安装器校验官方原生包 integrity，不需要 Node、npm 或 root�
 
 ## 文档与边界
 
+- [新服务器部署与测试](docs/DEPLOYMENT.md)、[Controller 服务](deploy/systemd/user/sui-regulator-controller.service)、[Console 服务](deploy/systemd/user/yan-console.service)
 - [Yan Console 使用与演示](docs/YAN_CONSOLE.md)、[命名体系与兼容](docs/NAMING.md)、[v0.4 实施依据](docs/YAN_CONSOLE_PLAN.md)
 - [架构](docs/ARCHITECTURE.md)、[数据模型](docs/DATA_MODEL.md)、[Sui Proxy Protocol](docs/SUI_PROTOCOL.md)、[Yan API](docs/YAN_API.md)
 - [故障调查](docs/FAILURE_RESEARCH.md)、[检测架构](docs/FAILURE_ARCHITECTURE.md)、[故障贡献步骤](docs/FAILURE_CONTRIBUTING.md)、[Incident Corpus](tests/failure_corpus/README.md)

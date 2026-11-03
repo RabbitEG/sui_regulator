@@ -238,5 +238,24 @@
         }
       }
     ]
+  },
+  "deployment_guide": {
+    "status": "complete",
+    "evidence": [
+      "docs/DEPLOYMENT.md",
+      "deploy/systemd/user/sui-regulator-controller.service",
+      "deploy/systemd/user/yan-console.service",
+      "deploy/controller.env.example",
+      "docs/deployment-verification.json"
+    ],
+    "verification": {
+      "offline_release_runtime_checks": 8,
+      "bash_blocks_checked": 14,
+      "systemd_static_version": 239,
+      "systemd_units_installed": false,
+      "linger_modified": false,
+      "online_package_fetch": "unverified due local proxy failure",
+      "runtime_code_changes": false
+    }
   }
 }

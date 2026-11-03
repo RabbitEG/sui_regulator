@@ -1,0 +1,23 @@
+[Unit]
+Description=Yan Console loopback management interface
+Documentation=https://github.com/RabbitEG/sui_regulator/blob/main/docs/DEPLOYMENT.md
+# Ordering only: the console remains available when the controller is offline.
+After=sui-regulator-controller.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sui-regulator/current
+ExecStart=%h/sui-regulator/current/venv/bin/yan --home %h/.local/state/sui-regulator console --port 8765
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONNOUSERSITE=1
+Environment=PYTHONPATH=
+UMask=0077
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=15s
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
