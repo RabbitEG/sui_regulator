@@ -90,7 +90,7 @@ PYTHONPATH=src .venv/bin/python scripts/verify_responsibility_browser.py
 
 启动命令、SSH 转发、固定 release 安装、一致备份及 schema 7 升级见 [部署指南](DEPLOYMENT.md)。本地演示：`PYTHONPATH=src .venv/bin/python -m sui_regulator console-demo --port 8766`。它自动启动独立本地 Controller 和 Console，只操作自己的临时演示数据；不用于正式部署。
 
-已推送阶段：`88d2e20`（基线与映射）、`4150607`（后台状态与诊断）。接续实现与最终证据提交见本文件 Git 历史。新增提交 Author 为 **GPT-6 Astra**，Committer 为 **RabbitEG**；不改旧作者、不重写历史、不 force push。最终 push 前再次 fetch 与核对 origin/main。
+已推送阶段：`88d2e20`（基线与映射）、`4150607`（后台状态与诊断）。接续实现、Console、迁移与完整验收：`ffee13d`；证据汇总绑定该完整 SHA。新增提交 Author 为 **GPT-6 Astra**，Committer 为 **RabbitEG**；不改旧作者、不重写历史、不 force push。最终 push 前再次 fetch 与核对 origin/main。
 
 ## 尚未验收或不提供
 
