@@ -16,3 +16,6 @@ claude_model = ""
 claude_max_turns = 20
 # Empty uses the versioned rules bundled with the wheel.
 failure_registry = ""
+# Optional operator-owned file listing approved command templates for workers.
+# Must be mode 0700, owned by the deploy UID, never committed to Git.
+# command_registry = "/absolute/path/commands.toml"

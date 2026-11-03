@@ -1,0 +1,11 @@
+# Example operator command registry. Install to a private path with mode 0700.
+# argv is a fixed prefix; patterns map slot indexes of appended arguments to
+# fullmatch regexes. Only template names listed here are callable by workers.
+
+[command.echo]
+argv = ["echo"]
+patterns = {0 = "[A-Za-z0-9 _.-]{1,64}"}
+
+[command.date]
+argv = ["date", "-u"]
+patterns = {}

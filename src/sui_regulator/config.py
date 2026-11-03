@@ -25,6 +25,7 @@ class Config:
     claude_model: str = ""
     claude_max_turns: int = 20
     failure_registry: str = ""
+    command_registry: str = ""
 
     @property
     def max_proxies(self) -> int:
@@ -34,7 +35,7 @@ class Config:
         object.__setattr__(self, "home", Path(self.home).expanduser().absolute())
         for f in fields(self):
             value = getattr(self, f.name)
-            if f.name in {"home", "claude_binary", "claude_model", "failure_registry"}:
+            if f.name in {"home", "claude_binary", "claude_model", "failure_registry", "command_registry"}:
                 continue
             if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{f.name} must be positive and finite")

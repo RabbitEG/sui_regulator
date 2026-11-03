@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -111,7 +112,9 @@ class CoreTests(unittest.TestCase):
 
     def test_state_directory_requires_private_permissions(self):
         path = Path(self.temp.name) / "public"
-        path.mkdir(mode=0o755)
+        path.mkdir()
+        # Explicit chmod: mkdir's mode argument is filtered by the process umask.
+        os.chmod(path, 0o755)
         with self.assertRaises(PermissionError):
             Service(Config(path))
 

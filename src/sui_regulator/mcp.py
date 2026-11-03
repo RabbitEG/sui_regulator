@@ -37,6 +37,10 @@ WORKER_TOOLS = {
     ),
     "launch_job": ({"logical_key": {"type": "string"}, "spec": {"type": "object"}}, ["logical_key"]),
     "attach_job": ({"job_id": {"type": "string"}}, ["job_id"]),
+    "run_command": (
+        {"template": {"type": "string"}, "arguments": {"type": "array", "items": {"type": "string"}}},
+        ["template"],
+    ),
     "publish_artifact": ({"path": {"type": "string"}, "kind": {"type": "string"}}, ["path"]),
     "handoff": ({"summary": {"type": "object"}}, ["summary"]),
     "complete_task": ({"summary": {"type": "string"}}, ["summary"]),
@@ -90,8 +94,17 @@ class MCPBridge:
             raise DomainError("INVALID_ARGUMENT", "tool argument fields do not match schema")
         for key, value in arguments.items():
             expected = properties[key]["type"]
-            if not isinstance(value, {"string": str, "array": list, "object": dict}[expected]):
+            if expected == "array":
+                items = properties[key].get("items", {}).get("type", "string")
+                ok = isinstance(value, list) and all(isinstance(item, str) for item in value)
+            else:
+                ok = isinstance(value, {"string": str, "array": list, "object": dict}[expected])
+            if not ok:
                 raise DomainError("INVALID_ARGUMENT", f"invalid type for {key}")
+        if name == "run_command":
+            from .commands import run_command
+
+            return run_command(self.service, self.credentials, **arguments)
         return getattr(self.protocol, name)(self.credentials, **arguments)
 
     def handle(self, message: dict) -> dict | None:
