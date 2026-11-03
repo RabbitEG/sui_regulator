@@ -265,3 +265,28 @@ class IncidentProcessTests(ProcessTestCase):
             self.assertEqual(self.service.get_task(tid)["generation"], 1)
             self.until(lambda: self.service.get_task(tid)["jobs"][0]["status"] == "COMPLETED")
             self.assertEqual(len(self.service.store.rows("SELECT * FROM executions")), 1)
+
+    def test_unknown_incident_evidence_keeps_bounded_error_excerpt(self):
+        with patch.dict(os.environ, {"SUI_FAKE_CLAUDE_MODE": "unknown"}):
+            tid = self.submit(adapter="claude", spec={"steps": 60, "interval": 0.02})
+            self.until(lambda: self.service.get_task(tid)["status"] == "QUARANTINED")
+            quarantine_evidence = [
+                item
+                for item in list_incidents(self.service, tid)
+                if item["rule_id"] == "UNKNOWN-001" and item["status"] == "APPLIED"
+            ]
+            self.assertTrue(quarantine_evidence)
+            payload = quarantine_evidence[0]["payload"]
+            excerpt = payload["evidence"]["error_excerpt"]
+            self.assertIn("unrecognized_vendor_failure", excerpt)
+            self.assertLessEqual(len(excerpt), 128)
+            exit_events = [
+                event
+                for event in self.service.events(tid)
+                if event["kind"] == "WORKER_RUNTIME_EXIT"
+            ]
+            self.assertTrue(exit_events)
+            # The stderr excerpt field exists on every wrapper exit event even
+            # when empty, so post-mortems never depend on in-memory state.
+            for event in exit_events:
+                self.assertIn("stderr_excerpt", event["data"])

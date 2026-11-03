@@ -11,6 +11,16 @@ from ..models import digest, encode
 from .detectors import ENV_CODES
 from .models import Observation
 
+# Bounded error excerpt kept in incident evidence; stderr tail is 8192 bytes,
+# the excerpt stays far smaller so evidence rows remain cheap to read.
+EXCERPT_MAX_BYTES = 512
+
+
+def excerpt(text: str) -> str:
+    """Collapse and truncate a raw error frame for durable incident evidence."""
+    flat = " ".join(text.split())
+    return flat[:EXCERPT_MAX_BYTES]
+
 
 def classify_error(text: str) -> str:
     """Legacy provider error-text fallback, used only in CLI error envelopes."""
@@ -248,15 +258,12 @@ class ClaudeNormalizer:
             self.final_seen |= result.final
             self.awaiting_response = False
             if kind == "error" or value.get("is_error") or value.get("subtype", "success") != "success":
-                code = classify_error(
-                    encode(
-                        {
-                            "errors": value.get("errors", []),
-                            "error": value.get("error", {}),
-                            "result": value.get("result", ""),
-                        }
-                    )
-                )
+                wire_error = {
+                    "errors": value.get("errors", []),
+                    "error": value.get("error", {}),
+                    "result": value.get("result", ""),
+                }
+                code = classify_error(encode(wire_error))
                 result.terminal_error = code
                 result.observations.append(
                     self._obs(
@@ -264,6 +271,7 @@ class ClaudeNormalizer:
                         "unknown_error" if code == "RUNTIME_ERROR" else "api_error",
                         code=code,
                         terminal=True,
+                        stderr_excerpt=excerpt(encode(wire_error)),
                     )
                 )
             else:

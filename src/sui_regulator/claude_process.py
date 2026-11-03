@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .claude_adapter import ClaudeStreamDetector, build_command, classify_error, runtime_environment
 from .config import Config
+from .failures.claude import excerpt
 from .failures.persistence import publish
 from .failures.registry import FailureRegistry
 from .models import Credentials, DomainError, encode
@@ -74,6 +75,9 @@ def run(config: Config, credentials: Credentials) -> None:
     stream_capability_recorded = False
 
     def record_exit(reason: str, return_code=None):
+        # Keep a bounded excerpt of the CLI stderr tail in the durable ledger;
+        # the raw buffer dies with the wrapper and this is the only post-mortem.
+        stderr_excerpt = excerpt(stderr_tail.decode(errors="replace"))
         with service.store.transaction() as conn:
             conn.execute(
                 "UPDATE workers SET status='EXITED',error=? WHERE id=? AND status IN ('RUNNING','STARTING','ROTATING')",
@@ -85,7 +89,12 @@ def run(config: Config, credentials: Credentials) -> None:
                 "WORKER_RUNTIME_EXIT",
                 "wrapper-observed",
                 credentials.worker_id,
-                {"error": reason, "exit_code": return_code, "final_result_seen": final_seen},
+                {
+                    "error": reason,
+                    "exit_code": return_code,
+                    "final_result_seen": final_seen,
+                    "stderr_excerpt": stderr_excerpt,
+                },
             )
 
     buffers, dropping = {process.stdout.fileno(): b"", process.stderr.fileno(): b""}, set()

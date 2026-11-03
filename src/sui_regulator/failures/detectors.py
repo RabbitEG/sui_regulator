@@ -229,9 +229,18 @@ def environment(obs, state, config):
 def unknown(obs, state, config):
     state.setdefault("onset", obs.time)
     state["count"] = config.get("act_after", 3) if obs.data.get("terminal") else state.get("count", 0) + 1
+    evidence = {
+        "code": str(obs.data.get("code", "UNKNOWN_ANOMALY"))[:128],
+        "occurrences": state["count"],
+    }
+    # Wire error frames carry a bounded excerpt so the cause stays auditable
+    # after the wrapper exits; stderr itself is never persisted.
+    excerpt = obs.data.get("stderr_excerpt")
+    if excerpt:
+        evidence["error_excerpt"] = str(excerpt)[:128]
     return Finding(
         state["count"],
-        {"code": str(obs.data.get("code", "UNKNOWN_ANOMALY"))[:128], "occurrences": state["count"]},
+        evidence,
         state["onset"],
         "UNKNOWN_ANOMALY: symptom is observable, cause is unconfirmed",
         0.95,
