@@ -1,0 +1,2 @@
+{"case": {"id": "positive-turn-limit", "label": "positive", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [{"rule_id": "TURN-001", "action": "fresh_session", "onset": 1, "max_delay": 2}], "forbid_actions": []}}
+{"time": 1, "kind": "api_error", "data": {"code": "MAX_TURNS_EXHAUSTED", "terminal": true}, "source": "synthetic"}

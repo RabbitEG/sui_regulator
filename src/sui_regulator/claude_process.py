@@ -74,7 +74,7 @@ def run(config: Config, credentials: Credentials) -> None:
     final_seen, error, stderr_tail = False, None, b""
     stream_capability_recorded = False
 
-    def record_exit(reason: str, return_code=None):
+    def record_exit(reason: str, return_code=None, turn_limit=False):
         # Keep a bounded excerpt of the CLI stderr tail in the durable ledger;
         # the raw buffer dies with the wrapper and this is the only post-mortem.
         stderr_excerpt = excerpt(stderr_tail.decode(errors="replace"))
@@ -83,18 +83,23 @@ def run(config: Config, credentials: Credentials) -> None:
                 "UPDATE workers SET status='EXITED',error=? WHERE id=? AND status IN ('RUNNING','STARTING','ROTATING')",
                 (reason, credentials.worker_id),
             )
+            data = {
+                "error": reason,
+                "exit_code": return_code,
+                "final_result_seen": final_seen,
+                "stderr_excerpt": stderr_excerpt,
+            }
+            if turn_limit:
+                # The loop-patrol design hits the CLI turn budget on purpose;
+                # flag it so controller-side recovery reads a budget exit, not a fault.
+                data["turn_budget_exhausted"] = True
             service.store.event(
                 conn,
                 credentials.task_id,
                 "WORKER_RUNTIME_EXIT",
                 "wrapper-observed",
                 credentials.worker_id,
-                {
-                    "error": reason,
-                    "exit_code": return_code,
-                    "final_result_seen": final_seen,
-                    "stderr_excerpt": stderr_excerpt,
-                },
+                data,
             )
 
     buffers, dropping = {process.stdout.fileno(): b"", process.stderr.fileno(): b""}, set()
@@ -184,7 +189,7 @@ def run(config: Config, credentials: Credentials) -> None:
                     final_seen |= event.final
                     error = error or event.error
                     if error:
-                        record_exit(error)
+                        record_exit(error, turn_limit=error == "MAX_TURNS_EXHAUSTED")
                         return
                 if len(buffers[fd]) > MAX_LINE_BYTES:
                     buffers[fd] = b""
@@ -245,7 +250,7 @@ def run(config: Config, credentials: Credentials) -> None:
             if final_seen
             else "TRUNCATED_STREAM"
         )
-        record_exit(error, return_code)
+        record_exit(error, return_code, turn_limit=error == "MAX_TURNS_EXHAUSTED")
     except DomainError:
         # complete_task, hold, cancel and takeover revoke the lease. No replay follows.
         return

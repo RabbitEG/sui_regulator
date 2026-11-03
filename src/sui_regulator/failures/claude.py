@@ -38,6 +38,8 @@ def classify_error(text: str) -> str:
         return "TRANSPORT_FAILURE"
     if re.search(r"quota|credit|rate.limit|\b429\b", text, re.I):
         return "RESOURCE_BLOCKED"
+    if re.search(r"maximum number of turns|max.turns", text, re.I):
+        return "MAX_TURNS_EXHAUSTED"
     return "RUNTIME_ERROR"
 
 
@@ -268,7 +270,9 @@ class ClaudeNormalizer:
                 result.observations.append(
                     self._obs(
                         time,
-                        "unknown_error" if code == "RUNTIME_ERROR" else "api_error",
+                        # MAX_TURNS_EXHAUSTED is a budget boundary, not an anomaly:
+                        # a fresh session resumes the loop with durable context.
+                        "api_error" if code != "RUNTIME_ERROR" else "unknown_error",
                         code=code,
                         terminal=True,
                         stderr_excerpt=excerpt(encode(wire_error)),

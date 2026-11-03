@@ -141,7 +141,7 @@ def main():
                 },
             )
             if (
-                mode in {"stream_degenerate", "environment", "unknown", "transport_once"}
+                mode in {"stream_degenerate", "environment", "unknown", "transport_once", "turn_limit"}
                 and task["generation"] == 1
             ):
                 deadline = time.monotonic() + 3
@@ -208,6 +208,16 @@ def main():
                     time.sleep(1)
                 elif mode == "unknown":
                     emit({"type": "error", "error": {"type": "unrecognized_vendor_failure"}})
+                elif mode == "turn_limit":
+                    # The CLI turn budget boundary as a real process sees it.
+                    emit(
+                        {
+                            "type": "result",
+                            "subtype": "error_during_execution",
+                            "is_error": True,
+                            "errors": ["Reached maximum number of turns (20)"],
+                        }
+                    )
                 else:
                     emit({"type": "result", "is_error": True, "errors": ["503 overloaded"]})
                 return

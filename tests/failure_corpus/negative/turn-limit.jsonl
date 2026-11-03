@@ -1,0 +1,4 @@
+{"case": {"id": "negative-turn-limit", "label": "negative", "provenance": {"type": "synthetic", "source": null, "contains_real_transcript": false}, "expectations": [], "forbid_actions": ["fresh_session"]}}
+{"time": 1, "kind": "api_error", "data": {"code": "STREAM_CAPABILITY_DEGRADED", "terminal": false}, "source": "synthetic"}
+{"time": 2, "kind": "response_completed", "data": {}, "source": "synthetic"}
+{"time": 3, "kind": "tool_result", "data": {"call_id": "c1", "is_error": false}, "source": "synthetic"}

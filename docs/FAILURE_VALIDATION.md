@@ -7,7 +7,7 @@
 | 验证 | 结果 | 证据 |
 |---|---|---|
 | 版本化规则 | 13 条，全部有正反例；调整阈值无需修改 Controller | `src/sui_regulator/failures/patterns/` |
-| 离线案例 | 23 条故障、17 条正常，共 40 条 | `tests/failure_corpus/` |
+| 离线案例 | 24 条故障、18 条正常，共 42 条 | `tests/failure_corpus/` |
 | 案例召回率 | 23/23 = 100% | `failure-corpus-report.json` |
 | 正常案例误报率 | 0/17 = 0% | 同上，包括 500 次相同成功轮询 |
 | 离线建议动作匹配 | 23/23 = 100% | 同上；不代表实际接管成功率 |

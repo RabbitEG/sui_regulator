@@ -67,7 +67,7 @@ PYTHONPATH=src "$SUI_PY" -m unittest discover -s tests -v
 
 演示输出 URL 后，从本机授权 SSH 转发 8766，按 [Console 指南](YAN_CONSOLE.md) 检查 GEN-001、代理换代、原 Job/PID 与单次 execution、Hold/Resume/指令回执、UNKNOWN。Ctrl+C 结束演示会清理它自己的专用进程。**不要用 console-demo 作为正式服务。**
 
-v0.4 当前基线：默认套件 88 项，其中 4 项未安装/未启用 Claude 时 skip；开启 CLI 合约测试后 88 项全部通过。案例集 40 条 passed=true；`yan demo` 的所有 checks 应为 true。这些是本版本基线，不是未来版本固定数量。
+v0.4 当前基线：默认套件 88 项，其中 4 项未安装/未启用 Claude 时 skip；开启 CLI 合约测试后 88 项全部通过。案例集 42 条 passed=true；`yan demo` 的所有 checks 应为 true。这些是本版本基线，不是未来版本固定数量。
 
 可选真实浏览器验收放在独立 QA checkout，避免改写正式源码中的参考报告：
 

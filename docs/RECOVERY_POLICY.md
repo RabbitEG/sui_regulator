@@ -13,6 +13,7 @@
 | Runner 消失/启动确认不明 | UNKNOWN，禁止自动重新 dispatch |
 | 结构化环境故障（EROFS/ENOSPC 等） | Task WAITING，保留运行 Job，无重启风暴；Job 自身资源阻塞仍为 BLOCKED |
 | 有限传输失败 | 允许 CLI 已有的有限重试；终止失败才按退避创建新 Session，不注入 Continue 或重放工具 |
+| CLI turn 预算耗尽（MAX_TURNS_EXHAUSTED） | 永不 complete 的循环任务（如巡检）按设计触顶；TURN-001 按规则预算直接轮换新 Session，durable context 恢复循环，不计为故障，不隔离 |
 | 未知结构化异常 | UNKNOWN_ANOMALY，先探测；重复或明确致命则隔离，原因保持未确认 |
 | Yan HOLD/CANCEL | 撤销 Sui Proxy 所有权，持久保留意图，运行 Job 保留 |
 | 恢复次数达到窗口上限 | QUARANTINED，需用户 resume 后重新启用预算 |

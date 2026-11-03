@@ -1,0 +1,38 @@
+{
+  "id": "TURN-001",
+  "name": "CLI turn budget exhausted by design",
+  "version": 1,
+  "category": "generation",
+  "signals": [
+    "api_error"
+  ],
+  "detector": {
+    "type": "transport",
+    "config": {
+      "warn_after": 1,
+      "act_after": 1,
+      "codes": [
+        "MAX_TURNS_EXHAUSTED"
+      ]
+    }
+  },
+  "severity": "low",
+  "confidence_required": 0.95,
+  "recovery": {
+    "action": "fresh_session",
+    "preserve_task": true,
+    "preserve_running_jobs": true,
+    "max_attempts": 10,
+    "retry_seconds": 1.0
+  },
+  "fixtures": {
+    "positive": [
+      "positive/turn-limit.jsonl"
+    ],
+    "negative": [
+      "negative/turn-limit.jsonl"
+    ]
+  },
+  "origin": "known",
+  "observability": "expected budget boundary for never-completing loop tasks; session replacement is the designed continuation, not a repair"
+}

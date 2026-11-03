@@ -131,9 +131,15 @@ def transport(obs, state, config):
         return None
     state.setdefault("onset", obs.time)
     state["count"] = state.get("count", 0) + 1
+    evidence = {"code": code, "occurrences": state["count"], "terminal": bool(obs.data.get("terminal"))}
+    # Wire error frames carry a bounded excerpt so the cause stays auditable
+    # after the wrapper exits; stderr itself is never persisted.
+    excerpt_value = obs.data.get("stderr_excerpt")
+    if excerpt_value:
+        evidence["error_excerpt"] = str(excerpt_value)[:128]
     return Finding(
         state["count"],
-        {"code": code, "occurrences": state["count"], "terminal": bool(obs.data.get("terminal"))},
+        evidence,
         state["onset"],
         "structured transport failure; no side-effect replay authorized",
     )

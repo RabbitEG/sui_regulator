@@ -290,3 +290,32 @@ class IncidentProcessTests(ProcessTestCase):
             # when empty, so post-mortems never depend on in-memory state.
             for event in exit_events:
                 self.assertIn("stderr_excerpt", event["data"])
+
+    def test_turn_budget_exhaustion_rotates_session_instead_of_quarantine(self):
+        with patch.dict(os.environ, {"SUI_FAKE_CLAUDE_MODE": "turn_limit"}):
+            tid = self.submit(adapter="claude", spec={"steps": 60, "interval": 0.02})
+            self.until(lambda: self.service.get_task(tid)["generation"] >= 2)
+            task = self.service.get_task(tid)
+            self.assertNotEqual(task["status"], "QUARANTINED")
+            applied = [
+                item
+                for item in list_incidents(self.service, tid)
+                if item["rule_id"] == "TURN-001" and item["status"] == "APPLIED"
+            ]
+            self.assertTrue(applied)
+            self.assertEqual(applied[0]["action"], "fresh_session")
+            self.assertIn("MAX_TURNS_EXHAUSTED", applied[0]["payload"]["evidence"]["code"])
+            self.assertIn("maximum number of turns", applied[0]["payload"]["evidence"]["error_excerpt"])
+            # The replacement generation finishes the same job; no quarantine ever fires.
+            self.until(lambda: self.service.get_task(tid)["status"] == "COMPLETED", timeout=10)
+            self.assertEqual(len(task["jobs"]), 1)
+            unknown = [
+                item for item in list_incidents(self.service, tid) if item["rule_id"] == "UNKNOWN-001"
+            ]
+            self.assertEqual(unknown, [])
+            exits = [
+                event
+                for event in self.service.events(tid)
+                if event["kind"] == "WORKER_RUNTIME_EXIT" and event["data"].get("turn_budget_exhausted")
+            ]
+            self.assertTrue(exits)
