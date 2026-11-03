@@ -76,6 +76,31 @@ HOLD/CANCEL 落库后撤销 Sui Proxy 所有权，自动协调不能恢复。HOL
 
 Sui Proxy 异常 → 审计原因 → 原子撤销 lease → 只终止身份核验通过的受管 Sui Proxy → 检查持久预算/冷却 → 创建新 generation → 从 Task、Command、Event、Handoff、Job、Artifact 获取上下文。Runner 的 UNKNOWN 不自动重新启动。Controller 重启重新查询持久关系，而不重建整个实验。
 
-最大 Session 年龄默认 1800 秒，仅为可配置试验参数。轮换先请求 Handoff，等待有限 grace；即使旧 Sui Proxy 无法响应也能靠账本接管。轮换只影响 Sui Proxy。恢复次数、窗口、冷却和隔离状态跨 Controller 重启持久存在。
+最大 Session 年龄默认 1800 秒，仅为可配置试验参数。达到年龄仅请求 Handoff，健康代理可延后到安全边界；不按 grace 强制终止慢速调试。真正失联或崩溃才按运行故障回收。Persistent 使用退避和请求窗口控制恢复频率，Bounded 保留故障次数上限；相关状态跨 Controller 重启持久存在。
 
 当前角色名为 Sui Proxy（岁兽代理人）；兼容字段和历史事件见 [命名约定](NAMING.md)。Console 的运行、截图与操作语义见 [Yan Console 使用指南](YAN_CONSOLE.md)。
+
+## 完整任务与 Persistent 恢复
+
+```mermaid
+flowchart TD
+  Yan[Yan Console / CLI] -->|完整任务书、验收条件、执行能力| Ledger[(SQLite Task / Command / Incident)]
+  Yan -->|Hold / Resume / 恢复策略回执| Controller[Candleholder Controller]
+  Controller -->|创建与换代；随机退避| Proxy[Sui Proxy / Claude Code]
+  Ledger -->|同一 Task，跨代要求与 Handoff| Proxy
+  Proxy -->|受管协议| MCP[Sui MCP + lease fence]
+  Proxy -->|原生模式| Hooks[执行前所有权与未决操作检查 Hook]
+  Hooks --> Project[读写项目、检查与实验命令]
+  MCP --> Runner[独立合成 Runner / Job]
+  MCP --> Checks[批准的核验命令]
+  Runner -->|实际进展| Ledger
+  Checks -->|真实退出码与证据| Ledger
+  Hooks -->|跨代操作回执| Ledger
+  Proxy -->|结构化完成标记| Completion[身份、要求版本、未决操作检查]
+  Completion -->|自动结束 Task；语义由模型判断| Ledger
+  Controller -->|进展观察、预算暂停| Ledger
+```
+
+用户要求决定工作内容；Controller 维持 Task 和恢复边界，不自行选择实验或迁移资源。Bash / 外部平台实验不自动成为托管 Job。恢复与限制见 [Persistent 恢复](PERSISTENT_RECOVERY.md)，部署入口见 [任务书](TASK_BRIEFS.md)。
+
+年龄触发的换代为可延后的请求，必须收到新 Handoff；实验质量和调试循环不参与 Session 故障判定。见 [设计依据与完成协议](PROMPT_AND_LIFECYCLE_DESIGN.md)。

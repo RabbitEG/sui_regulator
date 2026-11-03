@@ -114,13 +114,27 @@ class Controller(AbstractContextManager):
             current = self.service._get(conn, "tasks", task["id"])
             if current["current_worker"] != worker["id"]:
                 return
+            # A terminal Incident may commit after apply_pending took its batch
+            # snapshot but before this health check. Let its recorded policy
+            # run next tick rather than stealing ownership and making it STALE.
+            if conn.execute(
+                "SELECT 1 FROM incidents WHERE task_id=? AND worker_id=? AND generation=? AND status='PENDING' AND action IN ('fresh_session','quarantine','wait','bounded_retry') LIMIT 1",
+                (task["id"], worker["id"], current["generation"]),
+            ).fetchone():
+                return
+            from .recovery import backoff
+
+            persistent = current["recovery_mode"] == "persistent"
+            if persistent and reason in {"SESSION_FINISHED_WITHOUT_COMPLETION", "MAX_TURNS_EXHAUSTED"}:
+                failure = False
+            delay = backoff(conn, current, self.config, now) if persistent and failure else self.config.restart_cooldown
             conn.execute(
                 "UPDATE workers SET status=?,error=?,ended_at=?,lease_expires=0 WHERE id=?",
                 ("FAILED" if failure else "RETIRED", reason, now, worker["id"]),
             )
             conn.execute(
-                "UPDATE tasks SET current_worker=NULL,status='READY',next_start_at=?,updated_at=? WHERE id=?",
-                (now + self.config.restart_cooldown, now, task["id"]),
+                "UPDATE tasks SET current_worker=NULL,status=?,next_start_at=?,updated_at=? WHERE id=?",
+                ("RETRY_BACKOFF" if persistent and failure else "READY", now + delay, now, task["id"]),
             )
             self.service.store.event(
                 conn,
@@ -130,11 +144,18 @@ class Controller(AbstractContextManager):
                 worker["id"],
                 {"reason": reason},
             )
-            if reason in {"AUTH_REQUIRED", "RESOURCE_BLOCKED", "SESSION_ID_MISMATCH"}:
+            if reason == "SESSION_ID_MISMATCH" or (not persistent and reason in {"AUTH_REQUIRED", "RESOURCE_BLOCKED"}):
                 conn.execute("UPDATE tasks SET status='QUARANTINED' WHERE id=?", (task["id"],))
                 self.service.store.event(
                     conn, task["id"], "TASK_QUARANTINED", "candleholder", "controller", {"reason": reason}
                 )
+            elif persistent and reason in {"AUTH_REQUIRED", "CAPABILITY_REQUIRED"}:
+                conn.execute("UPDATE tasks SET status='WAITING_RESOURCE' WHERE id=?", (task["id"],))
+                state = json.loads(self.service._get(conn, "tasks", task["id"])["recovery_state"])
+                state.update(phase="WAITING_RESOURCE", guidance="Repair credentials or CLI capabilities, then explicitly Resume.")
+                conn.execute("UPDATE tasks SET recovery_state=? WHERE id=?", (encode(state), task["id"]))
+                self.service.store.event(conn, task["id"], "CONFIGURATION_REQUIRED", "candleholder", "controller",
+                                         {"reason": reason, "next_action": state["guidance"]})
         self._stop(worker)
 
     def _health_reason(self, worker: dict) -> str | None:
@@ -178,6 +199,9 @@ class Controller(AbstractContextManager):
                     ],
                 }
             )
+            if task["recovery_mode"] == "persistent":
+                progress_at = task["recovery_state"].get("last_verified_progress_at", task["created_at"])
+                progress_marker = str(progress_at)
             observed = Observation(
                 max(time.time(), engine.last_time),
                 "health",
@@ -210,13 +234,19 @@ class Controller(AbstractContextManager):
         self._audit_watchdog()
         self.service.process_commands()
         self.runner.reconcile()
+        from .completion import consume_markers
+
+        consume_markers(self)
+        from .recovery import monitor
+
+        monitor(self)
         self._observe_health()
         apply_pending(self)
         for pid, process in list(self.children.items()):
             if process.poll() is not None:
                 del self.children[pid]
         for task in self.service.store.rows("SELECT * FROM tasks ORDER BY created_at,id"):
-            if task["desired"] != "ACTIVE" or task["status"] in {"QUARANTINED", "WAITING"}:
+            if task["desired"] != "ACTIVE" or task["status"] in {"QUARANTINED", "WAITING", "WAITING_RESOURCE"}:
                 continue
             worker = None
             if task["current_worker"]:
@@ -224,7 +254,7 @@ class Controller(AbstractContextManager):
                 worker = rows[0] if rows else None
             if worker:
                 if worker["rotation_at"] is not None and (
-                    worker["handoff"] or time.time() - worker["rotation_at"] >= self.config.rotation_grace
+                    worker["handoff"] and worker["handoff_at"] is not None and worker["handoff_at"] >= worker["rotation_at"]
                 ):
                     self._retire(task, worker, "SESSION_ROTATION", False)
                 else:
@@ -250,7 +280,7 @@ class Controller(AbstractContextManager):
                 "SELECT COUNT(*) AS n FROM events WHERE task_id=? AND kind='WORKER_FAILED' AND created_at>=?",
                 (task["id"], max(time.time() - self.config.restart_window, task["recovery_reset_at"])),
             )[0]["n"]
-            if failures >= self.config.max_restarts:
+            if task["recovery_mode"] == "bounded" and failures >= self.config.max_restarts:
                 with self.service.store.transaction() as conn:
                     conn.execute(
                         "UPDATE tasks SET status='QUARANTINED',updated_at=? WHERE id=?",

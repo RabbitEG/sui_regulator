@@ -2,6 +2,7 @@
 """Task creation through real HTTP, Yan RPC, Controller and SQLite; no model API."""
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -14,11 +15,15 @@ from sui_regulator.console_demo import ConsoleDemo  # noqa: E402
 def main():
     from playwright.sync_api import expect, sync_playwright
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--browser", default="/usr/bin/chromium-browser")
+    args = parser.parse_args()
+
     output = ROOT / 'docs/screenshots/task-brief'
     output.mkdir(parents=True, exist_ok=True)
     errors = []
     with ConsoleDemo(port=0) as demo, sync_playwright() as p:
-        browser = p.chromium.launch(executable_path='/usr/bin/chromium-browser', headless=True,
+        browser = p.chromium.launch(executable_path=args.browser, headless=True,
                                    args=['--no-sandbox', '--disable-dev-shm-usage'])
         page = browser.new_page(viewport={'width': 1440, 'height': 1200}, locale='zh-CN')
         page.on('pageerror', lambda error: errors.append(str(error)))
@@ -39,14 +44,24 @@ def main():
         demo.service.command('hold_task', 'browser-drill', 'hold-created-task', {}, task['id'])
         demo.wait(lambda: demo.service.get_task(task['id'])['desired'] == 'HOLD')
         page.goto(demo.url + '#/tasks/' + task['id'])
-        expect(page.locator('.task-brief').first).to_have_text(objective)
+        expect(page.locator('[data-task-brief]')).to_have_text(objective)
         expect(page.locator('#receipt-list')).to_contain_text('创建任务')
         page.locator('#receipt-close').click()
+        page.locator('[data-command="set_recovery_policy"]').click()
+        page.locator('#policy-mode').select_option('bounded')
+        page.locator('#policy-budget').fill('1234')
+        page.locator('#dialog-submit').click()
+        expect(page.locator('#command-dialog')).not_to_be_visible()
+        demo.wait(lambda: demo.service.get_task(task['id'])['max_proxy_seconds'] == 1234)
+        assert demo.service.get_task(task['id'])['desired'] == 'HOLD'
+        assert demo.service.get_task(task['id'])['recovery_mode'] == 'bounded'
+        page.locator('#receipt-close').click()
+        expect(page.locator('[data-recovery-mode]')).to_have_text('bounded', timeout=10000)
         page.screenshot(path=str(output / 'task-requirements.png'), full_page=True)
         assert not errors, errors
         browser.close()
     report = {'passed': True, 'checks': ['real_submit_receipt', 'full_multiline_brief_persisted',
-              'criteria_displayed', 'hold_preserves_created_task', 'no_browser_errors'],
+              'criteria_displayed', 'real_recovery_policy_receipt', 'policy_does_not_resume_hold', 'hold_preserves_created_task', 'no_browser_errors'],
               'scope': 'Mock UI and real local control plane; no real model or training'}
     (ROOT / 'docs/task-brief-browser-report.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))

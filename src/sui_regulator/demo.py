@@ -15,6 +15,8 @@ def run_demo() -> dict:
     with tempfile.TemporaryDirectory(prefix="sui-demo-") as temporary:
         config = Config(
             Path(temporary) / "state",
+            recovery_backoff_base=0.05,
+            recovery_backoff_max=0.2,
             heartbeat_seconds=0.05,
             lease_seconds=2,
             restart_cooldown=0.05,

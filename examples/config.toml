@@ -9,13 +9,21 @@ startup_grace = 5.0
 restart_cooldown = 1.0
 restart_window = 300.0
 max_restarts = 3
+# Persistent tasks have no cumulative runtime-failure limit. These delays
+# limit request rate; max_restarts is used only by bounded tasks.
+recovery_mode = "persistent"
+recovery_backoff_base = 10.0
+recovery_backoff_max = 300.0
+# Advisory only: slow debugging and experimental failure never force rotation.
+no_progress_seconds = 900.0
+escalation_seconds = 3600.0
 max_proxies = 4
 stale_seconds = 10.0
 claude_binary = "claude"
 claude_model = ""
-claude_max_turns = 20
+claude_max_turns = 100
 # Empty uses the versioned rules bundled with the wheel.
 failure_registry = ""
-# Optional operator-owned file listing approved command templates for workers.
-# Must be mode 0700, owned by the deploy UID, never committed to Git.
+# Optional operator-owned file listing approved command templates for Sui Proxies.
+# Use mode 0600, owned by the deploy UID, never committed to Git.
 # command_registry = "/absolute/path/commands.toml"

@@ -1,6 +1,6 @@
 # 数据模型
 
-Schema v3（v1→v2 增加取消授权快照；v2→v3 增加 incidents），使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDIATE。`PRAGMA user_version` 驱动逐版本事务迁移；拒绝打开未来版本。禁止直接复制运行中的主数据库文件作为备份，使用 `yan backup` 的 SQLite backup API。
+Schema v5（v1→v2 增加取消授权快照；v2→v3 增加 incidents；v4 / v5 增量见下文），使用 SQLite WAL、foreign_keys、FULL synchronous 与 BEGIN IMMEDIATE。`PRAGMA user_version` 驱动逐版本事务迁移；拒绝打开未来版本。禁止直接复制运行中的主数据库文件作为备份，使用 `yan backup` 的 SQLite backup API。
 
 | 表 | 主键/约束 | 含义 |
 |---|---|---|
@@ -16,7 +16,7 @@ Schema v3（v1→v2 增加取消授权快照；v2→v3 增加 incidents），使
 
 Sui Proxy Lease 合并在 workers 中，以 lease hash、到期时间及 Task current_worker/generation 实现。首轮 Metric 保存在 Job 最新观测 JSON；历史合成日志与结果落在私有 Job 目录，不自建指标平台。Approval 尚未实现：首轮接口不提供真实 shell/真实训练终止等需要审批的能力。
 
-Task desired：ACTIVE/HOLD/CANCELLED/COMPLETED；执行 status 另有 READY/RUNNING/WAITING/QUARANTINED。WAITING 表示已观测到环境故障，暂停 Session 分配但保留运行 Job。终态任务不能 resume。HOLD/CANCEL 撤销 Sui Proxy lease，但保留运行 Job。
+Task desired：ACTIVE/HOLD/CANCELLED/COMPLETED；执行 status 另有 READY/RUNNING/WAITING/QUARANTINED/RETRY_BACKOFF/WAITING_RESOURCE。WAITING 为历史等待状态；WAITING_RESOURCE 用于需要修复凭据或能力配置的暂停，RETRY_BACKOFF 表示等待下一次运行恢复。普通实验 / 工具错误不暂停 Session。终态任务不能 resume。HOLD/CANCEL 撤销 Sui Proxy lease，但保留运行 Job。
 
 Incident：PENDING → OBSERVED/APPLIED/STALE/IGNORED。payload 是不可变的规则建议；action/outcome 记录最终决策和原因。created_at/applied_at 为数据库墙钟；payload 的 onset_at/detected_at 在离线重放中使用轨迹的显式时间。置信分数是确定性启发式阈值，不是经实测校准的概率。原始聊天、完整工具参数和凭据不写入 Incident。
 
@@ -25,3 +25,9 @@ Command：QUEUED → SUCCEEDED 或 REJECTED。本地纯数据库命令在一个�
 Job：CREATED/QUEUED/STARTING/RUNNING/COMPLETED/FAILED/CANCELLED/BLOCKED/UNKNOWN。UNKNOWN 必须保留，不能等同 FAILED。已经开始的物理执行不能因 Sui Proxy 更替而重新 dispatch。
 
 时间为 UTC Unix 秒，查询返回 queried_at、observed_at、source 和 stale。终态观测是历史结果，不标为实时运行观测。声明内容绝不直接改写 Job 的客观状态。
+
+## Schema 4 / 5 增量
+
+Task 新增 execution_profile、completion_criteria、verification_template、recovery_mode、recovery_state 和 max_proxy_seconds。tool_attempts 保存跨代操作身份、方案 / 结果指纹与 STARTED、FAILED、SUCCEEDED、UNKNOWN、RESOLVED 等回执状态。旧任务迁移为 managed + bounded，用户须显式选择扩大能力或切换策略。原生 Claude Code 可以执行真实项目命令，其权限和托管 Job 边界见 [任务书](TASK_BRIEFS.md)。
+
+Schema 5 还包含 Task completion、workers.handoff_at 与 completion_receipts，记录结构化完成证据、交接请求之后的明确交接时间和完成处理结果。

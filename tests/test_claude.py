@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
+import time
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -159,14 +161,80 @@ class ClaudeContractTests(ProcessTestCase):
     "opt-in real installed CLI + loopback fake API only; no provider credentials",
 )
 class InstalledClaudeTests(ProcessTestCase):
+    def test_native_background_failure_allows_verified_followup_in_same_session(self):
+        project = Path(self.temp.name) / "background"
+        project.mkdir()
+        (project / "experiment.py").write_text(
+            "from pathlib import Path\nimport time\ntime.sleep(.6)\nPath('observed.txt').write_text('negative result')\nraise SystemExit(1)\n"
+        )
+        tid, followup = None, False
+
+        def steps(body, index):
+            nonlocal followup
+            if index == 0:
+                return "get_task_context", {}
+            if index == 1:
+                return "Bash", {"command": f"{sys.executable} experiment.py", "run_in_background": True}
+            receipts = self.service.get_task(tid)["tool_attempts"]
+            if not receipts or any(r["status"] in {"STARTED", "UNKNOWN"} for r in receipts):
+                time.sleep(.05)
+                return "get_task_context", {}
+            if not followup:
+                followup = True
+                return "Bash", {"command": "printf 'followup completed' > followup.txt"}
+            return "complete_task", {"summary": "Background result checked and followup finished", "evidence": "observed.txt and followup.txt"}
+
+        with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+            "ANTHROPIC_BASE_URL": backend.url, "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+            "ANTHROPIC_AUTH_TOKEN": "", "CLAUDE_CODE_DISABLE_THINKING": "1", **NO_PROXIES,
+        }):
+            tid = self.submit(adapter="claude", workspace=str(project), execution_profile="claude_code", recovery_mode="persistent")
+            self.until(lambda: self.service.get_task(tid)["desired"] == "COMPLETED", timeout=30)
+            task = self.service.get_task(tid)
+            self.assertEqual(task["generation"], 1)
+            self.assertEqual((project / "followup.txt").read_text(), "followup completed")
+            self.assertEqual([r["status"] for r in reversed(task["tool_attempts"])], ["FAILED", "SUCCEEDED"])
+            self.assertTrue(any(e["kind"] == "NATIVE_BACKGROUND_RESULT" for e in self.service.events(tid)))
+
+    def test_native_written_completion_marker_automatically_ends_task(self):
+        from sui_regulator.completion import contract
+
+        task_id = None
+        def steps(body, index):
+            if index == 0:
+                return 'get_task_context', {}
+            task = self.service.get_task(task_id)
+            if not task['current_worker']:
+                return 'get_task_context', {}
+            worker = next(w for w in task['workers'] if w['id'] == task['current_worker'])
+            document = contract(self.service, task, worker)
+            marker = {**document['template'], 'summary': 'Synthetic completion manifest', 'evidence': 'Local marker acceptance test'}
+            return 'Write', {'file_path': document['path'], 'content': json.dumps(marker)}
+
+        with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+            'ANTHROPIC_BASE_URL': backend.url, 'ANTHROPIC_API_KEY': 'sk-ant-synthetic-local-only',
+            'ANTHROPIC_AUTH_TOKEN': '', 'CLAUDE_CODE_DISABLE_THINKING': '1', **NO_PROXIES,
+        }):
+            task_id = self.submit(adapter='claude', execution_profile='claude_code', completion_criteria='Write completion marker')
+            self.until(lambda: self.service.get_task(task_id)['desired'] == 'COMPLETED', timeout=30)
+            task = self.service.get_task(task_id)
+            self.assertEqual(task['completion']['summary'], 'Synthetic completion manifest')
+            self.assertEqual(task['completion_receipts'][0]['status'], 'ACCEPTED')
+
     def test_native_cli_verifies_edits_and_runs_followup_experiment(self):
+        self.controller.config = replace(self.config, max_session_age=.1, rotation_grace=.01)
         project = Path(self.temp.name) / "research"
         project.mkdir()
         program = project / "experiment.py"
         program.write_text("from pathlib import Path\nvalue = 1\nassert value == 2\nPath('result.txt').write_text('verified next experiment')\n")
         command = f"{sys.executable} experiment.py"
+        waiting = project / "wait_existing.py"
+        waiting.write_text("from pathlib import Path\nimport time\nwhile not Path('existing.done').exists(): time.sleep(.02)\nprint('existing experiment finished')\n")
+        existing = subprocess.Popen([sys.executable, "-c", "from pathlib import Path;import time;time.sleep(2);Path('existing.done').write_text('one existing run')"], cwd=project)
+        self.addCleanup(lambda: existing.wait(timeout=5))
         steps = [
             ("get_task_context", {}),
+            ("Bash", {"command": f"{sys.executable} wait_existing.py", "description": "Wait for the existing experiment"}),
             ("Bash", {"command": command, "description": "Run experiment validation"}),
             ("Read", {"file_path": str(program)}),
             ("Edit", {"file_path": str(program), "old_string": "value = 1", "new_string": "value = 2"}),
@@ -182,7 +250,27 @@ class InstalledClaudeTests(ProcessTestCase):
             self.until(lambda: self.service.get_task(tid)["desired"] == "COMPLETED", timeout=40)
             self.assertEqual((project / "result.txt").read_text(), "verified next experiment")
             self.assertIn("value = 2", program.read_text())
-            self.assertGreaterEqual(len(backend.requests), 6)
+            self.assertGreaterEqual(len(backend.requests), 7)
+            self.assertEqual(existing.wait(timeout=5), 0)
+            self.assertEqual(self.service.get_task(tid)["generation"], 1)
+            attempts = self.service.store.rows("SELECT status FROM tool_attempts WHERE task_id=? ORDER BY created_at", (tid,))
+            self.assertEqual([row["status"] for row in attempts], ["SUCCEEDED", "FAILED", "SUCCEEDED"])
+
+    def test_native_hook_leaves_experiment_retries_to_model(self):
+        project = Path(self.temp.name) / "repeated"
+        project.mkdir()
+        program = project / "fail.py"
+        program.write_text("from pathlib import Path\np=Path('attempt-count.txt')\np.write_text(str(int(p.read_text())+1 if p.exists() else 1))\nprint('fixed error');raise SystemExit(1)\n")
+        steps = [("get_task_context", {})] + [("Bash", {"command": f"{sys.executable} fail.py", "description": "Attempt test"})] * 4 + [
+            ("complete_task", {"summary": "synthetic experiment retry observation checked"})]
+        with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+            "ANTHROPIC_BASE_URL": backend.url, "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+            "ANTHROPIC_AUTH_TOKEN": "", "CLAUDE_CODE_DISABLE_THINKING": "1", **NO_PROXIES,
+        }):
+            tid = self.submit(adapter="claude", workspace=str(project), execution_profile="claude_code", recovery_mode="persistent")
+            self.until(lambda: self.service.get_task(tid)["desired"] == "COMPLETED", timeout=40)
+            self.assertEqual((project / "attempt-count.txt").read_text(), "4")
+            self.assertEqual(len(self.service.store.rows("SELECT * FROM tool_attempts WHERE task_id=?", (tid,))), 4)
 
     def test_installed_cli_repetition_is_interrupted_before_api_response_finishes(self):
         with (

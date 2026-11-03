@@ -103,6 +103,7 @@ class ConsoleDemo(AbstractContextManager):
         try:
             config = replace(
                 Config(self.home),
+                recovery_mode="bounded",  # Historical incident drill; new tasks can select Persistent.
                 heartbeat_seconds=0.2,
                 lease_seconds=6,
                 tick_seconds=0.05,

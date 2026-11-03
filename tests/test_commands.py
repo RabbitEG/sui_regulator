@@ -5,7 +5,7 @@ import os
 import unittest
 from pathlib import Path
 
-from sui_regulator.commands import load_registry, run_command
+from sui_regulator.commands import load_registry
 from sui_regulator.mcp import MCPBridge
 from sui_regulator.models import DomainError
 from sui_regulator.protocol import SuiProtocol

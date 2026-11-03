@@ -38,6 +38,8 @@ PYTHONPATH=src SUI_TEST_REAL_CLAUDE=1 python3.11 -m unittest tests.test_claude.I
 
 内部 GLM 的地址、模型名、鉴权、Messages/SSE dialect、工具格式、CLI 限制、企业网络和长时间行为都未验证。Adapter 不会自动猜测 endpoint 或读取公司凭据。实际接入由操作员通过批准的运行环境设置 ANTHROPIC_BASE_URL/ANTHROPIC_API_KEY 等配置。
 
-本阶段默认只开放受管 MCP 和合成 Job，尚不提供完整任意代码开发/真实训练 Runner。代码编辑权限、真实训练启动、检查点、TensorBoard、远程资源与进程终止须在真实平台完成受控 Adapter 扩展。Session 原生 resume/export、VS Code Extension 控制没有验证；恢复依赖持久账本，默认创建新 Session。
+managed 默认提供只读原生工具、Sui MCP 与批准的模板；完整代码开发需在创建任务时选择 claude_code，允许原生 Edit / Write / Bash。真实实验可以由模型通过这些工具操作，但不会自动成为托管 Job。真实训练 Runner、检查点、TensorBoard、远程资源与训练终止仍需真实平台集成。Session 原生 resume/export、VS Code Extension 控制没有验证；恢复依赖持久账本，默认创建新 Session。
 
 完整任务书、原生代码调试与完成前核验见 [任务书与执行能力](TASK_BRIEFS.md)。固定协议通过 append-system-prompt 追加，用户任务书作为独立初始输入完整传入，不再以巡检替代任务目标。
+
+原生 claude_code 模式使用显式的执行前 / 后 Hooks，并取消 bare（bare 会屏蔽 Hooks）；managed 仍为 bare。Hook 失败阻止操作，版本要求与测试详见 [Persistent 恢复](PERSISTENT_RECOVERY.md)。

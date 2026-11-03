@@ -23,6 +23,7 @@ class ProcessTestCase(unittest.TestCase):
             startup_grace=0.8,
             tick_seconds=0.015,
             rotation_grace=0.1,
+            recovery_mode="bounded",  # Existing tests exercise the conservative policy explicitly.
         )
         self.config.write()
         self.controller = Controller(self.config).__enter__()

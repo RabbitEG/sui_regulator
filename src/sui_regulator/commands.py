@@ -15,9 +15,10 @@ import signal
 import subprocess
 import time
 import tomllib
+from contextlib import suppress
 from pathlib import Path
 
-from .models import DomainError, encode
+from .models import DomainError, digest, encode, identifier
 from .protocol import fence
 
 MAX_OUTPUT_BYTES = 65536
@@ -50,6 +51,7 @@ def load_registry(path: str | None) -> dict[str, dict]:
             or not argv
             or len(argv) > 16
             or not all(isinstance(part, str) and part for part in argv)
+            or sum(len(part.encode()) for part in argv if isinstance(part, str)) > 8192
             or not isinstance(raw_patterns, dict)
             or len(raw_patterns) > MAX_ARGUMENTS
         ):
@@ -70,7 +72,11 @@ def load_registry(path: str | None) -> dict[str, dict]:
             except re.error:
                 raise DomainError("INVALID_ARGUMENT", f"invalid pattern in template {name}")
             patterns[slot] = pattern
-        templates[name] = {"argv": argv, "patterns": patterns}
+        read_only = body.get("read_only", False)
+        progress_kind = body.get("progress_kind", "none")
+        if type(read_only) is not bool or progress_kind not in {"none", "diagnostic", "check", "test"}:
+            raise DomainError("INVALID_ARGUMENT", "invalid command observation metadata")
+        templates[name] = {"argv": argv, "patterns": patterns, "read_only": read_only, "progress_kind": progress_kind}
     return templates
 
 
@@ -78,7 +84,7 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
     """Execute an approved template as this worker, fenced by the lease and audited."""
     if not isinstance(template, str) or not template or len(template) > 64:
         raise DomainError("INVALID_ARGUMENT", "template must be a bounded name")
-    arguments = arguments or []
+    arguments = [] if arguments is None else arguments
     if not isinstance(arguments, list) or len(arguments) > MAX_ARGUMENTS or any(
         not isinstance(value, str) or len(value) > 256 or not value for value in arguments
     ):
@@ -100,19 +106,43 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
             raise DomainError("INVALID_ARGUMENT", f"argument {position} does not match the approved pattern")
     argv = list(spec["argv"]) + list(arguments)
     started = time.time()
-    # Fence and launch under the same write lock as Hold/takeover. Never hold
-    # that lock while waiting for a command to finish.
+    from . import attempts
+    from .recovery import advise
+
+    task = service.get_task(credentials.task_id)
+    operation_key = digest([template, argv])
+    approach_key = digest([operation_key, attempts.workspace_fingerprint(task["workspace"])])
+    attempt_id = identifier("attempt")
     with service.store.transaction() as conn:
         fence(conn, credentials)
         task = service._get(conn, "tasks", credentials.task_id)
-        workspace = Path(task["workspace"])
-        workspace.mkdir(parents=True, exist_ok=True)
-        process = subprocess.Popen(
-            argv, cwd=workspace, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, shell=False, start_new_session=True,
-        )
-        service.store.event(conn, credentials.task_id, "COMMAND_STARTED", "command-runner",
-                            credentials.worker_id, {"template": template, "argv": argv, "pid": process.pid})
+        denied = attempts.denial(conn, task, operation_key, approach_key, read_only=spec["read_only"])
+        note = attempts.repetition_note(conn, task, operation_key, approach_key)
+        if note:
+            advise(conn, service, task, note)
+        if denied:
+            advise(conn, service, task, denied)
+        else:
+            attempts.start(conn, task, credentials, attempt_id, template, operation_key, approach_key, read_only=spec["read_only"])
+    if denied:
+        raise DomainError("REPLAN_REQUIRED", denied)
+    # Commit launch intent first. A crash at any later point leaves an unresolved
+    # receipt rather than silently replaying an operation in the next generation.
+    try:
+        with service.store.transaction() as conn:
+            fence(conn, credentials)
+            workspace = Path(task["workspace"])
+            workspace.mkdir(parents=True, exist_ok=True)
+            process = subprocess.Popen(
+                argv, cwd=workspace, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, shell=False, start_new_session=True,
+            )
+            service.store.event(conn, credentials.task_id, "COMMAND_STARTED", "command-runner",
+                                credentials.worker_id, {"attempt_id": attempt_id, "template": template, "argv": argv, "pid": process.pid})
+    except (DomainError, OSError):
+        with service.store.transaction() as conn:
+            attempts.finish(conn, attempt_id, "CANCELLED", "not launched")
+        raise
     output = {"stdout": bytearray(), "stderr": bytearray()}
     truncated, timed_out = False, False
     deadline = time.monotonic() + MAX_RUNTIME_SECONDS
@@ -125,7 +155,8 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
             while selector.get_map() or process.poll() is None:
                 if time.monotonic() >= deadline:
                     timed_out = True
-                    os.killpg(process.pid, signal.SIGKILL)
+                    with suppress(ProcessLookupError):
+                        os.killpg(process.pid, signal.SIGKILL)
                     break
                 for key, _ in selector.select(timeout=0.1):
                     chunk = os.read(key.fd, 65536)
@@ -138,12 +169,13 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
             process.wait(timeout=5)
         finally:
             if process.poll() is None:
-                os.killpg(process.pid, signal.SIGKILL)
+                with suppress(ProcessLookupError):
+                    os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=5)
             process.stdout.close()
             process.stderr.close()
     result = {
-        "template": template, "argv": argv,
+        "attempt_id": attempt_id, "template": template, "argv": argv, "progress_kind": spec["progress_kind"],
         "exit_code": 124 if timed_out else process.returncode,
         "stdout": output["stdout"].decode(errors="replace"),
         "stderr": output["stderr"].decode(errors="replace"),
@@ -156,6 +188,8 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
             result[name] = result[name][:len(result[name]) // 2]
         result["output_truncated"] = True
     with service.store.transaction() as conn:
+        attempts.finish(conn, attempt_id, "UNKNOWN" if timed_out and not spec["read_only"] else "FAILED" if result["exit_code"] else "SUCCEEDED",
+                        [result["exit_code"], result["stdout"], result["stderr"]])
         # Always preserve the actual result, even if ownership ended during execution.
         # Only the still-current Proxy may update its activity timestamp.
         try:

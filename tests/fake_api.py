@@ -47,7 +47,7 @@ class FakeAnthropic(AbstractContextManager):
                 operation = ["get_task_context", "report_progress", "complete_task"][min(index, 2)]
                 tool = next((tool for tool in tools if tool["name"].endswith("__" + operation)), None)
                 if owner.steps:
-                    operation, planned_arguments = owner.steps[min(index, len(owner.steps) - 1)]
+                    operation, planned_arguments = owner.steps(body, index) if callable(owner.steps) else owner.steps[min(index, len(owner.steps) - 1)]
                     tool = next((t for t in tools if t["name"] == operation or t["name"].endswith("__" + operation)), None)
                 if owner.mode in {"streaming", "degenerate"}:
                     blocks = [("text", {"text": "synthetic streaming capability probe"})]

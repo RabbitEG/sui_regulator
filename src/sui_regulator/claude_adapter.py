@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import shlex
 import subprocess
 import sys
 import time
@@ -9,7 +11,7 @@ from pathlib import Path
 from .failures.claude import ClaudeNormalizer, Decoded
 from .failures.claude import classify_error as classify_error
 from .failures.engine import DetectionEngine
-from .models import Credentials, encode
+from .models import Credentials, DomainError, encode
 from .processes import child_environment, detached
 from .protocol import SuiProtocol
 from .service import Service
@@ -30,16 +32,18 @@ class StreamEvent:
 class ClaudeStreamDetector:
     """Compatibility facade; decoding, rules and policy live in separate modules."""
 
-    def __init__(self, session_id=None, registry=None):
+    def __init__(self, session_id=None, registry=None, recovery_mode="bounded"):
         self.normalizer = ClaudeNormalizer(session_id)
         self.engine = DetectionEngine(registry, session_id or "offline")
+        self.recovery_mode = recovery_mode
 
     def _convert(self, decoded):
         incidents = []
         for observed in decoded.observations:
             incidents.extend(self.engine.feed(observed))
         disruptive = next(
-            (item for item in reversed(incidents) if item.action in {"fresh_session", "quarantine", "wait"}),
+            (item for item in reversed(incidents) if item.action in {"fresh_session", "quarantine", "wait"}
+             and item.rule_id not in {"TOOL-002", "ENV-001"}),
             None,
         )
         reasons = {
@@ -137,6 +141,15 @@ def build_command(config, session_id: str, *, execution_profile: str = "managed"
     ]
     if config.claude_model:
         args.extend(["--model", config.claude_model])
+    if execution_profile == "claude_code":
+        # --bare suppresses even explicitly configured hooks. Native tools need
+        # our ownership/repetition hooks; settings sources remain disabled.
+        args.remove("--bare")
+        hook = shlex.join([sys.executable, "-m", "sui_regulator.tool_hook", "--home", str(config.home)])
+        hooks = {stage: [{"matcher": "Read|Edit|Write|Glob|Grep|Bash", "hooks": [
+            {"type": "command", "command": hook, "timeout": 15, "onFailure": "block"}
+        ]}] for stage in ("PreToolUse", "PostToolUse", "PostToolUseFailure")}
+        args.extend(["--settings", encode({"hooks": hooks})])
     return args
 
 
@@ -155,12 +168,23 @@ def runtime_environment(config, credentials: Credentials) -> dict:
     # Never inherit an outer agent's reentrancy/session marker into a new managed CLI.
     for key in ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SESSION_ID"]:
         env.pop(key, None)
+    for key in ["CLAUDE_CODE_SIMPLE", "CLAUDE_CODE_SAFE_MODE"]:
+        env.pop(key, None)
     return env
 
 
 class ClaudeProxyAdapter:
     def start(self, service: Service, credentials: Credentials) -> subprocess.Popen:
         task = service.get_task(credentials.task_id)
+        if task["execution_profile"] == "claude_code":
+            try:
+                version = subprocess.run([service.config.claude_binary, "--version"], capture_output=True, text=True, timeout=5)
+                match = re.search(r"(\d+)\.(\d+)\.(\d+)", version.stdout)
+                supported = version.returncode == 0 and match and tuple(map(int, match.groups())) >= (2, 1, 316)
+            except (OSError, subprocess.TimeoutExpired):
+                supported = False
+            if not supported:
+                raise DomainError("CAPABILITY_REQUIRED", "claude_code profile requires Claude Code >= 2.1.316 with blocking hooks")
         Path(task["workspace"]).mkdir(parents=True, exist_ok=True, mode=0o700)
         return detached(
             "sui_regulator.claude_process",

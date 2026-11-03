@@ -86,6 +86,17 @@ def apply_pending(controller) -> None:
                 outcome = {"reason": "incident does not own the current task generation"}
             else:
                 worker = service._get(conn, "workers", incident["worker_id"])
+                persistent = task["recovery_mode"] == "persistent"
+                if incident["rule_id"] in {"TOOL-002", "ENV-001"} and action in {"quarantine", "wait", "fresh_session"}:
+                    action = "advise"
+                if persistent and action in {"quarantine", "wait"}:
+                    code = payload["evidence"].get("code")
+                    if code in {401, 403, "AUTH_REQUIRED"}:
+                        action = "wait"
+                    elif code == "SESSION_ID_MISMATCH":
+                        action = "quarantine"
+                    else:
+                        action = "fresh_session"
                 if action == "bounded_retry" and (
                     payload["evidence"].get("terminal") or worker["status"] == "EXITED"
                 ):
@@ -103,7 +114,7 @@ def apply_pending(controller) -> None:
                         "SELECT 1 FROM jobs WHERE task_id=? AND status IN ('UNKNOWN','STARTING') LIMIT 1",
                         (task["id"],),
                     ).fetchone()
-                    if attempts >= payload["max_attempts"] or unresolved:
+                    if not persistent and (attempts >= payload["max_attempts"] or unresolved):
                         action = "quarantine"
                         outcome = {
                             "reason": "rule recovery budget exhausted"
@@ -122,10 +133,29 @@ def apply_pending(controller) -> None:
                     )
                     if action == "fresh_session" and payload["category"] == "transport":
                         delay *= 2 ** min(attempts, 6)
+                    if persistent and action == "fresh_session":
+                        from ..recovery import backoff
+
+                        normal_turn_end = incident["rule_id"] == "TURN-001" or worker["error"] == "SESSION_FINISHED_WITHOUT_COMPLETION"
+                        status = "READY" if normal_turn_end else "RETRY_BACKOFF"
+                        delay = config.restart_cooldown if normal_turn_end else backoff(conn, task, config, now)
+                        if attempts >= payload["max_attempts"]:
+                            # A per-rule request window defers the next attempt;
+                            # it never ends a Persistent Task's lifetime.
+                            first = conn.execute("SELECT MIN(applied_at) FROM incidents WHERE task_id=? AND rule_id=? AND status='APPLIED' AND action='fresh_session' AND created_at>=?",
+                                                 (task["id"], incident["rule_id"], max(task["recovery_reset_at"], now - config.restart_window))).fetchone()[0]
+                            if first is not None:
+                                delay = max(delay, first + config.restart_window - now)
+                        outcome.update(policy="persistent", unresolved_job=bool(unresolved), request_window_limited=attempts >= payload["max_attempts"])
+                    elif persistent and action == "wait":
+                        status = "WAITING_RESOURCE"
+                        recovery = json.loads(task["recovery_state"])
+                        recovery.update(phase=status, guidance="Repair rejected credentials, then explicitly Resume.")
+                        conn.execute("UPDATE tasks SET recovery_state=? WHERE id=?", (encode(recovery), task["id"]))
                     conn.execute(
                         "UPDATE workers SET status=?,error=?,ended_at=?,lease_expires=0 WHERE id=?",
                         (
-                            "FAILED" if action == "fresh_session" else "REVOKED",
+                            "RETIRED" if persistent and action == "fresh_session" and normal_turn_end else "FAILED" if action == "fresh_session" else "REVOKED",
                             incident["rule_id"],
                             now,
                             worker["id"],
@@ -144,7 +174,7 @@ def apply_pending(controller) -> None:
                         service.store.event(
                             conn,
                             task["id"],
-                            "WORKER_FAILED",
+                            "WORKER_ROTATED" if persistent and (incident["rule_id"] == "TURN-001" or worker["error"] == "SESSION_FINISHED_WITHOUT_COMPLETION") else "WORKER_FAILED",
                             "candleholder",
                             worker["id"],
                             {"reason": reason, "incident_id": incident["id"]},
@@ -167,6 +197,13 @@ def apply_pending(controller) -> None:
                         next_start_at=now + delay,
                     )
                     stop, state = dict(worker), "APPLIED"
+                elif action in {"replan", "advise"}:
+                    from ..recovery import advise
+
+                    reason = "Observed a repeated tool error or task environment issue. This is not evidence of Session failure. Inspect it and decide how to debug or continue; no automatic rotation is requested."
+                    advise(conn, service, task, reason)
+                    outcome = {"guidance": reason, "proxy_retained": True, "jobs_retained": True}
+                    state = "APPLIED"
                 elif action == "probe":
                     jobs = conn.execute(
                         "SELECT id,status,identity FROM jobs WHERE task_id=?", (task["id"],)

@@ -35,12 +35,12 @@ yan --home /absolute/private/state submit '实验核验、调试与后续实验'
 
 | execution_profile | 实际工具 | 适用范围 |
 |---|---|---|
-| `managed`（API / CLI 默认） | Sui MCP、部署者批准的固定命令模板 | 受管观察、合成演示、已配置工具的任务 |
+| `managed`（API / CLI 默认） | Read / Glob / Grep、Sui MCP、部署者批准的固定命令模板 | 受管观察、合成演示、已配置工具的任务 |
 | `claude_code`（创建时明确选择） | Sui MCP + 原生 Read / Edit / Write / Glob / Grep / Bash | 项目代码调试、检查环境、执行真实命令和实验 |
 
 Claude Code 模式不是项目目录沙箱。原生命令与文件工具具有服务账户的权限；`--workspace` 指定工作目录，不限制文件系统访问。请用专用账户和项目权限部署。没有启用 `dangerously-skip-permissions`；工具能力通过显式 allowlist 授予。Console 没有交互 Shell 或聊天 UI。
 
-**托管 Runner 目前只实现合成 Job。** 真实实验可以由 Claude Code 操作，但通过 Bash / SSH / 外部脚本启动的进程不自动成为托管 Job。Controller 不能为它们保证单次启动、自动追踪或 Hold 后存活；脱离代理的后台进程需独立核验。任务书应要求保存实验 ID、提交回执与状态证据，换代后先查询再决定。原生命令也不经过 Sui MCP 的逐次 lease fence；Hold 会终止受管代理，但不能撤回已发生的外部副作用。
+**托管 Runner 目前只实现合成 Job。** 真实实验可以由 Claude Code 操作，但通过 Bash / SSH / 外部脚本启动的进程不自动成为托管 Job。Controller 不能为它们保证单次启动、自动追踪或 Hold 后存活；脱离代理的后台进程需独立核验。任务书应要求保存实验 ID、提交回执与状态证据，换代后先查询再决定。原生工具现在通过独立 Hook 检查所有权并记录 Bash 回执，详见 [Persistent 恢复](PERSISTENT_RECOVERY.md)。它不等于 Sui MCP 的启动事务；Hold 不能撤回已发生的外部副作用。
 
 ## 完成前的真实核验
 
@@ -61,9 +61,9 @@ patterns = {}
 --verification-template accept_experiment
 ```
 
-完成前由后端重新执行此模板，非零退出码会拒绝完成，让代理继续分析。通过后记录真实退出码和输出；这只证明该脚本通过，不能证明脚本没有覆盖的科学结论。所有托管 Job 仍必须进入已知终态；存在未知或运行中的 Job 时不能完成。指定核验模板时，允许保留历史失败 / 已取消实验，避免调试成功后被早期失败永久阻塞。
+完成前由后端重新执行此模板，非零退出码会拒绝完成，让代理继续分析。通过后记录真实退出码和输出，并写入持久完成标记；这只证明该脚本通过，不能证明脚本没有覆盖的科学结论。所有托管 Job 仍必须进入已知终态；存在未知或运行中的 Job 时不能完成。允许保留历史失败 / 已取消实验，避免调试成功后被早期失败永久阻塞。
 
-固定命令执行已在启动前检查当前所有权，并记录执行开始和实际结果。命令运行中所有权变化仍保留真实结果，不将结果记为当前代理的活动。输出有界，超时终止该命令进程组。原生工具不属于这条受管命令执行路径。
+固定命令执行已在启动前检查当前所有权，并记录执行开始和实际结果。命令运行中所有权变化仍保留真实结果，不将结果记为当前代理的活动。输出有界，超时终止该命令进程组。原生工具使用独立的 Hook 检查路径。
 
 ## 验证与限制
 
@@ -74,10 +74,12 @@ SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src .venv/bin/python -m unittest \
 .venv/bin/python scripts/verify_task_brief_browser.py
 ```
 
-本阶段 111 项回归测试通过（含 5 项真实 CLI + loopback 测试），[原始输出](task-brief-test-output.txt)；待实施的 Persistent 恢复回归不计入本阶段。浏览器 5 项检查通过，[报告](task-brief-browser-report.json)。
+任务书首阶段曾通过 111 项回归（含 4 项真实 CLI + loopback 测试），[历史原始输出](task-brief-test-output.txt)。后续 Persistent、完成标记与合作式换代已实现，最新结果见 [自主任务交付报告](AUTONOMY_DELIVERY.md)；任务书页面现有 7 项浏览器检查，[报告](task-brief-browser-report.json)。
 
 本地真实 Claude Code + loopback 模拟 API 已验证：执行失败 → Read → Edit → 重跑 → 产物落盘 → 完成。模拟 API 提供预设工具决策；这验证了执行链路，不验证真实 GLM 的研究、诊断或遵循任务能力。另有后端测试验证失败的验收脚本拒绝完成、修复后通过、换代保留任务书、已撤销代理不能执行命令。
 
 截图：[创建任务](screenshots/task-brief/create-task.png) · [完整任务详情](screenshots/task-brief/task-requirements.png)。
 
-升级前按部署指南备份；本阶段数据库迁移到 schema 4，旧任务保持 `managed`，不会静默扩大权限。旧版本不能直接读取迁移后的数据库。
+升级前按部署指南备份；任务书阶段迁移到 schema 4，后续 Persistent 阶段为 schema 5，旧任务保持 `managed`，不会静默扩大权限。旧版本不能直接读取迁移后的数据库。
+
+完整提示词注入、合作式换代和完成标记字段见 [长期 Agent 设计](PROMPT_AND_LIFECYCLE_DESIGN.md)。实验错误和重复测试均不会被作为 Session 故障；恢复额度针对运行基础设施。

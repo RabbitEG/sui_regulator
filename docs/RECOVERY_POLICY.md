@@ -1,5 +1,7 @@
 # Candleholder 恢复策略
 
+当前新增 Task 默认采用 [Persistent 恢复](PERSISTENT_RECOVERY.md)。下述次数隔离策略适用于显式 Bounded 模式及升级前已有任务；Persistent 将普通故障改为退避、重规划和请求窗口限流。
+
 独立 Python Controller 持有私有 flock 单实例锁。每个 tick：处理 Command → 协调 Job → 产生健康 Incident → 消费持久 Incident → 处理轮换/回收 → 按预算创建新 generation → 清理明确已撤销的受管 Sui Proxy。
 
 | 证据 | 决策 |

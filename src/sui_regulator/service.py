@@ -17,8 +17,12 @@ COMMAND_KINDS = {
     "resume_task",
     "cancel_task",
     "cancel_job",
+    "set_recovery_policy",
+    "resolve_attempt",
 }
 JSON_COLUMNS = {
+    "completion",
+    "recovery_state",
     "outcome",
     "payload",
     "result",
@@ -122,7 +126,7 @@ class Service:
     def _apply_command(self, conn: sqlite3.Connection, command: sqlite3.Row, now: float) -> dict:
         kind, tid, payload = command["kind"], command["task_id"], json.loads(command["payload"])
         if kind == "submit_task":
-            if set(payload) - {"title", "objective", "adapter", "spec", "workspace", "execution_profile", "completion_criteria", "verification_template"}:
+            if set(payload) - {"title", "objective", "adapter", "spec", "workspace", "execution_profile", "completion_criteria", "verification_template", "recovery_mode", "max_proxy_seconds"}:
                 raise DomainError("INVALID_ARGUMENT", "unexpected submit_task fields")
             title = require_text(payload.get("title"), "title", 512)
             objective = require_text(payload.get("objective", title), "objective")
@@ -132,7 +136,7 @@ class Service:
             spec = mock_spec(payload.get("spec", {}))
             workspace = self.config.home / "workspaces" / tid
             profile = payload.get("execution_profile", "managed")
-            if profile not in {"managed", "claude_code"} or (profile == "claude_code" and adapter != "claude"):
+            if not isinstance(profile, str) or profile not in {"managed", "claude_code"} or (profile == "claude_code" and adapter != "claude"):
                 raise DomainError("INVALID_ARGUMENT", "claude_code execution requires the claude adapter")
             if "workspace" in payload:
                 workspace = Path(require_text(payload["workspace"], "workspace", 4096)).expanduser()
@@ -143,6 +147,9 @@ class Service:
             if not isinstance(criteria, str) or len(criteria) > 16384:
                 raise DomainError("INVALID_ARGUMENT", "completion_criteria must be text of at most 16384 characters")
             verifier = payload.get("verification_template", "")
+            from .recovery import validate_policy
+
+            mode, budget = validate_policy(payload.get("recovery_mode", self.config.recovery_mode), payload.get("max_proxy_seconds", 0))
             if not isinstance(verifier, str) or len(verifier) > 64:
                 raise DomainError("INVALID_ARGUMENT", "verification_template must be a bounded template name")
             if verifier:
@@ -153,8 +160,9 @@ class Service:
                     raise DomainError("INVALID_ARGUMENT", "verification requires an approved template with no arguments")
             conn.execute(
                 """INSERT INTO tasks(id,title,objective,workspace,adapter,spec,created_at,updated_at,
-                execution_profile,completion_criteria,verification_template) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-                (tid, title, objective, str(workspace), adapter, encode(spec), now, now, profile, criteria, verifier),
+                execution_profile,completion_criteria,verification_template,recovery_mode,max_proxy_seconds)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (tid, title, objective, str(workspace), adapter, encode(spec), now, now, profile, criteria, verifier, mode, budget),
             )
             return {"task_id": tid, "effect": "task created"}
         task = self._get(conn, "tasks", tid)
@@ -179,6 +187,28 @@ class Service:
             if kind == "cancel_task" and task["desired"] == "CANCELLED":
                 return {"task_id": tid, "effect": "already cancelled; jobs retained"}
             raise DomainError("INVALID_STATE", "terminal task cannot be modified or resumed")
+        if kind == "set_recovery_policy":
+            from .recovery import validate_policy
+
+            if not payload or set(payload) - {"recovery_mode", "max_proxy_seconds"}:
+                raise DomainError("INVALID_ARGUMENT", "expected recovery_mode and/or max_proxy_seconds")
+            mode, budget = validate_policy(payload.get("recovery_mode", task["recovery_mode"]),
+                                           payload.get("max_proxy_seconds", task["max_proxy_seconds"]))
+            conn.execute("UPDATE tasks SET recovery_mode=?,max_proxy_seconds=?,updated_at=? WHERE id=?", (mode, budget, now, tid))
+            return {"effect": "policy updated; does not resume a paused task", "recovery_mode": mode, "max_proxy_seconds": budget}
+        if kind == "resolve_attempt":
+            if set(payload) != {"attempt_id", "evidence"}:
+                raise DomainError("INVALID_ARGUMENT", "attempt_id and verification evidence are required")
+            attempt_id = require_text(payload["attempt_id"], "attempt_id", 128)
+            evidence = require_text(payload["evidence"], "evidence")
+            if task["desired"] != "HOLD":
+                raise DomainError("INVALID_STATE", "Hold the Task and verify external effects before resolving an attempt")
+            attempt = conn.execute("SELECT * FROM tool_attempts WHERE task_id=? AND id=?", (tid, attempt_id)).fetchone()
+            if attempt is None or attempt["status"] not in {"STARTED", "UNKNOWN", "READING"}:
+                raise DomainError("INVALID_STATE", "attempt is absent or already has a known outcome")
+            conn.execute("UPDATE tool_attempts SET status='RESOLVED',finished_at=? WHERE id=?", (now, attempt_id))
+            self.store.event(conn, tid, "ATTEMPT_RESOLVED", "yan", command["actor"], {"attempt_id": attempt_id, "evidence": evidence, "verification_source": "operator-declared"})
+            return {"effect": "operator verification recorded; task remains on Hold", "attempt_id": attempt_id}
         if kind in {"instruct_task", "request_analysis"}:
             if set(payload) != {"instruction"}:
                 raise DomainError("INVALID_ARGUMENT", "instruction is required")
@@ -199,7 +229,7 @@ class Service:
         if (
             kind == "resume_task"
             and task["desired"] == "ACTIVE"
-            and task["status"] not in {"QUARANTINED", "WAITING"}
+            and task["status"] not in {"QUARANTINED", "WAITING", "WAITING_RESOURCE"}
         ):
             return {"task_id": tid, "effect": "already active"}
         conn.execute(
@@ -264,6 +294,12 @@ class Service:
                     "SELECT * FROM artifacts WHERE task_id=? ORDER BY created_at", (task_id,)
                 )
             ]
+            task["tool_attempts"] = [dict(row) for row in conn.execute(
+                "SELECT * FROM tool_attempts WHERE task_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100", (task_id,))]
+            task["completion_receipts"] = [dict(row) for row in conn.execute(
+                "SELECT * FROM completion_receipts WHERE task_id=? ORDER BY created_at DESC LIMIT 10", (task_id,))]
+            completion_owner = task["current_worker"] or (task["completion"] or {}).get("proxy_id")
+            task["completion_marker_path"] = str(self.config.home / "completions" / task_id / (completion_owner + ".json")) if completion_owner else None
             task["state_sources"] = {
                 "desired": "yan/controller",
                 "declared": "worker; unverified",

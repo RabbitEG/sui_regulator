@@ -23,9 +23,14 @@ class Config:
     stale_seconds: float = 10.0
     claude_binary: str = "claude"
     claude_model: str = ""
-    claude_max_turns: int = 20
+    claude_max_turns: int = 100
     failure_registry: str = ""
     command_registry: str = ""
+    recovery_mode: str = "persistent"
+    recovery_backoff_base: float = 10.0
+    recovery_backoff_max: float = 300.0
+    no_progress_seconds: float = 900.0
+    escalation_seconds: float = 3600.0
 
     @property
     def max_proxies(self) -> int:
@@ -33,9 +38,11 @@ class Config:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "home", Path(self.home).expanduser().absolute())
+        if self.recovery_mode not in {"persistent", "bounded"}:
+            raise ValueError("recovery_mode must be persistent or bounded")
         for f in fields(self):
             value = getattr(self, f.name)
-            if f.name in {"home", "claude_binary", "claude_model", "failure_registry", "command_registry"}:
+            if f.name in {"home", "claude_binary", "claude_model", "failure_registry", "command_registry", "recovery_mode"}:
                 continue
             if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{f.name} must be positive and finite")
@@ -43,6 +50,8 @@ class Config:
                 raise ValueError(f"{f.name} must be an integer")
         if self.heartbeat_seconds >= self.lease_seconds:
             raise ValueError("heartbeat_seconds must be less than lease_seconds")
+        if self.recovery_backoff_max < self.recovery_backoff_base or self.escalation_seconds < self.no_progress_seconds:
+            raise ValueError("recovery maxima must be at least their initial thresholds")
 
     @classmethod
     def load(cls, home: Path) -> Config:

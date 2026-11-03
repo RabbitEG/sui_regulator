@@ -5,8 +5,8 @@
 - 状态目录由当前 UID 拥有，权限 0700；数据库、socket、备份和合成产物采用私有权限；拒绝状态目录/数据库的直接符号链接。不要将 home 指向共享目录或源码根目录。
 - Yan RPC 仅 Unix socket，SO_PEERCRED 验证 UID；CLI/MCP owner 角色继承本地操作员权限。Yan Console 仅绑定 127.0.0.1，可经授权 SSH 转发；同源保护不是多用户鉴权。独立远程身份、TLS/RBAC 与公网 RPC 没有实现。
 - Sui Proxy token 随机生成，数据库只存 hash；generation 和 lease 在领域事务与 Runner 执行端校验。Sui Proxy 无 register/抢占工具，Task 取消不能自动复活。
-- Claude 默认 bare、strict MCP、禁用内置 tools 和 slash commands，不加载仓库自定义 hooks，`managed` 模式不开放任意 Shell，也不使用 dangerously-skip-permissions。创建任务时显式选择 `claude_code` 可授予原生文件读写与 Bash；它具有服务账户权限，不是沙箱，详见 [执行边界](TASK_BRIEFS.md#执行能力必须匹配任务)。
-- 仅提供受管合成 Job 的显式取消并在 Runner 复核身份。真实训练启动/终止、抢占其他用户资源、宿主机修改等操作未开放。因此首轮没有以「提示词审批」冒充执行端 Approval；未来开放时必须提供真实授权对象和执行端验证。
+- Claude 默认 bare、strict MCP、managed 仅开放 Read / Glob / Grep 内置只读工具并禁用 slash commands，不加载仓库自定义 hooks，`managed` 模式不开放任意 Shell，也不使用 dangerously-skip-permissions。创建任务时显式选择 `claude_code` 可授予原生文件读写与 Bash；它具有服务账户权限，不是沙箱，详见 [执行边界](TASK_BRIEFS.md#执行能力必须匹配任务)。
+- Yan / Runner 控制接口仅提供受管合成 Job 的显式取消并在 Runner 复核身份，没有真实集群训练启动 / 终止或抢占接口。显式选择原生 Claude Code 后，Bash 可以在服务 UID 权限内产生真实外部效果；Hook 与提示词不构成操作系统隔离或额外审批体系。授权范围需由任务要求和部署账户权限共同限定。
 - 任务文本、日志和 Handoff 只保存为数据；模型自述保留 worker-declared 来源，不直接覆盖 Runner 观测。
 - 进程清理只针对登记身份（boot ID/PID/start ticks），从不按 claude/codex 名称扫描。优先 pidfd；当前老内核不支持 pidfd，fallback 最后检查到 signal 仍有窄的 PID 复用竞态。生产平台建议支持 pidfd 或使用受管 cgroup/作业服务。
 - CLI 子进程绑定 Wrapper 的 parent-death signal，实验 Job 独立；取消 Task 不等于授权杀训练。

@@ -10,6 +10,7 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 |---|---|
 | 了解能力、运行 Mock、安装和测试 | [项目概览与本地验证](PROJECT_OVERVIEW.md) |
 | 在另一台服务器部署、验收、备份或回滚 | [部署与验收指南](DEPLOYMENT.md) · [systemd 用户服务模板](../deploy/systemd/user/) |
+| 理解提示词结构、合作式换代与自动完成标记 | [长期 Agent 设计与参考](PROMPT_AND_LIFECYCLE_DESIGN.md) |
 | 定义完整任务、启用代码调试、配置完成前核验 | [任务书与执行能力](TASK_BRIEFS.md) |
 | 使用四个 Console 页面、人工干预、SSH 转发 | [Yan Console 使用与演示](YAN_CONSOLE.md) |
 | 调整阅读字号、查看代理对话、核对进程与工具返回 | [会话阅读器交付与验收](SESSION_READER_DELIVERY.md) |
@@ -25,11 +26,14 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 | 代理注册、进展、Job 意图与移交 | [Sui Proxy Protocol](SUI_PROTOCOL.md) |
 | 查询、人工指令与回执 | [Yan API](YAN_API.md) |
 | Claude Code 适配、本地假 API 与真实平台入口 | [Claude 适配](CLAUDE_ADAPTER.md) |
+| 长期自主执行、反重复、进展判定与恢复额度 | [Persistent 恢复](PERSISTENT_RECOVERY.md) |
 | 故障规则、证据和恢复预算 | [检测架构](FAILURE_ARCHITECTURE.md) · [恢复策略](RECOVERY_POLICY.md) |
 | 扩展故障规则和离线回归 | [故障贡献步骤](FAILURE_CONTRIBUTING.md) · [Incident Corpus](../tests/failure_corpus/README.md) |
 | 本地可信边界与未开放能力 | [安全边界](SECURITY.md) |
 
 ## 验收与进度
+
+- 最新自主任务：[交付报告](AUTONOMY_DELIVERY.md)、[验证摘要](autonomy-verification.json)、[原始测试输出](autonomy-test-output.txt)、[安装包验收](autonomy-wheel-verification.json)。
 
 - v0.4 Console：[交付报告](YAN_CONSOLE_DELIVERY.md)、[浏览器报告](console-browser-report.json)、[浏览器截图](screenshots/)、[验证摘要](console-verification.json)、[测试原始输出](console-test-output.txt)。
 - 服务器部署：[私有目录安装与启动验证](deployment-verification.json)。systemd 服务只做过静态与等价启动测试，目标服务器仍须按指南验收。

@@ -1,0 +1,100 @@
+{
+  "date": "2026-11-04",
+  "schema_version": 5,
+  "prompt_version": "sui-proxy.prompt.v2",
+  "full_suite": {
+    "passed": 136,
+    "skipped": 0,
+    "python": "3.11",
+    "installed_claude_tests": 7,
+    "claude_version": "2.1.316"
+  },
+  "browser_checks_passed": 37,
+  "browser": {
+    "console": {
+      "browser": "133.0.6943.141",
+      "checks": {
+        "overview_real_incident_and_tick": true,
+        "owned_proxy_freeze_is_not_reported_healthy": true,
+        "proxy_identity_generation_heartbeat_history": true,
+        "incident_recommendation_final_action_outcome": true,
+        "separate_states_real_metrics_jobs_events": true,
+        "hold_explicit_confirmation_cancel_resume_instruct_real_receipts": true,
+        "same_task_job_pid_single_execution_after_recovery_and_controls": true,
+        "untrusted_instruction_is_text_not_script": true,
+        "receipts_persist_per_ledger_workspace": true,
+        "refresh_pause_stops_requests_and_resume_restores_reads": true,
+        "unknown_job_is_not_success_or_live_training": true,
+        "mobile_has_no_page_overflow": true,
+        "controller_offline_keeps_original_timestamp_disables_controls": true,
+        "independent_console_and_job_survive_controller_exit": true,
+        "no_browser_errors_or_external_page_requests": true
+      },
+      "passed": true,
+      "screenshots": [
+        "command-receipts.png",
+        "controller-offline.png",
+        "incident-detail.png",
+        "incidents.png",
+        "job-unknown.png",
+        "mobile.png",
+        "overview.png",
+        "proxies.png",
+        "proxy-detail.png",
+        "proxy-unresponsive.png",
+        "task-detail.png"
+      ],
+      "page_errors": [],
+      "external_page_requests": [],
+      "synthetic": true,
+      "real_model_api": false
+    },
+    "session_reader": {
+      "passed": true,
+      "checks": {
+        "session_link_opens_recorded_dialogue_and_actual_process_evidence": true,
+        "default_body_and_conversation_font_at_least_17px": true,
+        "reading_size_persists_across_reload": true,
+        "tool_result_contains_the_actual_persistent_job_id": true,
+        "new_records_append_without_overwriting_manual_read_position": true,
+        "assistant_claim_and_html_do_not_change_job_truth_or_execute_script": true,
+        "conversation_and_tool_filters_are_read_only": true,
+        "bounded_cursor_pagination_loads_later_records": true,
+        "pausing_stops_transcript_requests_and_downgrades_evidence_freshness": true,
+        "retired_generation_retains_its_own_record_and_same_job": true,
+        "uncaptured_history_is_explicit_and_never_fabricated": true,
+        "mobile_normal_and_extra_large_text_have_no_page_overflow": true,
+        "os_frozen_proxy_is_shown_separately_from_running_job": true,
+        "controller_offline_keeps_recorded_dialogue_but_no_live_proof": true,
+        "no_javascript_errors_or_external_page_requests": true
+      },
+      "javascript_errors": [],
+      "external_page_requests": [],
+      "real_glm_tested": false,
+      "scope": "actual browser/HTTP/Unix RPC, private synthetic processes; no API response stubs"
+    },
+    "task_brief": {
+      "passed": true,
+      "checks": [
+        "real_submit_receipt",
+        "full_multiline_brief_persisted",
+        "criteria_displayed",
+        "real_recovery_policy_receipt",
+        "policy_does_not_resume_hold",
+        "hold_preserves_created_task",
+        "no_browser_errors"
+      ],
+      "scope": "Mock UI and real local control plane; no real model or training"
+    }
+  },
+  "terminal_incident_race_repetitions_passed": 20,
+  "wheel_report": "autonomy-wheel-verification.json",
+  "static_checks": [
+    "ruff",
+    "export_schemas --check",
+    "git diff --check"
+  ],
+  "real_glm_verified": false,
+  "real_training_verified": false,
+  "scope": "Local real processes, native CLI + loopback model double; no provider API or remote resource migration"
+}

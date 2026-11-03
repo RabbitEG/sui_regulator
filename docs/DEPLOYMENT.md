@@ -67,7 +67,7 @@ PYTHONPATH=src "$SUI_PY" -m unittest discover -s tests -v
 
 演示输出 URL 后，从本机授权 SSH 转发 8766，按 [Console 指南](YAN_CONSOLE.md) 检查 GEN-001、代理换代、原 Job/PID 与单次 execution、Hold/Resume/指令回执、UNKNOWN。Ctrl+C 结束演示会清理它自己的专用进程。**不要用 console-demo 作为正式服务。**
 
-v0.4 当前基线：默认套件 88 项，其中 4 项未安装/未启用 Claude 时 skip；开启 CLI 合约测试后 88 项全部通过。案例集 42 条 passed=true；`yan demo` 的所有 checks 应为 true。这些是本版本基线，不是未来版本固定数量。
+最新完整任务 / Persistent 阶段的测试数量与原始输出见 [自主任务交付报告](AUTONOMY_DELIVERY.md)。默认测试会跳过未启用的本地 CLI 合约测试；使用 `SUI_TEST_REAL_CLAUDE=1` 才运行已安装 Claude Code + loopback 假 API 验收。`yan demo` 的所有 checks 应为 true。历史阶段报告保留当时数量。
 
 可选真实浏览器验收放在独立 QA checkout，避免改写正式源码中的参考报告：
 
@@ -205,7 +205,7 @@ systemctl --user restart sui-regulator-controller.service
 
 不要把密钥写入命令行或仓库；不要直接覆盖已有 controller.env。EnvironmentFile 是 systemd 语法，不写 export 或 shell 命令。只有 Controller 读取该文件，Console 不需要模型凭据。更换凭据/模型前先 Hold 现有代理：已启动的旧代理不会因 Controller 重启自动获得新环境。
 
-先提交一个独立、低成本的 `--adapter claude` 验收 Task，核验工具调用、实际 text_delta、401/限流/断流及 fresh Session。默认只开放受管 MCP 和合成 Job，不能据此认定真实训练、代码编辑、GPU 调度或远程取消已经可用。
+先提交一个独立、低成本的 `--adapter claude` 验收 Task，核验工具调用、实际 text_delta、401/限流/断流及 fresh Session。默认 managed 模式提供 Read / Glob / Grep、受管 MCP 和批准的命令模板。需要读取、编辑代码和运行实验时，创建 Task 必须明确选择 `--execution-profile claude_code` 并指定项目目录，见 [完整任务示例](TASK_BRIEFS.md)。这不等于实现了 GPU 调度、真实训练 Runner 或远程取消。
 
 ## 8. 日常检查与故障定位
 
@@ -216,7 +216,7 @@ systemctl --user restart sui-regulator-controller.service
 | 目录权限报错 | state 必须属于部署 UID、0700，不能是符号链接；不要开放到 0777 |
 | 端口被占用 | 保留一个 Console，或通过 unit drop-in 修改 --port，再同步 SSH；不开放公网监听 |
 | Claude 未找到/版本不符 | 私有 config 用绝对 claude_binary；服务 PATH 与交互式 shell 可能不同 |
-| 401/配额/未知异常 | 看 Incident 的 evidence、建议/最终动作/outcome 与隔离状态；修复后由明确 Resume 重新授权 |
+| 401/限流/未知异常 | 看 Incident 的 evidence、建议/最终动作/outcome；Persistent 对凭据拒绝进入 WAITING_RESOURCE，修复后 Resume；429 和普通运行异常采用退避 |
 | Job UNKNOWN | 保留不明结果，核验执行端；不要删除 executions、改逻辑键或再次提交同一作业来强行重跑 |
 | 已收到 QUEUED 但效果未出现 | 查 get_command_status、Controller tick 和 REJECTED 原因；丢回执时保留原 actor/key，不自动新建键重发 |
 
@@ -240,7 +240,9 @@ SUI_BACKUP="$HOME/sui-regulator/backups/ledger-$(date -u +%Y%m%dT%H%M%SZ).sqlite
 3. 停止两个用户服务。用 `ln -s NEW_ABSOLUTE_RELEASE ~/sui-regulator/current.next`、`mv -Tf ~/sui-regulator/current.next ~/sui-regulator/current` 原子切换链接（占位符须替换为实际路径）。
 4. 如模板有变，按第 5 节更新 unit 并 daemon-reload。启动 Controller/Console，核验 tick、旧 Task/Job/Incident；最后由操作员按需 Resume。
 
-会话阅读器升级需同时更新 Controller 和 Console。只有新 release 启动的 Sui Proxy 才会采集对话；已有代理需等正常换代，或在确认 Job 状态后通过 Hold/Resume 换代。旧代理没有留存的对话无法补齐。`transcripts/` 属于私有运行数据，随完整状态目录备份，不能提交到代码仓库。查看步骤见 [Console 阅读与会话内容](YAN_CONSOLE.md#阅读字号与会话内容)。
+本次数据库自动迁移至 **schema 5**。升级前的 Task 保持 `bounded` 和 `managed`；新增 Task 默认 `persistent`，仍需明确选择 Claude Code 执行权限。可用 Console“恢复策略”或 `yan policy` 更改恢复模式；策略变更不会自动 Resume。旧任务不能通过策略命令扩大工具权限，要运行完整代码调试请创建带完整任务书和 `claude_code` 的新 Task，注明既有实验 ID，先核验再继续。
+
+会话阅读器升级需同时更新 Controller 和 Console。只有新 release 启动的 Sui Proxy 才会采集对话；已有代理需等正常换代，或在确认 Job 状态后通过 Hold/Resume 换代。旧代理没有留存的对话无法补齐。`transcripts/` 和 `completions/` 属于私有运行数据，随完整状态目录备份，不能提交到代码仓库。查看步骤见 [Console 阅读与会话内容](YAN_CONSOLE.md#阅读字号与会话内容)。
 
 回滚代码同样切回保留的旧 release 后重启，但必须确认旧代码能读取当前 schema。应用会拒绝较新的数据库版本；不能通过降低 user_version 强行降级。需要恢复旧备份时先确保所有相关进程停止，并一起恢复匹配的状态/产物。持久字段含绝对 workspace/产物路径，恢复到另一服务器应维持原绝对路径；跨路径迁移尚无自动工具。新主机不能恢复已丢失的物理进程，旧 Job 应核验为 UNKNOWN，不会自动复活训练。
 

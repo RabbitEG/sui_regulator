@@ -15,7 +15,6 @@ from sui_regulator.failures.engine import DetectionEngine
 from sui_regulator.failures.models import Observation
 from sui_regulator.failures.persistence import apply_pending, list_incidents, publish
 from sui_regulator.gateway import Dispatcher
-from sui_regulator.models import DomainError
 from sui_regulator.protocol import SuiProtocol
 from tests.helpers import ProcessTestCase
 
@@ -237,25 +236,15 @@ class IncidentProcessTests(ProcessTestCase):
                 )
             )
 
-    def test_environment_failure_waits_without_restart_and_job_keeps_running(self):
+    def test_experiment_environment_error_is_advisory_and_job_keeps_running(self):
         with patch.dict(os.environ, {"SUI_FAKE_CLAUDE_MODE": "environment"}):
             tid = self.submit(adapter="claude", spec={"steps": 60, "interval": 0.02})
-            self.until(lambda: self.service.get_task(tid)["status"] == "WAITING")
-            generation = self.service.get_task(tid)["generation"]
-            with self.assertRaises(DomainError) as error:
-                SuiProtocol(self.service).register(tid)
-            self.assertEqual(error.exception.code, "NOT_CLAIMABLE")
-            self.until(lambda: self.service.get_task(tid)["jobs"][0]["status"] == "COMPLETED")
-            self.assertEqual(self.service.get_task(tid)["generation"], generation)
-            self.assertTrue(
-                any(
-                    item["rule_id"] == "ENV-001" and item["action"] == "wait"
-                    for item in list_incidents(self.service, tid)
-                )
-            )
-            self.service.command("resume_task", "tester", "environment-repaired", {}, tid)
+            self.until(lambda: any(i["rule_id"] == "ENV-001" and i["action"] == "advise" for i in list_incidents(self.service, tid)))
+            task = self.service.get_task(tid)
+            self.assertEqual(task["generation"], 1)
+            self.assertEqual(task["desired"], "ACTIVE")
+            self.assertNotEqual(task["status"], "WAITING")
             self.until(lambda: self.service.get_task(tid)["status"] == "COMPLETED")
-            self.assertEqual(self.service.get_task(tid)["generation"], generation + 1)
             self.assertEqual(len(self.service.store.rows("SELECT * FROM executions")), 1)
 
     def test_unknown_fatal_anomaly_quarantines_without_replaying_job(self):

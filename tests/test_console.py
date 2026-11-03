@@ -43,6 +43,29 @@ class ConsoleTests(ProcessTestCase):
             "/api/rpc", {"request": {"method": "yan." + method, "params": params}, "confirmed": confirmed}
         )
 
+    def test_full_unicode_task_brief_survives_http_and_rpc(self):
+        self.controller.tick()
+        objective = "完整实验要求与调试目标。" * 1200
+        criteria = "核验交付结果并说明限制。" * 1200
+        status, response, _ = self.rpc(
+            "submit_task",
+            {
+                "idempotency_key": "full-unicode-brief",
+                "payload": {
+                    "title": "完整中文需求",
+                    "objective": objective,
+                    "completion_criteria": criteria,
+                    "adapter": "unavailable",
+                },
+            },
+        )
+        self.assertEqual(status, 200, response)
+        receipt = response["response"]["result"]
+        self.service.process_commands()
+        task = self.service.get_task(receipt["task_id"])
+        self.assertEqual(task["objective"], objective)
+        self.assertEqual(task["completion_criteria"], criteria)
+
     def test_proxy_conversation_is_a_real_read_only_rpc_with_offline_snapshot(self):
         from sui_regulator.transcripts import SessionRecorder
 

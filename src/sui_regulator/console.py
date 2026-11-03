@@ -12,7 +12,7 @@ from importlib.resources import files
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from .gateway import call
+from .gateway import MAX_MESSAGE_BYTES, call
 from .models import DomainError, encode
 
 READ_METHODS = {
@@ -26,7 +26,7 @@ READ_METHODS = {
     "yan.get_command_status",
     "yan.get_logs",
 }
-WRITE_METHODS = {"yan.submit_task", "yan.hold_task", "yan.resume_task", "yan.instruct_task"}
+WRITE_METHODS = {"yan.set_recovery_policy", "yan.submit_task", "yan.hold_task", "yan.resume_task", "yan.instruct_task"}
 ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/assets/console.css": ("console.css", "text/css; charset=utf-8"),
@@ -251,8 +251,8 @@ class Console(AbstractContextManager):
                     ):
                         raise ValueError("application/json and a bounded Content-Length are required")
                     lengths = self.headers.get_all("Content-Length", [])
-                    if len(lengths) != 1 or not 0 < int(lengths[0]) <= 65536:
-                        raise ValueError("request body must be in [1, 65536] bytes")
+                    if len(lengths) != 1 or not 0 < int(lengths[0]) <= MAX_MESSAGE_BYTES:
+                        raise ValueError(f"request body must be in [1, {MAX_MESSAGE_BYTES}] bytes")
                     body = json.loads(self.rfile.read(int(lengths[0])))
                     if not isinstance(body, dict) or set(body) - {"request", "confirmed"}:
                         raise ValueError("invalid console request")

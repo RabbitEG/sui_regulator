@@ -15,6 +15,8 @@ class DesiredState(StrEnum):
 
 
 class TaskStatus(StrEnum):
+    RETRY_BACKOFF = "RETRY_BACKOFF"
+    WAITING_RESOURCE = "WAITING_RESOURCE"
     WAITING = "WAITING"
     READY = "READY"
     RUNNING = "RUNNING"

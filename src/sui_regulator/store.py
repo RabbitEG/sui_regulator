@@ -9,7 +9,7 @@ from typing import Iterator
 
 from .models import encode
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 MIGRATIONS = {
     1: [
         """CREATE TABLE tasks (
@@ -60,6 +60,21 @@ MIGRATIONS = {
         "CREATE INDEX workers_task_idx ON workers(task_id, created_at)",
     ],
     2: ["ALTER TABLE jobs ADD COLUMN cancel_auth TEXT"],
+    5: [
+        "ALTER TABLE tasks ADD COLUMN recovery_mode TEXT NOT NULL DEFAULT 'bounded'",
+        "ALTER TABLE tasks ADD COLUMN recovery_state TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE tasks ADD COLUMN max_proxy_seconds REAL NOT NULL DEFAULT 0",
+        """CREATE TABLE tool_attempts (
+        id TEXT PRIMARY KEY,task_id TEXT NOT NULL REFERENCES tasks(id),worker_id TEXT NOT NULL REFERENCES workers(id),
+        tool TEXT NOT NULL,operation_key TEXT NOT NULL,approach_key TEXT NOT NULL,status TEXT NOT NULL,
+        result_hash TEXT,created_at REAL NOT NULL,finished_at REAL)""",
+        "CREATE INDEX attempts_task_idx ON tool_attempts(task_id,created_at)",
+        "ALTER TABLE tasks ADD COLUMN completion TEXT",
+        "ALTER TABLE workers ADD COLUMN handoff_at REAL",
+        """CREATE TABLE completion_receipts (
+        id TEXT PRIMARY KEY,task_id TEXT NOT NULL REFERENCES tasks(id),worker_id TEXT NOT NULL,
+        status TEXT NOT NULL,error TEXT,created_at REAL NOT NULL)""",
+    ],
     4: [
         "ALTER TABLE tasks ADD COLUMN execution_profile TEXT NOT NULL DEFAULT 'managed'",
         "ALTER TABLE tasks ADD COLUMN completion_criteria TEXT NOT NULL DEFAULT ''",

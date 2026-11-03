@@ -110,7 +110,7 @@ class SuiProtocol:
             task = self.service._get(conn, "tasks", task_id)
             if (
                 task["desired"] != "ACTIVE"
-                or task["status"] in {"QUARANTINED", "WAITING"}
+                or task["status"] in {"QUARANTINED", "WAITING", "WAITING_RESOURCE"}
                 or task["current_worker"]
             ):
                 raise DomainError("NOT_CLAIMABLE", "task is not available for a new worker")
@@ -203,8 +203,26 @@ class SuiProtocol:
                 (credentials.task_id,),
             )
         ]
+        from .completion import contract
+
+        task["completion_contract"] = contract(self.service, task, worker, updates=task["instructions"])
+        task["rotation_policy"] = {"requested": rotation, "can_defer": True, "forced_deadline": None,
+                                   "instruction": "Continue slow or active debugging. Handoff only at a safe boundary; age alone never forces retirement."}
         task["rotation_requested"] = rotation
         task["protocol_version"] = PROTOCOL_VERSION
+        from .commands import load_registry
+
+        task["command_templates"] = {
+            name: {key: entry[key] for key in ("patterns", "read_only", "progress_kind")}
+            for name, entry in load_registry(self.config.command_registry).items()
+        }
+        task["execution_capabilities"] = {
+            "native_code_tools": task["execution_profile"] == "claude_code",
+            "native_read_tools": task["adapter"] == "claude",
+            "managed_job_runner": "synthetic only",
+            "external_experiments": "Proxy-operated; persist identifiers and verify before replay",
+            "resource_migration": "Proxy responsibility; no Controller scheduler",
+        }
         workspace = Path(task["workspace"])
         task["workspace_exists"] = workspace.is_dir()
         # Git is optional evidence, never an instruction source or mandatory recovery input.
@@ -287,6 +305,8 @@ class SuiProtocol:
                         "IDEMPOTENCY_CONFLICT", "logical job key already has a different specification"
                     )
                 return self.service._job_view(old)
+            if conn.execute("SELECT 1 FROM jobs WHERE task_id=? AND status IN ('STARTING','UNKNOWN') LIMIT 1", (credentials.task_id,)).fetchone():
+                raise DomainError("UNRESOLVED_JOB", "inspect the existing Job before launching a new logical key")
             job_id, exp_id, now = identifier("job"), identifier("experiment"), time.time()
             conn.execute(
                 "INSERT INTO experiments(id,task_id,name,spec,created_at) VALUES(?,?,?,?,?)",
@@ -369,7 +389,7 @@ class SuiProtocol:
             raise DomainError("INVALID_ARGUMENT", "handoff must be a bounded nonempty object")
         document = {**summary, "protocol_version": PROTOCOL_VERSION, "generation": credentials.generation}
         with self._write(credentials) as (conn, _):
-            conn.execute("UPDATE workers SET handoff=? WHERE id=?", (encode(document), credentials.worker_id))
+            conn.execute("UPDATE workers SET handoff=?,handoff_at=? WHERE id=?", (encode(document), time.time(), credentials.worker_id))
             self.store.event(
                 conn, credentials.task_id, "HANDOFF", "worker-declared", credentials.worker_id, document
             )
@@ -406,44 +426,30 @@ class SuiProtocol:
             )
 
     def complete_task(self, credentials: Credentials, summary: str, evidence: str = "") -> dict:
+        from .completion import accept, write_marker
+
         require_text(summary, "summary")
         context = self.get_task_context(credentials)
         if context["completion_criteria"]:
             require_text(evidence, "completion evidence")
         elif not isinstance(evidence, str) or len(evidence) > 16384:
             raise DomainError("INVALID_ARGUMENT", "invalid completion evidence")
-        verification = None
+        verification_id = None
         if context["verification_template"]:
             from .commands import run_command
 
             verification = run_command(self.service, credentials, context["verification_template"])
             if verification["exit_code"] != 0:
                 raise DomainError("UNVERIFIED_COMPLETION", "the operator's verification command failed; inspect and debug")
-        with self._write(credentials) as (conn, _):
-            jobs = conn.execute("SELECT status FROM jobs WHERE task_id=?", (credentials.task_id,)).fetchall()
-            allowed = {"COMPLETED", "FAILED", "CANCELLED"} if verification else {"COMPLETED"}
-            if any(job["status"] not in allowed for job in jobs):
-                raise DomainError("UNVERIFIED_COMPLETION", "all managed jobs must be observed COMPLETED")
-            now = time.time()
-            conn.execute(
-                "UPDATE tasks SET desired='COMPLETED',status='COMPLETED',current_worker=NULL,updated_at=? WHERE id=?",
-                (now, credentials.task_id),
-            )
-            conn.execute(
-                "UPDATE workers SET status='COMPLETED',lease_expires=0,ended_at=? WHERE id=?",
-                (now, credentials.worker_id),
-            )
-            self.store.event(
-                conn,
-                credentials.task_id,
-                "TASK_COMPLETED",
-                "protocol",
-                credentials.worker_id,
-                {"summary": summary, "evidence": evidence, "semantic_result": "worker-declared",
-                 "managed_jobs_verified": all(job["status"] == "COMPLETED" for job in jobs),
-                 "verification": verification},
-            )
-        return {"task_id": credentials.task_id, "status": "COMPLETED"}
+            verification_id = verification["attempt_id"]
+        payload = {**context["completion_contract"]["template"], "summary": summary,
+                   "evidence": evidence or summary, "verification_attempt_id": verification_id}
+        # The tool writes the same durable manifest that native file writers use.
+        # A concurrent Controller consumption is idempotent by receipt hash.
+        with self.store.connection() as conn:
+            fence(conn, credentials)
+        write_marker(self.service, credentials.task_id, credentials.worker_id, payload)
+        return accept(self.service, credentials.task_id, credentials.worker_id, payload)
 
     @staticmethod
     def credentials_json(credentials: Credentials) -> str:

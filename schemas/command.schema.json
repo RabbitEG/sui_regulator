@@ -196,6 +196,54 @@
     {
       "properties": {
         "method": {
+          "const": "yan.resolve_attempt"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "idempotency_key": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "properties": {
+                "attempt_id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "evidence": {
+                  "maxLength": 16384,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "attempt_id",
+                "evidence"
+              ],
+              "type": "object"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "idempotency_key",
+            "payload",
+            "task_id"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
           "const": "yan.resume_task"
         },
         "params": {
@@ -208,6 +256,51 @@
             },
             "payload": {
               "maxProperties": 0,
+              "type": "object"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "idempotency_key",
+            "payload",
+            "task_id"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
+          "const": "yan.set_recovery_policy"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "idempotency_key": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {
+                "max_proxy_seconds": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "recovery_mode": {
+                  "enum": [
+                    "persistent",
+                    "bounded"
+                  ]
+                }
+              },
               "type": "object"
             },
             "task_id": {
@@ -258,10 +351,20 @@
                     "claude_code"
                   ]
                 },
+                "max_proxy_seconds": {
+                  "minimum": 0,
+                  "type": "number"
+                },
                 "objective": {
                   "maxLength": 16384,
                   "minLength": 1,
                   "type": "string"
+                },
+                "recovery_mode": {
+                  "enum": [
+                    "persistent",
+                    "bounded"
+                  ]
                 },
                 "spec": {
                   "additionalProperties": false,
@@ -350,7 +453,9 @@
         "yan.list_experiments",
         "yan.list_tasks",
         "yan.request_analysis",
+        "yan.resolve_attempt",
         "yan.resume_task",
+        "yan.set_recovery_policy",
         "yan.submit_task"
       ]
     },

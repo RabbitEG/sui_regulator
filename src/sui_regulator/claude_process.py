@@ -67,6 +67,7 @@ def run(config: Config, credentials: Credentials) -> None:
     detector = ClaudeStreamDetector(
         worker["session_id"],
         FailureRegistry(Path(config.failure_registry)) if config.failure_registry else None,
+        recovery_mode=context["recovery_mode"],
     )
     final_seen, error, stderr_tail = False, None, b""
     stream_capability_recorded = False
@@ -89,8 +90,8 @@ def run(config: Config, credentials: Credentials) -> None:
                 "stderr_excerpt": stderr_excerpt,
             }
             if turn_limit:
-                # The loop-patrol design hits the CLI turn budget on purpose;
-                # flag it so controller-side recovery reads a budget exit, not a fault.
+                # Turn exhaustion ends this CLI Session, not the durable Task.
+                # Persistent recovery continues without counting a runtime fault.
                 data["turn_budget_exhausted"] = True
             service.store.event(
                 conn,
@@ -152,6 +153,14 @@ def run(config: Config, credentials: Credentials) -> None:
                             )
                         continue
                     decoded_line = line.decode(errors="replace")
+                    if '"task_notification"' in decoded_line:
+                        from .attempts import observe_background
+
+                        try:
+                            message = json.loads(decoded_line)
+                        except ValueError:
+                            message = None
+                        observe_background(service, credentials, worker["session_id"], message)
                     recorder.feed(decoded_line)
                     event = detector.feed(decoded_line)
                     if event.error:
@@ -249,8 +258,8 @@ def run(config: Config, credentials: Credentials) -> None:
             )
             with service.store.transaction() as conn:
                 conn.execute(
-                    "UPDATE workers SET status='ROTATING',rotation_at=? WHERE id=?",
-                    (time.time(), credentials.worker_id),
+                    "UPDATE workers SET status='ROTATING',rotation_at=COALESCE(rotation_at,handoff_at) WHERE id=?",
+                    (credentials.worker_id,),
                 )
             return
         error = error or (

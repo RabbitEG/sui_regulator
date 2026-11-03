@@ -59,6 +59,16 @@ def request_schema() -> dict:
                     "required": ["instruction"],
                     "additionalProperties": False,
                 }
+            elif name == "resolve_attempt":
+                properties["payload"] = {"type": "object", "additionalProperties": False,
+                    "required": ["attempt_id", "evidence"],
+                    "properties": {"attempt_id": identifier, "evidence": {"type": "string", "minLength": 1, "maxLength": 16384}}}
+            elif name == "set_recovery_policy":
+                properties["payload"] = {
+                    "type": "object", "minProperties": 1, "additionalProperties": False,
+                    "properties": {"recovery_mode": {"enum": ["persistent", "bounded"]},
+                                   "max_proxy_seconds": {"type": "number", "minimum": 0}},
+                }
             elif name == "cancel_job":
                 properties["payload"] = {
                     "type": "object",
@@ -78,6 +88,8 @@ def request_schema() -> dict:
                         "execution_profile": {"enum": ["managed", "claude_code"]},
                         "completion_criteria": {"type": "string", "maxLength": 16384},
                         "verification_template": {"type": "string", "maxLength": 64},
+                        "recovery_mode": {"enum": ["persistent", "bounded"]},
+                        "max_proxy_seconds": {"type": "number", "minimum": 0},
                         "adapter": {"enum": ["mock", "claude", "unavailable"]},
                         "spec": {
                             "type": "object",

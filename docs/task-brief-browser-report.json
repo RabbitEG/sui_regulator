@@ -4,6 +4,8 @@
     "real_submit_receipt",
     "full_multiline_brief_persisted",
     "criteria_displayed",
+    "real_recovery_policy_receipt",
+    "policy_does_not_resume_hold",
     "hold_preserves_created_task",
     "no_browser_errors"
   ],

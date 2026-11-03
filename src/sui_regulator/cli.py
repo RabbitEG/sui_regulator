@@ -27,10 +27,22 @@ def parser() -> argparse.ArgumentParser:
     submit.add_argument("--verification-template", default="", help="approved no-argument command required to pass before completion")
     submit.add_argument("--workspace", type=Path, help="existing project directory")
     submit.add_argument("--execution-profile", choices=["managed", "claude_code"], default="managed")
+    submit.add_argument("--recovery-mode", choices=["persistent", "bounded"])
+    submit.add_argument("--max-proxy-seconds", type=float, default=0, help="total Proxy wall-time allowance; 0 is unlimited")
     submit.add_argument("--key", default=None)
     submit.add_argument("--adapter", choices=["mock", "claude", "unavailable"], default="mock")
     submit.add_argument("--spec", default="{}", help="bounded mock job JSON")
     commands.add_parser("list")
+    policy = commands.add_parser("policy", help="change durable recovery policy; does not Resume")
+    policy.add_argument("task_id")
+    policy.add_argument("--recovery-mode", choices=["persistent", "bounded"])
+    policy.add_argument("--max-proxy-seconds", type=float)
+    policy.add_argument("--key")
+    resolve = commands.add_parser("resolve-attempt", help="record operator verification of an unresolved command while Task is on Hold")
+    resolve.add_argument("task_id")
+    resolve.add_argument("attempt_id")
+    resolve.add_argument("--evidence", required=True)
+    resolve.add_argument("--key")
     for name in ["get", "events", "hold", "resume", "cancel", "instruct"]:
         sub = commands.add_parser(name)
         sub.add_argument("task_id")
@@ -155,7 +167,15 @@ def main(argv: list[str] | None = None) -> None:
                            verification_template=args.verification_template)
             if args.workspace:
                 payload["workspace"] = str(args.workspace.expanduser().resolve())
+            payload["max_proxy_seconds"] = args.max_proxy_seconds
+            if args.recovery_mode:
+                payload["recovery_mode"] = args.recovery_mode
             result = service.command("submit_task", actor, key, payload)
+        elif args.command == "resolve-attempt":
+            result = service.command("resolve_attempt", actor, key, {"attempt_id": args.attempt_id, "evidence": args.evidence}, args.task_id)
+        elif args.command == "policy":
+            payload = {field: getattr(args, field) for field in ("recovery_mode", "max_proxy_seconds") if getattr(args, field) is not None}
+            result = service.command("set_recovery_policy", actor, key, payload, args.task_id)
         elif args.command == "list":
             result = service.list_tasks()
         elif args.command == "get":

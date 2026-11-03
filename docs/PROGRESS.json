@@ -1,6 +1,6 @@
 {
   "project": "Sui Regulator",
-  "updated_on": "2026-11-03",
+  "updated_on": "2026-11-04",
   "push_policy": "commit and push after every completed stage",
   "stages": [
     {
@@ -302,5 +302,24 @@
       "real_glm_tested": false,
       "schema_migrations": 0
     }
+  },
+  "autonomous_task_execution": {
+    "status": "complete",
+    "scope": "Full task briefs, Persistent infrastructure recovery, cooperative handoff, structured prompts and completion manifests; experiment decisions remain with the model",
+    "evidence": [
+      "docs/AUTONOMY_DELIVERY.md",
+      "docs/PROMPT_AND_LIFECYCLE_DESIGN.md",
+      "docs/PERSISTENT_RECOVERY.md",
+      "docs/autonomy-verification.json",
+      "docs/autonomy-test-output.txt"
+    ],
+    "verification": {
+      "python311_passed": 136,
+      "installed_claude_tests": 7,
+      "browser_checks_passed": 37,
+      "schema_version": 5,
+      "real_glm_verified": false
+    },
+    "integrated_upstream": "e96154b"
   }
 }
