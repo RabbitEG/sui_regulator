@@ -18,6 +18,7 @@ from .service import COMMAND_KINDS, Service, unpack
 MAX_MESSAGE_BYTES = 262144
 
 QUERY_FIELDS = {
+    "get_proxy_transcript": {"task_id", "proxy_id", "after", "limit"},
     "get_console_snapshot": {"section", "offset", "limit"},
     "get_incidents": {"task_id", "after", "limit"},
     "get_overview": set(),
@@ -99,7 +100,7 @@ def request_schema() -> dict:
                 properties["limit"] = {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 100 if name == "get_console_snapshot" else 500 if name == "get_logs" else 1000,
+                    "maximum": 50 if name == "get_proxy_transcript" else 100 if name == "get_console_snapshot" else 500 if name == "get_logs" else 1000,
                 }
             required = (
                 [] if name == "get_events" else sorted(field for field in properties if field.endswith("_id"))
@@ -189,6 +190,10 @@ class Dispatcher:
 
     def query(self, method: str, params: dict):
         service = self.service
+        if method == "get_proxy_transcript":
+            from .transcripts import read_transcript
+
+            return read_transcript(service, **params)
         if method == "get_console_snapshot":
             from .console_read import snapshot
 

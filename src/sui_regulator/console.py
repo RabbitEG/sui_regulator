@@ -16,6 +16,7 @@ from .gateway import call
 from .models import DomainError, encode
 
 READ_METHODS = {
+    "yan.get_proxy_transcript",
     "yan.get_console_snapshot",
     "yan.get_task",
     "yan.get_job",

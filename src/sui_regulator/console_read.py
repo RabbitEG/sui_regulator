@@ -39,6 +39,9 @@ def session_view(value, config, current_worker=None, now=None):
     value["is_current"] = value["id"] == current_worker
     value["process_alive"] = alive(value.get("identity")) if value.get("identity") else None
     value["process_state"] = process_state(value.get("identity")) if value.get("identity") else None
+    runtime = value.get("child_identity")
+    value["runtime_process_alive"] = alive(runtime) if runtime else None
+    value["runtime_process_state"] = process_state(runtime) if runtime else None
     value["heartbeat_age_seconds"] = max(0, now - value["heartbeat_at"])
     value["runtime_seconds"] = max(0, (value.get("ended_at") or now) - value["created_at"])
     if value["status"] in TERMINAL_WORKERS:

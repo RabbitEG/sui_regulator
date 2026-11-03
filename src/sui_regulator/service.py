@@ -252,7 +252,10 @@ class Service:
             return task
 
     def _job_view(self, row: sqlite3.Row | dict) -> dict:
+        from .processes import alive
+
         value = unpack(row)
+        value["process_alive"] = alive(value["identity"]) if value.get("identity") else None
         terminal = value["status"] in {"COMPLETED", "FAILED", "CANCELLED"}
         value["source"] = "runner"
         value["stale"] = not terminal and (

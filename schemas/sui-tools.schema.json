@@ -131,6 +131,24 @@
         "summary"
       ],
       "type": "object"
+    },
+    "run_command": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "template": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "template"
+      ],
+      "type": "object"
     }
   },
   "$id": "sui-regulator/sui-tools/0.1",

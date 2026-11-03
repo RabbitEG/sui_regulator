@@ -114,6 +114,13 @@ class ClaudeContractTests(ProcessTestCase):
         self.assertEqual(len(task["jobs"]), 1)
         self.assertEqual(len(self.service.store.rows("SELECT * FROM executions")), 1)
 
+        from sui_regulator.transcripts import read_transcript
+
+        history = read_transcript(self.service, tid, task["workers"][0]["id"])
+        self.assertEqual(history["availability"], "recorded")
+        self.assertTrue(any(row["kind"] == "tool_call" for row in history["items"]))
+        self.assertTrue(any(row["kind"] == "tool_result" for row in history["items"]))
+
     def test_T06_malformed_tools_cause_bounded_worker_recovery(self):
         with patch.dict(os.environ, {"SUI_FAKE_CLAUDE_MODE": "malformed"}):
             tid = self.submit(adapter="claude")
@@ -206,6 +213,13 @@ class InstalledClaudeTests(ProcessTestCase):
             self.assertGreaterEqual(len(backend.requests), 3)
             task = self.service.get_task(tid)
             self.assertEqual(task["declared"]["summary"], "from loopback Messages API")
+
+            from sui_regulator.transcripts import read_transcript
+
+            transcript = read_transcript(self.service, tid, task["workers"][0]["id"])
+            self.assertEqual(transcript["availability"], "recorded")
+            self.assertTrue(any(row["kind"] == "tool_call" for row in transcript["items"]))
+            self.assertNotIn("sk-ant-synthetic-local-only", json.dumps(transcript))
 
     def test_installed_cli_auth_error_is_a_runtime_error_not_a_task_success(self):
         with (

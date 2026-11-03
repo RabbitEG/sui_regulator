@@ -43,6 +43,23 @@ class ConsoleTests(ProcessTestCase):
             "/api/rpc", {"request": {"method": "yan." + method, "params": params}, "confirmed": confirmed}
         )
 
+    def test_proxy_conversation_is_a_real_read_only_rpc_with_offline_snapshot(self):
+        from sui_regulator.transcripts import SessionRecorder
+
+        tid = self.submit()
+        credentials = SuiProtocol(self.service).register(tid)
+        recorder = SessionRecorder(self.config, credentials)
+        recorder.write("text", "assistant", "actual recorded <script> text")
+        params = {"task_id": tid, "proxy_id": credentials.worker_id}
+        status, response, _ = self.rpc("get_proxy_transcript", params)
+        self.assertEqual(status, 200)
+        self.assertEqual(response["response"]["result"]["items"][0]["text"], "actual recorded <script> text")
+        self.gateway.__exit__(None, None, None)
+        status, cached, _ = self.rpc("get_proxy_transcript", params)
+        self.assertEqual(status, 200)
+        self.assertFalse(cached["connection"]["available"])
+        self.assertEqual(cached["response"], response["response"])
+
     def test_snapshot_paginates_all_sessions_and_distinguishes_lost_lease(self):
         for _ in range(3):
             tid = self.submit(adapter="unavailable")

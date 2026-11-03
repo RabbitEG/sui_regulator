@@ -314,6 +314,42 @@
     {
       "properties": {
         "method": {
+          "const": "yan.get_proxy_transcript"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "limit": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "proxy_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "proxy_id",
+            "task_id"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
           "const": "yan.get_task"
         },
         "params": {
@@ -653,6 +689,7 @@
         "yan.get_metrics",
         "yan.get_overview",
         "yan.get_proxy_health",
+        "yan.get_proxy_transcript",
         "yan.get_task",
         "yan.get_worker_health",
         "yan.hold_task",

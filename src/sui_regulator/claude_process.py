@@ -20,6 +20,7 @@ from .models import Credentials, DomainError, encode
 from .processes import identity
 from .protocol import SuiProtocol
 from .service import Service
+from .transcripts import SessionRecorder
 
 MAX_LINE_BYTES = 131072
 
@@ -48,6 +49,8 @@ def run(config: Config, credentials: Credentials) -> None:
         "The persistent ledger, not your memory, owns the task.\n"
         + encode({"task_id": credentials.task_id, "objective": context["objective"]})
     )
+    recorder = SessionRecorder(config, credentials)
+    recorder.write("text", "user", prompt, message_id="initial-input")
     process = subprocess.Popen(
         build_command(config, worker["session_id"]),
         stdin=subprocess.PIPE,
@@ -75,6 +78,8 @@ def run(config: Config, credentials: Credentials) -> None:
     stream_capability_recorded = False
 
     def record_exit(reason: str, return_code=None, turn_limit=False):
+        recorder.flush()
+        recorder.write("exit", "system", reason, exit_code=return_code)
         # Keep a bounded excerpt of the CLI stderr tail in the durable ledger;
         # the raw buffer dies with the wrapper and this is the only post-mortem.
         stderr_excerpt = excerpt(stderr_tail.decode(errors="replace"))
@@ -111,6 +116,7 @@ def run(config: Config, credentials: Credentials) -> None:
         while selector.get_map():
             if time.monotonic() - last_heartbeat >= config.heartbeat_seconds:
                 protocol.heartbeat(credentials)
+                recorder.flush(final=False)
                 last_heartbeat = time.monotonic()
                 clock_event = detector.tick()
                 publish(service, credentials, clock_event.incidents)
@@ -148,7 +154,9 @@ def run(config: Config, credentials: Credentials) -> None:
                                 (credentials.worker_id,),
                             )
                         continue
-                    event = detector.feed(line.decode(errors="replace"))
+                    decoded_line = line.decode(errors="replace")
+                    recorder.feed(decoded_line)
+                    event = detector.feed(decoded_line)
                     publish(service, credentials, event.incidents)
                     if detector.normalizer.text_delta_seen and not stream_capability_recorded:
                         with service.store.transaction() as conn:
@@ -255,6 +263,7 @@ def run(config: Config, credentials: Credentials) -> None:
         # complete_task, hold, cancel and takeover revoke the lease. No replay follows.
         return
     finally:
+        recorder.flush()
         selector.close()
         if process.poll() is None:
             process.terminate()

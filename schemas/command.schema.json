@@ -322,6 +322,7 @@
         "yan.get_metrics",
         "yan.get_overview",
         "yan.get_proxy_health",
+        "yan.get_proxy_transcript",
         "yan.get_task",
         "yan.get_worker_health",
         "yan.hold_task",

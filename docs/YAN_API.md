@@ -33,8 +33,11 @@ python3.11 -m sui_regulator schema
 | yan.get_incidents | task_id、可选 after（sequence 游标，默认 0）、limit（1–1000，默认 100） |
 | yan.get_console_snapshot | 可选 section（overview/sessions/tasks/incidents）、offset、limit（1–100，默认 50） |
 | yan.get_proxy_health | task_id；规范角色名为 Sui Proxy，get_worker_health 是兼容别名 |
+| yan.get_proxy_transcript | task_id、proxy_id；可选 after（文件字节游标，默认 0）、limit（1–50，默认 40） |
 
 Job/指标查询返回 source、observed_at、stale；Task 包含三个状态来源。日志只是数据，不作为控制指令。没有数据时不伪造观测时间。
+
+会话查询返回 `items`、`next_after`、`has_more`、`availability`、`limited` 与原始采集时间。消息分为任务输入、助手文本、工具调用/返回和运行时事件，均为只读观测；不参与 Task 状态机或恢复上下文。`not_recorded` 表示该会话没有留存，不能回溯构造；`unreadable` 表示记录当前无法安全读取。新代理将记录保存到私有 `transcripts/<proxy_id>.jsonl`，每代最多 4 MiB，单条和单页均有限额，截断会显式标注。Mock 记录标记为合成；Claude 记录来自实际 CLI 输出，不包含思维链。Job 的 `process_alive` 和代理的 `runtime_process_alive` 是查询时按登记进程身份核验的观测，不取自模型声明。
 
 v0.3 的 get_task 还包含最近 20 条 incidents，完整历史用 get_incidents 分页。Incident payload 保存规则建议及版本，action/status/outcome 保存 Candleholder 最终处理结果，可区分发现、只读探测、恢复、隔离及过时告警。环境故障的 WAITING 与隔离状态都可通过 resume_task 明确解除；运行 Job 保留。
 
