@@ -1,8 +1,12 @@
 # 司岁台
 
+<img align="right" src="docs/assets/arknights/zuo-le-module-x.png" width="132" height="132" alt="左乐模组「岂苦夜长」的长匣" title="岂苦夜长 · 左乐模组 SBL-X">
+
 **诸相可散，案卷长存。**
 
 > 秉明烛者，岂苦夜长。
+
+<br clear="right">
 
 ---
 
@@ -20,6 +24,8 @@
 
 ## 秉烛人
 
+<img align="right" src="docs/assets/arknights/zuo-le-avatar.png" width="100" height="100" alt="明日方舟干员左乐头像" title="左乐 · 司岁台秉烛人">
+
 司岁台的秉烛人，负责监察岁兽代理人的行动。
 
 这可不是件轻松差事。
@@ -33,6 +39,8 @@
 毕竟，代理人失去音讯，不代表交代给他的事情就一定出了问题。
 
 ## 案卷
+
+<img align="right" src="docs/assets/arknights/zuo-le-module-y.png" width="132" height="132" alt="左乐模组「秉烛人的记录」中的卷册" title="秉烛人的记录 · 左乐模组 SBL-Y">
 
 司岁台有个规矩：事情可以交给不同的人办，但记录不能随着人一同消失。
 
@@ -65,3 +73,5 @@
 *岁兽各行其道，秉烛人自守长夜。*
 
 *大炎司岁台*
+
+<sub>《明日方舟》素材 · <a href="docs/assets/arknights/README.md">来源与权利说明</a></sub>

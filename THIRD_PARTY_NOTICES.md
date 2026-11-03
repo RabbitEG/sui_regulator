@@ -5,3 +5,7 @@
 Copyright (c) 2026 antiloop contributors. MIT License, retained in [docs/licenses/antiloop-MIT.txt](docs/licenses/antiloop-MIT.txt). Modifications include bounded incremental windows, Unicode single-character coverage, evidence hashes and independent runtime/incident interfaces. Pi integration and prompt injection are not included.
 
 AgentRx and Codex Task Watchdog informed the design; their code or datasets are not bundled. Public failure reports inspire synthetic fixtures whose provenance is recorded in each case. These fixtures do not reproduce customer transcripts or claim to reproduce a model's actual failure probability.
+
+## Arknights artwork
+
+The three PNG images in `docs/assets/arknights/` are unmodified Arknights game artwork downloaded from PRTS. Arknights and its artwork remain the property of HYPERGRYPH and their respective rights holders; these images are **not covered by this repository's MIT License**. Individual sources and file checksums are recorded in [the asset notes](docs/assets/arknights/README.md). This project is independent of the game's creators and has no official endorsement.
