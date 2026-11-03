@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="420" viewBox="0 0 1440 420" role="img" aria-labelledby="title desc">
+  <title id="title">司岁台 · 长事续行录</title>
+  <desc id="desc">墨色山川、朱印与一盏烛火。诸相可散，案卷长存。Sui Regulator，卷四 Yan Console。</desc>
+  <defs>
+    <linearGradient id="ink" x2="1" y2="1">
+      <stop stop-color="#111b24"/>
+      <stop offset="1" stop-color="#243039"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#dab777" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#dab777" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#b8c2c1" stroke-opacity=".045"/>
+    </pattern>
+  </defs>
+  <path fill="url(#ink)" d="M0 0h1440v420H0z"/>
+  <path fill="url(#grid)" d="M0 0h1440v420H0z"/>
+  <path fill="none" stroke="#c3ac7c" stroke-opacity=".36" d="M24 24h1392v372H24z"/>
+  <path fill="none" stroke="#c3ac7c" stroke-opacity=".13" d="M34 34h1372v352H34z"/>
+  <path stroke="#c3ac7c" stroke-width="2" d="M24 58V24h34m1324 0h34v34M24 362v34h34m1324 0h34v-34" fill="none"/>
+  <g fill="none" stroke="#acb9b7" stroke-opacity=".12" stroke-width="1.2">
+    <path d="m0 348 106-40 88 13 101-64 88 43 108-16 99 52 112-21 124 28 96-32 108 22 100-77 92 42 108-10 110 49"/>
+    <path d="m0 373 114-36 104 17 94-63 94 39 94-12 91 48 124-22 118 29 95-30 109 20 103-77 86 40 111-11 103 42"/>
+    <path d="m0 396 125-32 100 20 98-60 85 37 91-13 91 46 129-20 119 29 99-29 104 19 102-75 91 36 110-10 96 42"/>
+  </g>
+  <circle cx="1124" cy="190" r="200" fill="url(#glow)"/>
+  <g fill="none" stroke="#c3ac7c">
+    <circle cx="1124" cy="190" r="131" stroke-opacity=".2"/>
+    <path d="M1124 50v16m0 248v16M984 190h16m248 0h16" stroke-opacity=".65"/>
+    <path d="M1020 117a127 127 0 0 1 170-35m56 133a127 127 0 0 1-175 90" stroke-opacity=".45"/>
+    <path d="M1105 288h38l-6-100h-26z" fill="#d5bd8d" fill-opacity=".1" stroke-width="1.8"/>
+    <path d="M1100 190h48m-42 17 10 6 10-11 12 5m-14-27v-12" stroke-width="1.8"/>
+    <path d="M1124 169c-29-19-21-41 3-65-1 27 28 37-3 65Z" fill="#d7b77b" fill-opacity=".85" stroke-width="1.2"/>
+    <path d="M1110 158c-5-12 5-22 10-27-1 12 9 19 4 29" stroke="#f2e2bc"/>
+    <path d="M1086 292h76m-62 10h48m-31-214c-8-10-4-19 4-26" stroke-opacity=".6"/>
+  </g>
+  <g font-family="'Noto Serif CJK SC','Source Han Serif SC','Songti SC',SimSun,serif">
+    <text x="88" y="93" fill="#c3ac7c" font-size="16" letter-spacing="5">长事续行录</text>
+    <text x="82" y="227" fill="#ede8da" font-size="108" letter-spacing="17" font-weight="600">司岁台</text>
+    <text x="88" y="322" fill="#d1c5ac" font-size="24" letter-spacing="5">诸相可散，案卷长存。</text>
+  </g>
+  <g font-family="'DejaVu Sans',Arial,sans-serif" fill="#c3ac7c">
+    <text x="90" y="266" font-size="15" letter-spacing="6">SUI REGULATOR</text>
+    <text x="88" y="370" font-size="11" letter-spacing="2" fill="#9da7a6">VOL. 04 / YAN CONSOLE</text>
+    <text x="1124" y="370" text-anchor="middle" font-size="11" letter-spacing="3" fill="#9da7a6">THE WATCH CONTINUES</text>
+  </g>
+  <g transform="translate(529 138) rotate(-6)">
+    <path d="M0 0h49v75H0z" fill="#963f35" fill-opacity=".85"/>
+    <path d="M5 5h39v65H5z" fill="none" stroke="#dbc19a" stroke-opacity=".65"/>
+    <text x="25" y="31" text-anchor="middle" font-family="'Noto Serif CJK SC',SimSun,serif" font-size="20" fill="#edd7b3">续</text>
+    <text x="25" y="58" text-anchor="middle" font-family="'Noto Serif CJK SC',SimSun,serif" font-size="20" fill="#edd7b3">行</text>
+  </g>
+</svg>

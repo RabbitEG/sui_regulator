@@ -257,5 +257,30 @@
       "online_package_fetch": "unverified due local proxy failure",
       "runtime_code_changes": false
     }
+  },
+  "readme_reorganization": {
+    "status": "complete",
+    "evidence": [
+      "README.md",
+      "docs/README.md",
+      "docs/PROJECT_OVERVIEW.md",
+      "docs/ARCHITECTURE.md",
+      "docs/NAMING.md",
+      "docs/LORE_AND_REFERENCES.md",
+      "docs/assets/sui-regulator-header.svg"
+    ],
+    "verification": {
+      "markdown_files_checked": 6,
+      "local_links_and_anchors_checked": 95,
+      "bash_blocks_syntax_checked": 5,
+      "svg_xml_valid": true,
+      "cover_chromium_viewports": [
+        1440,
+        375
+      ],
+      "isolated_mock_demo": "passed: HTTP 200, snapshot, five scenarios ready, owned cleanup",
+      "demo_port": "private free loopback port",
+      "runtime_code_changes": false
+    }
   }
 }
