@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from contextlib import nullcontext
 
 from ..models import Credentials, DomainError, digest, encode
 from ..processes import alive
@@ -9,10 +10,11 @@ from ..service import Service, unpack
 from .models import Incident
 
 
-def publish(service: Service, credentials: Credentials, incidents: list[Incident]) -> None:
+def publish(service: Service, credentials: Credentials, incidents: list[Incident], *, connection=None) -> None:
     if not incidents:
         return
-    with service.store.transaction() as conn:
+    context = service.store.transaction() if connection is None else nullcontext(connection)
+    with context as conn:
         for incident in incidents:
             payload = incident.to_dict()
             payload["id"] = (

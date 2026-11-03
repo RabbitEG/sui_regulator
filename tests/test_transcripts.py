@@ -121,3 +121,10 @@ class TranscriptTests(ProcessTestCase):
             self.read(limit=51)
         with self.assertRaises(DomainError):
             self.read(after=-1)
+
+    def test_corrupt_record_is_unreadable_and_invalid_unicode_does_not_stop_capture(self):
+        self.recorder.write("text", "assistant", "visible\ud800invalid-surrogate")
+        self.assertEqual(self.read()["availability"], "recorded")
+        path = self.config.home / "transcripts" / (self.proxy_id + ".jsonl")
+        path.write_text('42\n')
+        self.assertEqual(self.read()["availability"], "unreadable")

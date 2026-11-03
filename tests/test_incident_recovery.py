@@ -292,6 +292,21 @@ class IncidentProcessTests(ProcessTestCase):
                 self.assertIn("stderr_excerpt", event["data"])
 
     def test_turn_budget_exhaustion_rotates_session_instead_of_quarantine(self):
+        self.assert_turn_budget_rotation()
+
+    def test_turn_exit_evidence_survives_delayed_transcript_write(self):
+        from sui_regulator.processes import detached
+
+        class SlowExitAdapter:
+            def start(self, service, credentials):
+                Path(service.get_task(credentials.task_id)["workspace"]).mkdir(parents=True, exist_ok=True)
+                return detached("tests.fixtures.slow_recording_wrapper", ["--home", str(service.config.home)],
+                                input_data=SuiProtocol.credentials_json(credentials))
+
+        self.controller.adapters["claude"] = SlowExitAdapter()
+        self.assert_turn_budget_rotation()
+
+    def assert_turn_budget_rotation(self):
         with patch.dict(os.environ, {"SUI_FAKE_CLAUDE_MODE": "turn_limit"}):
             tid = self.submit(adapter="claude", spec={"steps": 60, "interval": 0.02})
             self.until(lambda: self.service.get_task(tid)["generation"] >= 2)

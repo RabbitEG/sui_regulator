@@ -77,7 +77,7 @@ def run(config: Config, credentials: Credentials) -> None:
     final_seen, error, stderr_tail = False, None, b""
     stream_capability_recorded = False
 
-    def record_exit(reason: str, return_code=None, turn_limit=False):
+    def record_exit(reason: str, return_code=None, turn_limit=False, incidents=()):
         recorder.flush()
         recorder.write("exit", "system", reason, exit_code=return_code)
         # Keep a bounded excerpt of the CLI stderr tail in the durable ledger;
@@ -106,6 +106,9 @@ def run(config: Config, credentials: Credentials) -> None:
                 credentials.worker_id,
                 data,
             )
+            # Recovery may terminate this wrapper as soon as an Incident is visible.
+            # Commit the exit evidence and its terminal Incident together.
+            publish(service, credentials, incidents, connection=conn)
 
     buffers, dropping = {process.stdout.fileno(): b"", process.stderr.fileno(): b""}, set()
     selector = selectors.DefaultSelector()
@@ -157,6 +160,11 @@ def run(config: Config, credentials: Credentials) -> None:
                     decoded_line = line.decode(errors="replace")
                     recorder.feed(decoded_line)
                     event = detector.feed(decoded_line)
+                    if event.error:
+                        final_seen |= event.final
+                        record_exit(event.error, turn_limit=event.error == "MAX_TURNS_EXHAUSTED",
+                                    incidents=event.incidents)
+                        return
                     publish(service, credentials, event.incidents)
                     if detector.normalizer.text_delta_seen and not stream_capability_recorded:
                         with service.store.transaction() as conn:

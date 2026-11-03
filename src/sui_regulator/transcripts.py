@@ -82,7 +82,7 @@ class SessionRecorder:
                 fcntl.flock(output, fcntl.LOCK_EX)
                 size = os.fstat(output.fileno()).st_size
                 row["id"] = size
-                data = (encode(row) + "\n").encode()
+                data = (encode(row) + "\n").encode("utf-8", errors="replace")
                 if size + len(data) > MAX_FILE_BYTES - 1024:
                     self.disabled = True
                     row = {"id": size, "time": time.time(), "role": "system", "kind": "recording_limit",
@@ -216,7 +216,7 @@ def read_transcript(service, task_id, proxy_id, after=0, limit=40):
             tail = source.read(1024).splitlines()
             try:
                 result["limited"] = bool(tail and json.loads(tail[-1]).get("kind") == "recording_limit")
-            except ValueError:
+            except (ValueError, AttributeError):
                 pass
             source.seek(after)
             if after:
@@ -232,6 +232,8 @@ def read_transcript(service, task_id, proxy_id, after=0, limit=40):
                 if len(line) > MAX_LINE_BYTES or used + len(line) > MAX_PAGE_BYTES:
                     break
                 row = json.loads(line)
+                if not isinstance(row, dict) or not all(isinstance(row.get(key), str) for key in ("role", "kind", "text")):
+                    raise ValueError("invalid session record")
                 row["id"] = position
                 result["items"].append(row)
                 result["next_after"] = source.tell()
@@ -240,6 +242,6 @@ def read_transcript(service, task_id, proxy_id, after=0, limit=40):
             result["availability"] = "recorded"
     except FileNotFoundError:
         pass
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         result["availability"] = "unreadable"
     return result
