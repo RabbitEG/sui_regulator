@@ -89,7 +89,7 @@
     "remote transport authorization"
   ],
   "git_transport": "SSH verified; stage 0 synced through connected GitHub app after HTTPS credential failure",
-  "completed_scope": "v0.3 Failure Registry, Corpus, Replay and durable graded recovery; real platform/model integration remains unverified",
+  "completed_scope": "v0.4 local Yan Console, Sui Proxy naming, backwards compatible ledger/API, synthetic and native-CLI contract validation; real platform remains unverified",
   "v0_3": {
     "scope": "Failure Registry & Recovery Validation",
     "stages": [
@@ -176,7 +176,7 @@
   },
   "v0_4": {
     "scope": "Local Yan Console",
-    "status": "in_progress",
+    "status": "complete",
     "stages": [
       {
         "id": "A",
@@ -221,7 +221,21 @@
       },
       {
         "id": "C",
-        "status": "pending"
+        "status": "complete",
+        "evidence": [
+          "docs/YAN_CONSOLE_DELIVERY.md",
+          "docs/console-verification.json",
+          "docs/console-test-output.txt"
+        ],
+        "verification": {
+          "wheel_version": "0.4.0",
+          "installed_console_demo": "passed",
+          "static_assets": 4,
+          "packaged_rules": 13,
+          "legacy_sigkill_demo": "passed",
+          "installed_corpus_cases": 40,
+          "real_glm_verified": false
+        }
       }
     ]
   }

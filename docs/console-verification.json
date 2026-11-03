@@ -1,0 +1,143 @@
+{
+  "scope": "Sui Regulator v0.4.0 Yan Console and Sui Proxy naming",
+  "runtime_source_commit": "47202a0720757d878af243f0161fd1bfea2d54ab",
+  "verified_at_utc": "2026-11-03T02:04:27.809681+00:00",
+  "tests": [
+    {
+      "command": "SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src python3.11 -m unittest discover -s tests -v",
+      "run": 88,
+      "passed": 88,
+      "skipped": 0
+    },
+    {
+      "command": "PYTHONPATH=src python3.12 -m unittest discover -s tests -v",
+      "run": 88,
+      "passed": 84,
+      "skipped": 4
+    }
+  ],
+  "test_output": "docs/console-test-output.txt",
+  "test_output_sha256": "35e3926dad3b5ceeb2ee7bbfbf3afd07bceb157a2b869d2a1ef44617ceaa26bc",
+  "browser": {
+    "browser": "133.0.6943.141",
+    "checks": {
+      "overview_real_incident_and_tick": true,
+      "owned_proxy_freeze_is_not_reported_healthy": true,
+      "proxy_identity_generation_heartbeat_history": true,
+      "incident_recommendation_final_action_outcome": true,
+      "separate_states_real_metrics_jobs_events": true,
+      "hold_explicit_confirmation_cancel_resume_instruct_real_receipts": true,
+      "same_task_job_pid_single_execution_after_recovery_and_controls": true,
+      "untrusted_instruction_is_text_not_script": true,
+      "receipts_persist_per_ledger_workspace": true,
+      "refresh_pause_stops_requests_and_resume_restores_reads": true,
+      "unknown_job_is_not_success_or_live_training": true,
+      "mobile_has_no_page_overflow": true,
+      "controller_offline_keeps_original_timestamp_disables_controls": true,
+      "independent_console_and_job_survive_controller_exit": true,
+      "no_browser_errors_or_external_page_requests": true
+    },
+    "passed": true,
+    "screenshots": [
+      "command-receipts.png",
+      "controller-offline.png",
+      "incident-detail.png",
+      "incidents.png",
+      "job-unknown.png",
+      "mobile.png",
+      "overview.png",
+      "proxies.png",
+      "proxy-detail.png",
+      "proxy-unresponsive.png",
+      "task-detail.png"
+    ],
+    "page_errors": [],
+    "external_page_requests": [],
+    "synthetic": true,
+    "real_model_api": false
+  },
+  "installed_console": {
+    "version": "0.4.0",
+    "module": "/data/zychen/Sui_Regulator/.venv/lib64/python3.11/site-packages/sui_regulator/__init__.py",
+    "assets": {
+      "/": {
+        "status": 200,
+        "bytes": 4866
+      },
+      "/assets/console.js": {
+        "status": 200,
+        "bytes": 38859
+      },
+      "/assets/console.css": {
+        "status": 200,
+        "bytes": 21113
+      },
+      "/favicon.svg": {
+        "status": 200,
+        "bytes": 262
+      }
+    },
+    "rules": 13,
+    "recovered_generation": 2,
+    "single_job": true,
+    "single_execution": true,
+    "canonical_proxy_query": true,
+    "controller_state": "ONLINE",
+    "independent_console_pid": true
+  },
+  "installed_sigkill_demo": {
+    "worker_sigkill": true,
+    "replacement_generation": true,
+    "single_job": true,
+    "single_execution": true,
+    "same_runner_pid": true,
+    "job_completed": true
+  },
+  "installed_corpus": {
+    "cases": 40,
+    "positive_cases": 23,
+    "negative_cases": 17,
+    "case_recall": 1.0,
+    "false_positive_rate": 0.0,
+    "passed": true
+  },
+  "wheel": {
+    "path": "dist/sui_regulator-0.4.0-py3-none-any.whl",
+    "sha256": "7caa1cfd7d1dda215de8e0359f2451e65ac78017717b8ed0107c14cf2404467c",
+    "packaged_rules": 13,
+    "static_asset_hashes": {
+      "sui_regulator/static/console.css": "9f9ab96d9282ec614abab7c74c8ae17780ddf434050f29cb39c5d8e468227711",
+      "sui_regulator/static/console.js": "b01058e028f8bbadeb5751e00a7680c8be1c3a69102169b4878633bdfe4ebb4f",
+      "sui_regulator/static/favicon.svg": "a2e6467072b5f7d25acf72830c7bec659b0831452f89cf025c7a7cb47d561078",
+      "sui_regulator/static/index.html": "6c436c26414c7f9297ec691b294e1949b36494a3d21c2446561986944f7398bc"
+    }
+  },
+  "screenshots": {
+    "command-receipts.png": "3d244c810952fbb5c5e9571a905909eda5bde4c386b835dd9dd92e750c1be50e",
+    "controller-offline.png": "5fb521fa780ba9aeada1b42fc22e1e1b5965e24c77c71ff54e7c843e8183c0cf",
+    "incident-detail.png": "c0a55ddf07b3d98fb1976e594803bb20479f3f53ac50f4fd0fb509c18501848d",
+    "incidents.png": "9298dc909978404d4597508233d0e0e8b932c8e4478d498225e1fe5eb8430990",
+    "job-unknown.png": "3764b0997566f60c51ed9a32c65f5198892d9b43e92fd1f0d237e0415394a5e3",
+    "mobile.png": "ebd3c77cb82406bdf5caa078dc66c03dc218b8dfe1f5e3a02789acc3ab483fb9",
+    "overview.png": "1698dd4e4a3b7c78e89ea5a8366abaff141583fdf8bb63d8d48ed0298cc7d1d9",
+    "proxies.png": "689ecfd2498c0b82ca73fb8c0a8171e87924f211bb2ea1fb266a160bc9eabe07",
+    "proxy-detail.png": "78cfef992883f08ada3772cc44815106f531030063e73887803a08e3b416867e",
+    "proxy-unresponsive.png": "1f59192ee188de40b9dcb531fc7739c0135b0059a9ff1d64939b4bc9a284a9e0",
+    "task-detail.png": "ebdc68e3bc28c0126a16db82a7344f062c981f602897dbd2cee93ef98957e8b6"
+  },
+  "checks": {
+    "ruff": "passed",
+    "format": "passed",
+    "schemas": "passed",
+    "local_document_links": "passed",
+    "wheel_build_and_install": "passed",
+    "installed_assets_match_source": "passed",
+    "installed_console_outside_source": "passed",
+    "legacy_config_and_api_compatibility": "passed"
+  },
+  "schema_version": 3,
+  "new_schema_migrations": 0,
+  "canonical_role": "Sui Proxy (岁兽代理人)",
+  "real_model_api_verified": false,
+  "real_gpu_npu_verified": false
+}
