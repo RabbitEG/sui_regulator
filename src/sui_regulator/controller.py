@@ -127,7 +127,11 @@ class Controller(AbstractContextManager):
             persistent = current["recovery_mode"] == "persistent"
             if persistent and reason in {"SESSION_FINISHED_WITHOUT_COMPLETION", "MAX_TURNS_EXHAUSTED"}:
                 failure = False
-            delay = backoff(conn, current, self.config, now) if persistent and failure else self.config.restart_cooldown
+            delay = (
+                backoff(conn, current, self.config, now)
+                if persistent and failure
+                else self.config.restart_cooldown
+            )
             conn.execute(
                 "UPDATE workers SET status=?,error=?,ended_at=?,lease_expires=0 WHERE id=?",
                 ("FAILED" if failure else "RETIRED", reason, now, worker["id"]),
@@ -144,7 +148,9 @@ class Controller(AbstractContextManager):
                 worker["id"],
                 {"reason": reason},
             )
-            if reason == "SESSION_ID_MISMATCH" or (not persistent and reason in {"AUTH_REQUIRED", "RESOURCE_BLOCKED"}):
+            if reason == "SESSION_ID_MISMATCH" or (
+                not persistent and reason in {"AUTH_REQUIRED", "RESOURCE_BLOCKED"}
+            ):
                 conn.execute("UPDATE tasks SET status='QUARANTINED' WHERE id=?", (task["id"],))
                 self.service.store.event(
                     conn, task["id"], "TASK_QUARANTINED", "candleholder", "controller", {"reason": reason}
@@ -152,10 +158,19 @@ class Controller(AbstractContextManager):
             elif persistent and reason in {"AUTH_REQUIRED", "CAPABILITY_REQUIRED"}:
                 conn.execute("UPDATE tasks SET status='WAITING_RESOURCE' WHERE id=?", (task["id"],))
                 state = json.loads(self.service._get(conn, "tasks", task["id"])["recovery_state"])
-                state.update(phase="WAITING_RESOURCE", guidance="Repair credentials or CLI capabilities, then explicitly Resume.")
+                state.update(
+                    phase="WAITING_RESOURCE",
+                    guidance="Repair credentials or CLI capabilities, then explicitly Resume.",
+                )
                 conn.execute("UPDATE tasks SET recovery_state=? WHERE id=?", (encode(state), task["id"]))
-                self.service.store.event(conn, task["id"], "CONFIGURATION_REQUIRED", "candleholder", "controller",
-                                         {"reason": reason, "next_action": state["guidance"]})
+                self.service.store.event(
+                    conn,
+                    task["id"],
+                    "CONFIGURATION_REQUIRED",
+                    "candleholder",
+                    "controller",
+                    {"reason": reason, "next_action": state["guidance"]},
+                )
         self._stop(worker)
 
     def _health_reason(self, worker: dict) -> str | None:
@@ -234,6 +249,9 @@ class Controller(AbstractContextManager):
         self._audit_watchdog()
         self.service.process_commands()
         self.runner.reconcile()
+        from .waiting import wake
+
+        wake(self.service)
         from .attempts import reconcile_background
         from .completion import consume_markers
 
@@ -248,7 +266,11 @@ class Controller(AbstractContextManager):
             if process.poll() is not None:
                 del self.children[pid]
         for task in self.service.store.rows("SELECT * FROM tasks ORDER BY created_at,id"):
-            if task["desired"] != "ACTIVE" or task["status"] in {"QUARANTINED", "WAITING", "WAITING_RESOURCE"}:
+            if task["desired"] != "ACTIVE" or task["status"] in {
+                "QUARANTINED",
+                "WAITING",
+                "WAITING_RESOURCE",
+            }:
                 continue
             worker = None
             if task["current_worker"]:
@@ -256,7 +278,9 @@ class Controller(AbstractContextManager):
                 worker = rows[0] if rows else None
             if worker:
                 if worker["rotation_at"] is not None and (
-                    worker["handoff"] and worker["handoff_at"] is not None and worker["handoff_at"] >= worker["rotation_at"]
+                    worker["handoff"]
+                    and worker["handoff_at"] is not None
+                    and worker["handoff_at"] >= worker["rotation_at"]
                 ):
                     self._retire(task, worker, "SESSION_ROTATION", False)
                 else:

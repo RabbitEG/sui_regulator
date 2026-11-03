@@ -15,7 +15,10 @@ def emit(value):
 
 def main():
     args = sys.argv[1:]
-    for flag in ["--print", "--bare", "--strict-mcp-config", "--no-session-persistence"]:
+    if args == ["--version"]:
+        print("2.1.316 (Synthetic CLI contract)")
+        return
+    for flag in ["--print", "--settings", "--strict-mcp-config", "--no-session-persistence"]:
         assert flag in args, flag
     assert "--dangerously-skip-permissions" not in args
     native = set(args[args.index("--tools") + 1].split(","))

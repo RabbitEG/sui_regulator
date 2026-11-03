@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import json
 import signal
 import tempfile
@@ -40,7 +41,17 @@ class ProcessTestCase(unittest.TestCase):
         for process in [*self.controller.children.values(), *self.controller.runner.children.values()]:
             process.wait(timeout=5)
         self.controller.__exit__(None, None, None)
-        self.temp.cleanup()
+        # CLI PostToolUse helpers can finish just after their owning CLI exits.
+        # Retry only the temporary-directory removal race, with a strict bound.
+        deadline = time.monotonic() + 2
+        while True:
+            try:
+                self.temp.cleanup()
+                break
+            except OSError as exc:
+                if exc.errno != errno.ENOTEMPTY or time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.05)
 
     def submit(self, **payload):
         receipt = self.service.command(

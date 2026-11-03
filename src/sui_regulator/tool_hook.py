@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import attempts
 from .config import Config
-from .models import Credentials, digest, encode
+from .models import Credentials, DomainError, digest, encode
 from .protocol import fence
 from .recovery import advise
 from .service import Service
@@ -20,6 +20,22 @@ from .service import Service
 def handle(service, credentials, event):
     name, stage = event.get("tool_name"), event.get("hook_event_name")
     attempt_id = "native-" + digest([credentials.worker_id, event.get("tool_use_id")])
+    from .requirements_delivery import reminder
+
+    message = ""
+    try:
+        message = (
+            reminder(service, credentials)
+            if stage in {"PreToolUse", "PostToolUse", "PostToolUseFailure", "Stop"}
+            else ""
+        )
+    except DomainError:
+        if stage in {"PreToolUse", "Stop"}:
+            raise
+    if stage == "Stop":
+        return (
+            {"hookSpecificOutput": {"hookEventName": stage, "additionalContext": message}} if message else {}
+        )
     if stage == "PreToolUse":
         with service.store.connection() as conn:
             fence(conn, credentials)
@@ -50,7 +66,7 @@ def handle(service, credentials, event):
                 advise(conn, service, current, denied)
             elif name == "Bash":
                 attempts.start(conn, current, credentials, attempt_id, "Bash", operation_key, approach_key)
-            guidance = note or json.loads(current["recovery_state"]).get("guidance", "")
+            guidance = message + "\n" + (note or json.loads(current["recovery_state"]).get("guidance", ""))
         if denied:
             return {
                 "hookSpecificOutput": {
@@ -96,7 +112,7 @@ def handle(service, credentials, event):
                     "counts_as_verified_progress": False,
                 },
             )
-    return {}
+    return {"hookSpecificOutput": {"hookEventName": stage, "additionalContext": message}} if message else {}
 
 
 def main():

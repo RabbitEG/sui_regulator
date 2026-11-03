@@ -195,9 +195,68 @@ class OperationBoundaryTests(ProcessTestCase):
                 task = old._get(conn, "tasks", command["task_id"])
                 attempts.start(conn, task, credentials, "old-attempt", "Bash", "op", "approach")
                 conn.execute("UPDATE tool_attempts SET status='UNKNOWN' WHERE id='old-attempt'")
+            restore_home = Path(self.temp.name) / "restored-schema5"
+            restore_home.mkdir(mode=0o700)
+            old.store.backup(restore_home / "regulator.sqlite3")
         new = Service(Config(home))
         task = new.get_task(command["task_id"])
         self.assertEqual(task["execution_profile"], "managed")
         self.assertEqual(task["recovery_mode"], "bounded")
         self.assertEqual(task["tool_attempts"][0]["status"], "UNKNOWN")
         self.assertEqual(task["tool_attempts"][0]["runtime"], {})
+        # A matching pre-upgrade snapshot remains readable by the old schema gate.
+        from sui_regulator.store import Store
+
+        with patch("sui_regulator.store.SCHEMA_VERSION", 5):
+            with self.assertRaisesRegex(ValueError, "newer"):
+                Store(home)
+            restored = Store(restore_home)
+            self.assertEqual(restored.rows("PRAGMA user_version")[0]["user_version"], 5)
+            self.assertEqual(
+                restored.rows("SELECT id,execution_profile FROM tasks")[0],
+                {"id": command["task_id"], "execution_profile": "managed"},
+            )
+            self.assertEqual(restored.rows("SELECT status FROM tool_attempts")[0]["status"], "UNKNOWN")
+
+    def test_operation_id_distinguishes_redelivery_from_intentional_retry(self):
+        tid, protocol, credentials, session = self.owner()
+        workspace = Path(self.service.get_task(tid)["workspace"])
+        registry = write_registry(
+            Path(self.temp.name) / "commands.toml",
+            "[command.count]\nargv = "
+            + json.dumps(
+                [
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path;p=Path('count');p.write_text(str(int(p.read_text())+1 if p.exists() else 1))",
+                ]
+            )
+            + "\n",
+        )
+        object.__setattr__(self.config, "command_registry", str(registry))
+        first = run_command(self.service, credentials, "count", operation_id="logical-action")
+        second = run_command(self.service, credentials, "count", operation_id="logical-action")
+        self.assertEqual(first["attempt_id"], second["attempt_id"])
+        self.assertEqual((workspace / "count").read_text(), "1")
+        run_command(self.service, credentials, "count", operation_id="intentional-new-attempt")
+        self.assertEqual((workspace / "count").read_text(), "2")
+
+        # A new generation can retrieve the original receipt, never reexecute it.
+        self.service.command("hold_task", "tester", "operation-hold", {}, tid)
+        self.service.process_commands()
+        with self.assertRaises(DomainError):
+            run_command(self.service, credentials, "count", operation_id="logical-action")
+        self.service.command("resume_task", "tester", "operation-resume", {}, tid)
+        self.service.process_commands()
+        replacement = protocol.register(tid)
+        replay = run_command(self.service, replacement, "count", operation_id="logical-action")
+        self.assertTrue(replay["replayed_receipt"])
+        self.assertEqual((workspace / "count").read_text(), "2")
+        # Losing a final result must not turn the saved intent into a fresh attempt.
+        with self.service.store.transaction() as conn:
+            conn.execute(
+                "UPDATE tool_attempts SET result=NULL,status='UNKNOWN' WHERE id=?", (first["attempt_id"],)
+            )
+        with self.assertRaisesRegex(DomainError, "already recorded"):
+            run_command(self.service, replacement, "count", operation_id="logical-action")
+        self.assertEqual((workspace / "count").read_text(), "2")

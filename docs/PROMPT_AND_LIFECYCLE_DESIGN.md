@@ -25,7 +25,7 @@
 
 ## 提示词注入结构
 
-源码：[task_prompt.py](../src/sui_regulator/task_prompt.py)。版本：`sui-proxy.prompt.v2`。固定监督协议通过 `--append-system-prompt` 追加，完整任务输入使用有缩进的 JSON，Session 阅读器分别记录两者。
+源码：[task_prompt.py](../src/sui_regulator/task_prompt.py)。版本：`sui-proxy.prompt.v3`。固定监督协议通过 `--append-system-prompt` 追加，完整任务输入使用有缩进的 JSON，Session 阅读器分别记录两者。
 
 | 区块 | 输入来源与用途 |
 |---|---|
@@ -35,7 +35,7 @@
 | `completion_contract` | 本代完成标记路径、字段模板、要求版本、可选核验模板 |
 | `observed_state` | Job 观测、命令执行回执、完成标记处理结果 |
 | `agent_notes_unverified` | 代理自述和历史 Handoff，明确是未核验笔记 |
-| `supervisor_observations` | 退避、资源额度与进展证据观测；不是对实验方法的命令 |
+| `supervisor_observations` | 退避、资源额度与运行证据观测；不是对实验方法的命令 |
 
 初代代理建立工作清单与记录；接手代理先核验已有实验身份和工作状态，再继续未完成部分。用户在任务书里定义真实工作流程，固定协议不会把它改成巡检，也不强制每个任务都采用某一科研流程。可用工具不足时，代理须说明缺口，而不是假装已执行。
 
@@ -45,7 +45,7 @@
 
 Controller 只有在收到**交接请求之后的新 Handoff**时才按正常换代结束代理；早先的进度笔记不会被误当作当前交接同意。进程死亡、失联、协议错误等客观运行故障仍走恢复。CLI 自然结束或用尽回合预算可以创建下一 Session，但不因此宣告 Task 失败。新配置默认每个 CLI Session 100 回合，已有配置保持原值。
 
-15 / 60 分钟未观测到新进展证据只产生检查提示和 Yan 可见事件，不强制换代，不要求模型停止当前调试。长工具调用期间，已有流检测器区分“工具正在执行”与“等待上游模型响应”，不会仅因工具慢而认定断流。
+15 / 60 分钟未观测到新的配置范围内运行证据只产生检查提示和 Yan 可见事件，不强制换代，不要求模型停止当前调试。长工具调用期间，已有流检测器区分“工具正在执行”与“等待上游模型响应”，不会仅因工具慢而认定断流。
 
 ## 完成标记
 
@@ -77,3 +77,17 @@ Console 显示完成标记路径、处理回执与已接受的证据。语义结
 测试包括原生 Claude Code 的等待现有实验 → 运行失败 → Read / Edit → 复测 → 后续产物流程，并将换代年龄设得远小于慢动作耗时，确认同一 Session 可继续工作。另有原生后台 Bash 失败后的终态通知与同 Session 后续操作、原生 Write 完成标记自动结束 Task、旧要求 / 旧代拒绝、无效文件、失败实验终态、慢代理不强制换代等回归。
 
 模型输出由 loopback 假 API 给定。这验证实际 CLI、Hook、文件、SQLite 和 Controller 效果，不验证真实 GLM 的理解或科研判断能力。
+
+## 本轮接续协议（schema 7）
+
+规范依据是 [职责基线](RESPONSIBILITY_BASELINE.md)，实现和验收见 [本轮报告](RESPONSIBILITY_ITERATION.md)。固定提示词只规定身份、来源、授权、接续与协议；任务内容和实验结论仍归代理。首代建立适合该任务的工作上下文，接续代先读旧工作和未知操作；没有强制训练或固定调试流程。
+
+原始 `operator_request` 保留全文。历史是有界预览，`history_refs` 指向 `get_task_records`；追加指令有 `instruction_page` 稳定游标，必须读到 `has_more=false`。全账本 `outstanding_operations` 防止未决工作被近期预览隐藏。摘要不能覆盖用户原文，历史页面也不假装是实时变更订阅；新状态需重新查询对象或读取事件。
+
+追加指令入账后，通过 Pre/PostToolUse 和 Stop 的 `additionalContext` 提醒当前 CLI；不会为此中断正在运行的慢工具。提醒最多包含约 6000 字符，长要求通过分页读取完整原文。CLI Hook 的响应准备和初始 stdin 写入只有 `offered_at`，不是已交付的证明；只有代理调用 `acknowledge_instructions(command_ids)` 才记为明确已读声明，理解与执行仍未知。Hook 注入通常在该次工具结束后才进入下一次模型请求，故 PreToolUse 不能替当前旧完成调用偷偷更新要求版本。[Claude Hooks](https://code.claude.com/docs/en/hooks)
+
+完成工具和文件标记都要求最新要求版本、本代完整指令已提供且明确 ACK。并发新指令仍会使旧标记失效；已入队的新要求或 Hold / Cancel 必须先应用，完成不能抢先吞掉它们；文件式标记同样检查 lease 尚未过期。ACK 不证明任务完成，语义决定仍由代理承担。没有追加指令的旧任务保持原完成协议兼容。
+
+`wait_task(reason, check_after_seconds, job_id?)` 是代理主动交出当前 Session 的持久等待：记录原因、可选受管 Job、下次检查、Candleholder 责任及发起者。定时器、登记 Job 的已知终态、新指令或 Resume 可唤醒同一 Task；Hold / Cancel 阻止自动恢复。外部资源目前只支持定时再检查，没有自动订阅或迁移。仍依赖当前 CLI 观察的原生后台工作不能用此接口交出运行时。
+
+**启动长期服务后将 Task 标为完成且继续托管该服务，目前不支持。** 尚无可靠的运行责任转移契约，保留“受管 Job 必须有已知终态、命令副作用不能未决”的完成保护。可以保持 Task ACTIVE 或按可用等待契约接续，不能伪造一个 handoff 字段绕过。直到用户取消的持续任务应在任务书中明确写明；单轮成功不是整个任务完成。

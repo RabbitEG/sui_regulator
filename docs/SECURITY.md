@@ -5,7 +5,7 @@
 - 状态目录由当前 UID 拥有，权限 0700；数据库、socket、备份和合成产物采用私有权限；拒绝状态目录/数据库的直接符号链接。不要将 home 指向共享目录或源码根目录。
 - Yan RPC 仅 Unix socket，SO_PEERCRED 验证 UID；CLI/MCP owner 角色继承本地操作员权限。Yan Console 仅绑定 127.0.0.1，可经授权 SSH 转发；同源保护不是多用户鉴权。独立远程身份、TLS/RBAC 与公网 RPC 没有实现。
 - Sui Proxy token 随机生成，数据库只存 hash；generation 和 lease 在领域事务与 Runner 执行端校验。Sui Proxy 无 register/抢占工具，Task 取消不能自动复活。
-- Claude 默认 bare、strict MCP、managed 仅开放 Read / Glob / Grep 内置只读工具并禁用 slash commands，不加载仓库自定义 hooks，`managed` 模式不开放任意 Shell，也不使用 dangerously-skip-permissions。创建任务时显式选择 `claude_code` 可授予原生文件读写与 Bash；它具有服务账户权限，不是沙箱，详见 [执行边界](TASK_BRIEFS.md#执行能力必须匹配任务)。
+- Claude 使用 strict MCP、空 setting-sources 和明确 Sui Hooks（不使用 bare）、managed 仅开放 Read / Glob / Grep 内置只读工具并禁用 slash commands，不加载仓库自定义 hooks，`managed` 模式不开放任意 Shell，也不使用 dangerously-skip-permissions。创建任务时显式选择 `claude_code` 可授予原生文件读写与 Bash；它具有服务账户权限，不是沙箱，详见 [执行边界](TASK_BRIEFS.md#执行能力必须匹配任务)。
 - Yan / Runner 控制接口仅提供受管合成 Job 的显式取消并在 Runner 复核身份，没有真实集群训练启动 / 终止或抢占接口。显式选择原生 Claude Code 后，Bash 可以在服务 UID 权限内产生真实外部效果；Hook 与提示词不构成操作系统隔离或额外审批体系。授权范围需由任务要求和部署账户权限共同限定。
 - 任务文本、日志和 Handoff 只保存为数据；模型自述保留 worker-declared 来源，不直接覆盖 Runner 观测。
 - 进程清理只针对登记身份（boot ID/PID/start ticks），从不按 claude/codex 名称扫描。优先 pidfd；当前老内核不支持 pidfd，fallback 最后检查到 signal 仍有窄的 PID 复用竞态。生产平台建议支持 pidfd 或使用受管 cgroup/作业服务。
@@ -15,3 +15,5 @@
 秘密只放在操作员批准的环境或私有配置中，不提交 `.env`、数据库、真实日志、API key、权重与数据。安装器仅下载公开官方包，校验 SHA-512，但不把包 registry 的 integrity 当作独立供应链签名证明。
 
 代理会话记录位于状态目录的 `transcripts/`（0700），文件为 0600；只读 Yan 查询验证 Task/Proxy 归属，并拒绝符号链接和非普通文件。记录任务输入、可见助手输出和工具轨迹，不保存 thinking；已知环境凭据、lease token 和常见秘密字段会被替换。对话可能包含业务内容，与账本一样只供可信本机用户和经授权的 SSH 转发使用，备份/归档时按私有运行数据处理。记录不进入 Incident、恢复提示词或 Git；每代达到 4 MiB 后显式停止采集。采集失败不停止 Controller、Sui Proxy 或 Job。
+
+两种 Claude 配置要求 CLI ≥ 2.1.316，未授权的工具不会因启用提醒 Hook 而新增。additionalContext 只承载 Yan 原始要求和运行观察；日志、Handoff 与产物仍不是授权来源。新 ACK、历史和等待接口沿用当前 lease/generation fence；任务查询移除 lease_hash。批准 `allow_during_background=true` 的模板必须由部署者确认不会冲突，它不越过 UNKNOWN，也不从模型自由文本推断 Shell 是否只读。

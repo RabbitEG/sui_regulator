@@ -70,6 +70,10 @@ class CompletionContractTests(ProcessTestCase):
         consume_markers(self.controller)
         self.assertEqual(self.service.get_task(tid)["desired"], "ACTIVE")
         self.assertIn("requirements changed", self.service.get_task(tid)["completion_receipts"][0]["error"])
+        updated = protocol.get_task_context(
+            credentials
+        )  # Explicitly obtain and acknowledge the new requirements.
+        protocol.acknowledge_instructions(credentials, [c["id"] for c in updated["instructions"]])
         protocol.complete_task(credentials, "All updated requirements done", evidence="new result paths")
         self.assertEqual(self.service.get_task(tid)["desired"], "COMPLETED")
 

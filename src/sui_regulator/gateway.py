@@ -18,6 +18,7 @@ from .service import COMMAND_KINDS, Service, unpack
 MAX_MESSAGE_BYTES = 262144
 
 QUERY_FIELDS = {
+    "get_task_records": {"task_id", "collection", "after", "limit", "record_id"},
     "get_proxy_transcript": {"task_id", "proxy_id", "after", "limit"},
     "get_console_snapshot": {"section", "offset", "limit"},
     "get_incidents": {"task_id", "after", "limit"},
@@ -60,14 +61,24 @@ def request_schema() -> dict:
                     "additionalProperties": False,
                 }
             elif name == "resolve_attempt":
-                properties["payload"] = {"type": "object", "additionalProperties": False,
+                properties["payload"] = {
+                    "type": "object",
+                    "additionalProperties": False,
                     "required": ["attempt_id", "evidence"],
-                    "properties": {"attempt_id": identifier, "evidence": {"type": "string", "minLength": 1, "maxLength": 16384}}}
+                    "properties": {
+                        "attempt_id": identifier,
+                        "evidence": {"type": "string", "minLength": 1, "maxLength": 16384},
+                    },
+                }
             elif name == "set_recovery_policy":
                 properties["payload"] = {
-                    "type": "object", "minProperties": 1, "additionalProperties": False,
-                    "properties": {"recovery_mode": {"enum": ["persistent", "bounded"]},
-                                   "max_proxy_seconds": {"type": "number", "minimum": 0}},
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": False,
+                    "properties": {
+                        "recovery_mode": {"enum": ["persistent", "bounded"]},
+                        "max_proxy_seconds": {"type": "number", "minimum": 0},
+                    },
                 }
             elif name == "cancel_job":
                 properties["payload"] = {
@@ -105,6 +116,10 @@ def request_schema() -> dict:
                 }
         else:
             properties = {field: identifier for field in QUERY_FIELDS[name] if field.endswith("_id")}
+            if name == "get_task_records":
+                from .records import COLLECTIONS
+
+                properties["collection"] = {"enum": sorted(COLLECTIONS)}
             if name == "get_console_snapshot":
                 properties.update(
                     section={"enum": ["overview", "sessions", "tasks", "incidents"]},
@@ -116,10 +131,20 @@ def request_schema() -> dict:
                 properties["limit"] = {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 50 if name == "get_proxy_transcript" else 100 if name == "get_console_snapshot" else 500 if name == "get_logs" else 1000,
+                    "maximum": 50
+                    if name in {"get_proxy_transcript", "get_task_records"}
+                    else 100
+                    if name == "get_console_snapshot"
+                    else 500
+                    if name == "get_logs"
+                    else 1000,
                 }
             required = (
-                [] if name == "get_events" else sorted(field for field in properties if field.endswith("_id"))
+                []
+                if name == "get_events"
+                else ["task_id", "collection"]
+                if name == "get_task_records"
+                else sorted(field for field in properties if field.endswith("_id"))
             )
         variants.append(
             {
@@ -190,6 +215,8 @@ class Dispatcher:
                     if kind != "get_events"
                     else set()
                 )
+                if kind == "get_task_records":
+                    required = {"task_id", "collection"}
                 if not required <= params.keys():
                     raise DomainError("INVALID_ARGUMENT", "missing query identifier")
                 for key, value in params.items():
@@ -206,6 +233,10 @@ class Dispatcher:
 
     def query(self, method: str, params: dict):
         service = self.service
+        if method == "get_task_records":
+            from .records import page
+
+            return page(service, **params)
         if method == "get_proxy_transcript":
             from .transcripts import read_transcript
 

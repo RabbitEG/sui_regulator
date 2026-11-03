@@ -28,7 +28,7 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 | 代理注册、进展、Job 意图与移交 | [Sui Proxy Protocol](SUI_PROTOCOL.md) |
 | 查询、人工指令与回执 | [Yan API](YAN_API.md) |
 | Claude Code 适配、本地假 API 与真实平台入口 | [Claude 适配](CLAUDE_ADAPTER.md) |
-| 长期自主执行、反重复、进展判定与恢复额度 | [Persistent 恢复](PERSISTENT_RECOVERY.md) |
+| 长期自主执行、重复观察、运行证据与恢复额度 | [Persistent 恢复](PERSISTENT_RECOVERY.md) |
 | 故障规则、证据和恢复预算 | [检测架构](FAILURE_ARCHITECTURE.md) · [恢复策略](RECOVERY_POLICY.md) |
 | 扩展故障规则和离线回归 | [故障贡献步骤](FAILURE_CONTRIBUTING.md) · [Incident Corpus](../tests/failure_corpus/README.md) |
 | 本地可信边界与未开放能力 | [安全边界](SECURITY.md) |

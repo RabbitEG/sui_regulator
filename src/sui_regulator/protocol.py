@@ -15,7 +15,7 @@ from . import PROTOCOL_VERSION
 from .models import Credentials, DomainError, digest, encode, identifier, mock_spec, require_text
 from .processes import identity
 from .registry import ProxyRegistry
-from .service import Service, unpack
+from .service import Service
 
 
 def token_hash(token: str) -> str:
@@ -174,7 +174,7 @@ class SuiProtocol:
             identity(os.getpid()),
             created_at,
         )
-        return self.get_task_context(credentials)
+        return self.get_task_context(credentials, offer_context=False)
 
     def heartbeat(self, credentials: Credentials, *, effective_activity: bool = False) -> None:
         now = time.time()
@@ -187,33 +187,55 @@ class SuiProtocol:
                 conn.execute("UPDATE workers SET activity_at=? WHERE id=?", (now, credentials.worker_id))
         ProxyRegistry(self.config.home).heartbeat(credentials.worker_id)
 
-    def get_task_context(self, credentials: Credentials) -> dict:
+    def get_task_context(self, credentials: Credentials, *, offer_context=True) -> dict:
         with self.store.connection() as conn:
             worker = fence(conn, credentials)
             rotation = worker["rotation_at"] is not None
         task = self.service.get_task(credentials.task_id)
-        recent = self.store.rows(
-            "SELECT * FROM events WHERE task_id=? ORDER BY id DESC LIMIT 100", (credentials.task_id,)
-        )
-        task["events"] = [unpack(row) for row in reversed(recent)]
-        task["instructions"] = [
-            unpack(row)
-            for row in self.store.rows(
-                "SELECT * FROM commands WHERE task_id=? AND kind IN ('instruct_task','request_analysis') AND status='SUCCEEDED' ORDER BY created_at,id",
-                (credentials.task_id,),
-            )
-        ]
+        from .records import page
+
+        instruction_page = page(self.service, credentials.task_id, "instructions", limit=4)
+        task["instructions"] = instruction_page["items"]
+        task["instruction_page"] = {k: v for k, v in instruction_page.items() if k != "items"}
+        task["events"] = page(self.service, credentials.task_id, "events", limit=4)["items"]
+        # Recent observations are an index into durable history, not an unbounded prompt.
+        for key in ("workers", "jobs", "artifacts", "tool_attempts", "incidents"):
+            task[key] = task[key][-4:] if key in {"workers", "jobs", "artifacts"} else task[key][:4]
+        task["recovery_state"] = {
+            k: v
+            for k, v in task["recovery_state"].items()
+            if k not in {"job_markers", "evidence_fingerprints"}
+        }
         from .completion import contract
 
-        task["completion_contract"] = contract(self.service, task, worker, updates=task["instructions"])
-        task["rotation_policy"] = {"requested": rotation, "can_defer": True, "forced_deadline": None,
-                                   "instruction": "Continue slow or active debugging. Handoff only at a safe boundary; age alone never forces retirement."}
+        task["completion_contract"] = contract(self.service, task, worker)
+        if offer_context:
+            from .requirements_delivery import offer
+
+            with self._write(credentials) as (conn, _):
+                offer(
+                    conn,
+                    self.service,
+                    credentials,
+                    task["instructions"],
+                    "context-response-prepared",
+                    advance_revision=True,
+                )
+        task["rotation_policy"] = {
+            "requested": rotation,
+            "can_defer": True,
+            "forced_deadline": None,
+            "instruction": "Continue slow or active debugging. Handoff only at a safe boundary; age alone never forces retirement.",
+        }
         task["rotation_requested"] = rotation
         task["protocol_version"] = PROTOCOL_VERSION
         from .commands import load_registry
 
         task["command_templates"] = {
-            name: {key: entry[key] for key in ("patterns", "read_only", "progress_kind", "allow_during_background")}
+            name: {
+                key: entry[key]
+                for key in ("patterns", "read_only", "progress_kind", "allow_during_background")
+            }
             for name, entry in load_registry(self.config.command_registry).items()
         }
         task["execution_capabilities"] = {
@@ -227,7 +249,40 @@ class SuiProtocol:
         task["workspace_exists"] = workspace.is_dir()
         # Git is optional evidence, never an instruction source or mandatory recovery input.
         task["git_status"] = "unavailable: no repository in this managed workspace"
+        from .records import bound_context
+
+        bound_context(task)
         return task
+
+    def get_task_records(self, credentials, collection, after=0, limit=20, record_id=None):
+        from .records import page
+
+        with self.store.connection() as conn:
+            fence(conn, credentials)
+        result = page(self.service, credentials.task_id, collection, after, limit, record_id)
+        if collection == "instructions":
+            from .requirements_delivery import offer
+
+            with self._write(credentials) as (conn, _):
+                offer(
+                    conn,
+                    self.service,
+                    credentials,
+                    result["items"],
+                    "records-response-prepared",
+                    advance_revision=True,
+                )
+        return result
+
+    def acknowledge_instructions(self, credentials, command_ids):
+        from .requirements_delivery import acknowledge
+
+        return acknowledge(self.service, credentials, command_ids)
+
+    def wait_task(self, credentials, reason, check_after_seconds, job_id=None):
+        from .waiting import request
+
+        return request(self.service, credentials, reason, check_after_seconds, job_id)
 
     def report_progress(
         self,
@@ -305,8 +360,13 @@ class SuiProtocol:
                         "IDEMPOTENCY_CONFLICT", "logical job key already has a different specification"
                     )
                 return self.service._job_view(old)
-            if conn.execute("SELECT 1 FROM jobs WHERE task_id=? AND status IN ('STARTING','UNKNOWN') LIMIT 1", (credentials.task_id,)).fetchone():
-                raise DomainError("UNRESOLVED_JOB", "inspect the existing Job before launching a new logical key")
+            if conn.execute(
+                "SELECT 1 FROM jobs WHERE task_id=? AND status IN ('STARTING','UNKNOWN') LIMIT 1",
+                (credentials.task_id,),
+            ).fetchone():
+                raise DomainError(
+                    "UNRESOLVED_JOB", "inspect the existing Job before launching a new logical key"
+                )
             from .attempts import denial
 
             task = self.service._get(conn, "tasks", credentials.task_id)
@@ -395,7 +455,10 @@ class SuiProtocol:
             raise DomainError("INVALID_ARGUMENT", "handoff must be a bounded nonempty object")
         document = {**summary, "protocol_version": PROTOCOL_VERSION, "generation": credentials.generation}
         with self._write(credentials) as (conn, _):
-            conn.execute("UPDATE workers SET handoff=?,handoff_at=? WHERE id=?", (encode(document), time.time(), credentials.worker_id))
+            conn.execute(
+                "UPDATE workers SET handoff=?,handoff_at=? WHERE id=?",
+                (encode(document), time.time(), credentials.worker_id),
+            )
             self.store.event(
                 conn, credentials.task_id, "HANDOFF", "worker-declared", credentials.worker_id, document
             )
@@ -435,7 +498,17 @@ class SuiProtocol:
         from .completion import accept, write_marker
 
         require_text(summary, "summary")
-        context = self.get_task_context(credentials)
+        with self.store.connection() as conn:
+            seen = fence(conn, credentials)["requirements_revision"]
+            from .requirements_delivery import require_read_ack
+
+            require_read_ack(conn, credentials.task_id, credentials.worker_id)
+        context = self.get_task_context(credentials, offer_context=False)
+        if (
+            seen != context["completion_contract"]["template"]["requirements_revision"]
+            and context["history_refs"]["instructions"]["total"]
+        ):
+            raise DomainError("STALE_COMPLETION", "read current Task requirements before completing")
         if context["completion_criteria"]:
             require_text(evidence, "completion evidence")
         elif not isinstance(evidence, str) or len(evidence) > 16384:
@@ -446,10 +519,16 @@ class SuiProtocol:
 
             verification = run_command(self.service, credentials, context["verification_template"])
             if verification["exit_code"] != 0:
-                raise DomainError("UNVERIFIED_COMPLETION", "the operator's verification command failed; inspect and debug")
+                raise DomainError(
+                    "UNVERIFIED_COMPLETION", "the operator's verification command failed; inspect and debug"
+                )
             verification_id = verification["attempt_id"]
-        payload = {**context["completion_contract"]["template"], "summary": summary,
-                   "evidence": evidence or summary, "verification_attempt_id": verification_id}
+        payload = {
+            **context["completion_contract"]["template"],
+            "summary": summary,
+            "evidence": evidence or summary,
+            "verification_attempt_id": verification_id,
+        }
         # The tool writes the same durable manifest that native file writers use.
         # A concurrent Controller consumption is idempotent by receipt hash.
         with self.store.connection() as conn:

@@ -16,6 +16,7 @@ from .gateway import MAX_MESSAGE_BYTES, call
 from .models import DomainError, encode
 
 READ_METHODS = {
+    "yan.get_task_records",
     "yan.get_proxy_transcript",
     "yan.get_console_snapshot",
     "yan.get_task",
@@ -26,7 +27,13 @@ READ_METHODS = {
     "yan.get_command_status",
     "yan.get_logs",
 }
-WRITE_METHODS = {"yan.set_recovery_policy", "yan.submit_task", "yan.hold_task", "yan.resume_task", "yan.instruct_task"}
+WRITE_METHODS = {
+    "yan.set_recovery_policy",
+    "yan.submit_task",
+    "yan.hold_task",
+    "yan.resume_task",
+    "yan.instruct_task",
+}
 ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/assets/console.css": ("console.css", "text/css; charset=utf-8"),
@@ -98,7 +105,9 @@ class Broker:
     def write(self, request, confirmed=False):
         method = request.get("method")
         if method not in WRITE_METHODS:
-            raise DomainError("METHOD_NOT_ALLOWED", "console supports task creation, Hold, Resume and Instruct")
+            raise DomainError(
+                "METHOD_NOT_ALLOWED", "console supports task creation, Hold, Resume and Instruct"
+            )
         if method == "yan.hold_task" and confirmed is not True:
             raise DomainError(
                 "CONFIRMATION_REQUIRED", "Hold stops the Sui session; explicit confirmation required"

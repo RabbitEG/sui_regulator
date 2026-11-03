@@ -1,0 +1,14 @@
+test_background_handle_is_running_and_terminal_notification_is_idempotent (tests.test_operation_boundaries.OperationBoundaryTests.test_background_handle_is_running_and_terminal_notification_is_idempotent) ... ok
+test_normal_stop_is_separate_and_restart_does_not_claim_known_exit (tests.test_operation_boundaries.OperationBoundaryTests.test_normal_stop_is_separate_and_restart_does_not_claim_known_exit) ... ok
+test_operation_id_distinguishes_redelivery_from_intentional_retry (tests.test_operation_boundaries.OperationBoundaryTests.test_operation_id_distinguishes_redelivery_from_intentional_retry) ... ok
+test_operator_approved_independent_work_runs_alongside_known_background_only (tests.test_operation_boundaries.OperationBoundaryTests.test_operator_approved_independent_work_runs_alongside_known_background_only) ... ok
+test_schema5_migration_preserves_unknown_and_permissions (tests.test_operation_boundaries.OperationBoundaryTests.test_schema5_migration_preserves_unknown_and_permissions) ... ok
+test_terminal_before_hook_wrong_handle_and_old_owner (tests.test_operation_boundaries.OperationBoundaryTests.test_terminal_before_hook_wrong_handle_and_old_owner) ... ok
+test_unknown_command_cannot_be_bypassed_with_a_new_job_key (tests.test_operation_boundaries.OperationBoundaryTests.test_unknown_command_cannot_be_bypassed_with_a_new_job_key) ... ok
+test_unknown_denies_native_mutation_but_keeps_read_tools (tests.test_operation_boundaries.OperationBoundaryTests.test_unknown_denies_native_mutation_but_keeps_read_tools) ... ok
+test_unknown_still_allows_actual_approved_diagnostics (tests.test_operation_boundaries.OperationBoundaryTests.test_unknown_still_allows_actual_approved_diagnostics) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.410s
+
+OK

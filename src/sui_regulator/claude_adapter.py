@@ -42,8 +42,12 @@ class ClaudeStreamDetector:
         for observed in decoded.observations:
             incidents.extend(self.engine.feed(observed))
         disruptive = next(
-            (item for item in reversed(incidents) if item.action in {"fresh_session", "quarantine", "wait"}
-             and item.rule_id not in {"TOOL-002", "ENV-001"}),
+            (
+                item
+                for item in reversed(incidents)
+                if item.action in {"fresh_session", "quarantine", "wait"}
+                and item.rule_id not in {"TOOL-002", "ENV-001"}
+            ),
             None,
         )
         reasons = {
@@ -112,7 +116,6 @@ def build_command(config, session_id: str, *, execution_profile: str = "managed"
     args = [
         config.claude_binary,
         "--print",
-        "--bare",
         "--disable-slash-commands",
         "--output-format",
         "stream-json",
@@ -141,15 +144,20 @@ def build_command(config, session_id: str, *, execution_profile: str = "managed"
     ]
     if config.claude_model:
         args.extend(["--model", config.claude_model])
-    if execution_profile == "claude_code":
-        # --bare suppresses even explicitly configured hooks. Native tools need
-        # our ownership/repetition hooks; settings sources remain disabled.
-        args.remove("--bare")
-        hook = shlex.join([sys.executable, "-m", "sui_regulator.tool_hook", "--home", str(config.home)])
-        hooks = {stage: [{"matcher": "Read|Edit|Write|Glob|Grep|Bash", "hooks": [
-            {"type": "command", "command": hook, "timeout": 15, "onFailure": "block"}
-        ]}] for stage in ("PreToolUse", "PostToolUse", "PostToolUseFailure")}
-        args.extend(["--settings", encode({"hooks": hooks})])
+    # Explicit instruction-delivery hooks are needed for both profiles. The
+    # tool allowlists are unchanged; project/user settings remain disabled.
+    hook = shlex.join([sys.executable, "-m", "sui_regulator.tool_hook", "--home", str(config.home)])
+    hooks = {
+        stage: [
+            {
+                "matcher": ".*",
+                "hooks": [{"type": "command", "command": hook, "timeout": 15, "onFailure": "block"}],
+            }
+        ]
+        for stage in ("PreToolUse", "PostToolUse", "PostToolUseFailure")
+    }
+    hooks["Stop"] = [{"hooks": [{"type": "command", "command": hook, "timeout": 15}]}]
+    args.extend(["--settings", encode({"hooks": hooks})])
     return args
 
 
@@ -176,15 +184,19 @@ def runtime_environment(config, credentials: Credentials) -> dict:
 class ClaudeProxyAdapter:
     def start(self, service: Service, credentials: Credentials) -> subprocess.Popen:
         task = service.get_task(credentials.task_id)
-        if task["execution_profile"] == "claude_code":
-            try:
-                version = subprocess.run([service.config.claude_binary, "--version"], capture_output=True, text=True, timeout=5)
-                match = re.search(r"(\d+)\.(\d+)\.(\d+)", version.stdout)
-                supported = version.returncode == 0 and match and tuple(map(int, match.groups())) >= (2, 1, 316)
-            except (OSError, subprocess.TimeoutExpired):
-                supported = False
-            if not supported:
-                raise DomainError("CAPABILITY_REQUIRED", "claude_code profile requires Claude Code >= 2.1.316 with blocking hooks")
+        try:
+            version = subprocess.run(
+                [service.config.claude_binary, "--version"], capture_output=True, text=True, timeout=5
+            )
+            match = re.search(r"(\d+)\.(\d+)\.(\d+)", version.stdout)
+            supported = version.returncode == 0 and match and tuple(map(int, match.groups())) >= (2, 1, 316)
+        except (OSError, subprocess.TimeoutExpired):
+            supported = False
+        if not supported:
+            raise DomainError(
+                "CAPABILITY_REQUIRED",
+                "Claude profiles require Claude Code >= 2.1.316 with instruction-delivery and blocking hooks",
+            )
         Path(task["workspace"]).mkdir(parents=True, exist_ok=True, mode=0o700)
         return detached(
             "sui_regulator.claude_process",

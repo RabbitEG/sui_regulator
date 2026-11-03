@@ -33,7 +33,7 @@ flowchart TB
     Gateway -->|只读游标查询| Transcript
     Detect[Failure Registry + Detection Engine<br/>确定性检测 / 结构化 Incident]
     P -->|Wrapper 增量与工具事件| Detect
-    C -->|进程 / 心跳 / 进展事实| Detect
+    C -->|进程 / 心跳 / 运行事实| Detect
     Detect -->|证据与建议| Ledger
     R[独立 Experiment Runner]
     J[Job / 具体运行<br/>不依附代理会话]
@@ -93,14 +93,40 @@ flowchart TD
   Hooks --> Project[读写项目、检查与实验命令]
   MCP --> Runner[独立合成 Runner / Job]
   MCP --> Checks[批准的核验命令]
-  Runner -->|实际进展| Ledger
+  Runner -->|实际运行观察| Ledger
   Checks -->|真实退出码与证据| Ledger
   Hooks -->|跨代操作回执| Ledger
   Proxy -->|结构化完成标记| Completion[身份、要求版本、未决操作检查]
   Completion -->|自动结束 Task；语义由模型判断| Ledger
-  Controller -->|进展观察、预算暂停| Ledger
+  Controller -->|运行观察、预算暂停| Ledger
 ```
 
 用户要求决定工作内容；Controller 维持 Task 和恢复边界，不自行选择实验或迁移资源。Bash / 外部平台实验不自动成为托管 Job。恢复与限制见 [Persistent 恢复](PERSISTENT_RECOVERY.md)，部署入口见 [任务书](TASK_BRIEFS.md)。
 
 年龄触发的换代为可延后的请求，必须收到新 Handoff；实验质量和调试循环不参与 Session 故障判定。见 [设计依据与完成协议](PROMPT_AND_LIFECYCLE_DESIGN.md)。
+
+## 职责与持久接续（当前实现）
+
+[职责基线](RESPONSIBILITY_BASELINE.md) 是本轮规范。用户定义要求和授权；Sui Proxy 决定工作内容、实验判断、debug 和语义完成；Candleholder 负责运行可靠性和受管所有权。运行证据没有业务价值评分。Yan Console 仍是独立只读查询与受限命令入口，崩溃不影响 Controller。
+
+```mermaid
+flowchart TD
+  User[用户完整要求 / 追加指令] --> Yan[Yan 命令与回执]
+  Yan --> DB[(SQLite 案卷)]
+  DB --> Hook[初始上下文 / CLI Hook 提醒]
+  Hook --> Proxy[Sui Proxy 岁兽代理人]
+  Proxy -->|显式已读声明| ACK[本代 ACK / 要求版本]
+  ACK --> DB
+  Proxy -->|自主工作与实验判断| Work[授权工具 / 独立 Job]
+  Work -->|回执和运行事实| DB
+  Proxy -->|主动等待原因 / 对象 / 下次检查| Wait[WAITING]
+  Wait --> DB
+  Candle[Candleholder 秉烛人] -->|定时 / 登记 Job 终态 / 用户命令| Resume[同一 Task 接续]
+  DB --> Candle
+  Resume --> Proxy
+  Proxy -->|语义完成声明| Completion[所有权 / 最新要求 ACK / 未决操作 / 可选验收]
+  Completion --> DB
+  DB --> Console[独立 Yan Console]
+```
+
+查询只带有界历史预览；完整要求、操作、代理与事件可按稳定游标或 ID 读取。旧代事实允许补齐原操作结果，旧代执行权不恢复。原生后台句柄的 RUNNING 与效果未明的 UNKNOWN 分开，不能只凭“代理说它还在跑”造出观察。没有可靠责任转移时，不支持保留受管运行服务同时完成 Task。

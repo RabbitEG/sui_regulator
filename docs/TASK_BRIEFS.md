@@ -80,6 +80,14 @@ SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src .venv/bin/python -m unittest \
 
 截图：[创建任务](screenshots/task-brief/create-task.png) · [完整任务详情](screenshots/task-brief/task-requirements.png)。
 
-升级前按部署指南备份；任务书阶段迁移到 schema 4，后续 Persistent 阶段为 schema 5，旧任务保持 `managed`，不会静默扩大权限。旧版本不能直接读取迁移后的数据库。
+升级前按部署指南备份；任务书阶段迁移到 schema 4，后续 Persistent 阶段为 schema 5，当前职责接续阶段为 schema 7，旧任务保持 `managed`，不会静默扩大权限。旧版本不能直接读取迁移后的数据库。
 
 完整提示词注入、合作式换代和完成标记字段见 [长期 Agent 设计](PROMPT_AND_LIFECYCLE_DESIGN.md)。实验错误和重复测试均不会被作为 Session 故障；恢复额度针对运行基础设施。
+
+## 持续工作和等待如何表达
+
+任务书可以完整规定“等实验结束 → 核验 → debug → 复测 → 继续实验”，也可以定义与实验无关的普通工作。可写明“持续运行直到我取消，每轮结果只做记录，不作为整个委托的完成标记”。语义由代理判断，Controller 不根据实验失败、成功或固定次数替模型决定下一步。
+
+追加要求可在 Console / Yan 录入，当前 Session 的下一次工具往返或停止边界会收到提醒；慢工具运行期间不会被为此硬中断。长要求经完整分页读取，再提交已读 ACK。需要省下等待期间的 Session 时，代理可调用 wait_task，框架负责登记和到期接续；它不会替代理查询或迁移未配置的远端资源。
+
+当前没有“交付长期服务、移交运行责任后结束 Task”的受管契约。有关 Job 或副作用仍未终态时请保持任务继续或使用明确支持的等待方式；详见 [完成边界](PROMPT_AND_LIFECYCLE_DESIGN.md#本轮接续协议schema-7)。

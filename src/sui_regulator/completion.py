@@ -75,6 +75,7 @@ def contract(service, task, worker, updates=None):
             "evidence": "Concrete results, paths, tests and limitations",
             "verification_attempt_id": None,
         },
+        "retained_running_work": "Not supported: no verified responsibility-transfer contract. Keep the Task active or use wait_task until managed work is terminal.",
         "verification_template": task["verification_template"],
         "acceptance": "Model decides semantic completion; Controller checks ownership, current requirements, known terminal operations and any explicitly configured verification command.",
     }
@@ -109,6 +110,14 @@ def accept(service, task_id, proxy_id, payload, receipt_id=None):
                 return {"task_id": task_id, "status": "COMPLETED", "completion_receipt": receipt_id}
             raise DomainError("INVALID_COMPLETION", prior["error"])
         try:
+            if conn.execute(
+                "SELECT 1 FROM commands WHERE task_id=? AND status='QUEUED' AND kind IN ('instruct_task','request_analysis','hold_task','cancel_task') LIMIT 1",
+                (task_id,),
+            ).fetchone():
+                raise DomainError(
+                    "CONTROL_PENDING",
+                    "an accepted user instruction or stop command must be applied before completion",
+                )
             if not isinstance(payload, dict) or set(payload) != {
                 "submission_id",
                 "schema_version",
@@ -139,12 +148,32 @@ def accept(service, task_id, proxy_id, payload, receipt_id=None):
                 or payload["generation"] != task["generation"]
             ):
                 raise DomainError("STALE_COMPLETION", "completion does not own the active task generation")
+            worker = service._get(conn, "workers", proxy_id)
+            if worker["lease_expires"] <= time.time() or worker["status"] not in {
+                "STARTING",
+                "RUNNING",
+                "ROTATING",
+            }:
+                raise DomainError("STALE_COMPLETION", "completion owner no longer has a valid lease")
             revision, changed_at = requirements(conn, task)
+            offered = worker["requirements_revision"]
+            has_instructions = conn.execute(
+                "SELECT 1 FROM commands WHERE task_id=? AND status='SUCCEEDED' AND kind IN ('instruct_task','request_analysis') LIMIT 1",
+                (task_id,),
+            ).fetchone()
+            if offered != revision and has_instructions:
+                raise DomainError(
+                    "STALE_COMPLETION",
+                    "requirements changed or full instruction history has not been offered to this Proxy",
+                )
             if payload["requirements_revision"] != revision:
                 raise DomainError(
                     "STALE_COMPLETION",
                     "user requirements changed; re-read task context and verify completion again",
                 )
+            from .requirements_delivery import require_read_ack
+
+            require_read_ack(conn, task_id, proxy_id)
             require_text(payload["submission_id"], "submission_id", 128)
             require_text(payload["summary"], "summary")
             require_text(payload["evidence"], "completion evidence")

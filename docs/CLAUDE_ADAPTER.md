@@ -9,9 +9,9 @@ claude --version
 
 版本文件位于 `~/.local/share/sui-regulator/tools/claude-code/2.1.316/`，`~/.local/bin/claude` 在不存在时建立符号链接。可在私有 config.toml 的 claude_binary 指定其他版本绝对路径。
 
-Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json + include-partial-messages、显式 session UUID、bare、strict-mcp-config、按 Task execution_profile 选择内置工具、显式工具 allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。**managed 档内置 tools 仅开放三个只读项 (Read/Glob/Grep)**，供 Sui Proxy 把 session 记录与 repo 内容当作背景上下文阅读（接受绝对路径，无需变更 cwd）；一切动作与状态变更仍走受管 MCP 工具，Bash/Edit/Write 不在 managed allowlist 中。claude_code 档才解锁原生编辑与命令执行，且须操作员显式批准。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
+Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json + include-partial-messages、显式 session UUID、空 setting-sources、自有 Hooks、strict-mcp-config、按 Task execution_profile 选择内置工具、显式工具 allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。**managed 档内置 tools 仅开放三个只读项 (Read/Glob/Grep)**，供 Sui Proxy 把 session 记录与 repo 内容当作背景上下文阅读（接受绝对路径，无需变更 cwd）；一切动作与状态变更仍走受管 MCP 工具，Bash/Edit/Write 不在 managed allowlist 中。claude_code 档才解锁原生编辑与命令执行，且须操作员显式批准。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
 
-Wrapper 自动采集进程身份、真实 session_id、结构化流事件、API retry、工具成功/异常与结束结果，独立续租。stdout/stderr 同时排空，单行与 stderr 内存有上限。没有最终 result 或末行截断不视为成功。401/403、配额错误及时隔离；连续传输重试有上限；不会无限发送 Continue。
+Wrapper 自动采集进程身份、真实 session_id、结构化流事件、API retry、工具成功/异常与结束结果，独立续租。stdout/stderr 同时排空，单行与 stderr 内存有上限。没有最终 result 或末行截断不视为成功。Persistent 下 401/403 等凭据问题进入显式 WAITING_RESOURCE；Bounded 保留隔离策略；连续传输重试有上限；不会无限发送 Continue。
 
 v0.3 的 ClaudeStreamDetector 仅作兼容入口；ClaudeNormalizer 解码并去重 partial/full，DetectionEngine 执行版本规则，持久 Incident 由 Candleholder 决策。Sui Proxy 查询的 stream_observation 在真正收到 text_delta 前是 event-only，之后为 text-delta-observed，同时记录能力审计。thinking 只处理公开块，子 Agent 事件暂不混入根 Session。
 
@@ -32,7 +32,7 @@ CLI 子进程设置 Linux parent-death signal，Wrapper 被强杀时 CLI 同时�
 PYTHONPATH=src SUI_TEST_REAL_CLAUDE=1 python3.11 -m unittest tests.test_claude.InstalledClaudeTests tests.test_stream_capability -v
 ```
 
-默认无 API 测试不需要安装 Claude；上述四项测试需主动设置 SUI_TEST_REAL_CLAUDE=1，否则明确 skip。
+默认无 API 测试不需要安装 Claude；上述 CLI 测试需主动设置 SUI_TEST_REAL_CLAUDE=1，否则明确 skip。
 
 ## 真实平台仍需验证
 
@@ -42,4 +42,6 @@ managed 默认提供只读原生工具、Sui MCP 与批准的模板；完整代�
 
 完整任务书、原生代码调试与完成前核验见 [任务书与执行能力](TASK_BRIEFS.md)。固定协议通过 append-system-prompt 追加，用户任务书作为独立初始输入完整传入，不再以巡检替代任务目标。
 
-原生 claude_code 模式使用显式的执行前 / 后 Hooks，并取消 bare（bare 会屏蔽 Hooks）；managed 仍为 bare。Hook 失败阻止操作，版本要求与测试详见 [Persistent 恢复](PERSISTENT_RECOVERY.md)。
+两个模式均使用显式的执行前 / 后 Hooks，并取消 bare（bare 会屏蔽 Hooks）。Hook 失败阻止操作，版本要求与测试详见 [Persistent 恢复](PERSISTENT_RECOVERY.md)。
+
+当前版本要求 Claude Code ≥ 2.1.316，两个 profile 都启用 Sui 显式 Pre/PostToolUse 和 Stop Hooks，不能用 bare 禁用提醒。managed 工具权限仍为 Read / Glob / Grep 与 Sui MCP。长 Session 指令投递、已读 ACK 和完成版本保护见 [接续协议](PROMPT_AND_LIFECYCLE_DESIGN.md#本轮接续协议schema-7)。

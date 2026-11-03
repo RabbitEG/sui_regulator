@@ -25,6 +25,7 @@ python3.11 -m sui_regulator schema
 |---|---|
 | yan.get_overview / yan.list_tasks | {} |
 | yan.get_task / yan.get_worker_health / yan.list_artifacts / yan.list_experiments | task_id |
+| yan.get_task_records | task_id、collection（instructions/attempts/jobs/proxies/artifacts/events）；可选 after（稳定 rowid 游标，默认 0）、limit（1–50）、record_id（精确查询同一 Task 的旧记录） |
 | yan.get_job / yan.get_metrics | job_id |
 | yan.get_logs | job_id，limit（1–500，默认 50） |
 | yan.get_experiment | experiment_id |
@@ -66,3 +67,9 @@ HOLD 停止 Sui Proxy、保留运行 Job；CANCEL 是持久终态，同样保留
 MCP 实现支持 stdio JSON-RPC、initialize、ping、tools/list、tools/call 以及初始化通知；没有宣称支持 MCP 全套扩展或远程传输。Schema 见 `schemas/` 和 `yan schema`。
 
 v0.4 初版新增跨任务只读分页投影；后续任务书阶段扩展 submit_task，Persistent 阶段增加上述两个最小 Yan Command。get_task 另给出 current_proxy、每个代理的 proxy_id/心跳健康和实际 execution_count；旧 workers/worker_id 字段保持兼容。Console 的 HTTP 只代理 Unix RPC，不初始化账本。详情见 [Yan Console](YAN_CONSOLE.md)。
+
+## 指令交付与有界任务详情
+
+`get_command_status` 对 instruct / request_analysis 额外返回 `delivery[]`：每代的 `worker_id`、`offered_at`、`channel`、`acknowledged_at`，另有 `execution="unknown"`。SUCCEEDED 仍只代表入账。投递准备不等于收到；明确 ACK 仍是代理的已读声明。历史各代的 ACK 保留，不会自动变成新代已读。
+
+`get_task` 保留完整原始任务书，但 workers/jobs/artifacts 各最多 50、操作回执最多 100、Incident 最近 20，并有响应大小预算。`history_refs` 给出完整数量和分页方法，`outstanding_operations` 基于全账本计数；`instruction_delivery` 是当前代最近 20 条摘要，`wait_state` 是可选持久等待对象。精确旧代理详情通过 get_task_records 的 record_id 读取；Incident 继续用现有 get_incidents。Console 直接复用这些查询，不另写业务状态机。

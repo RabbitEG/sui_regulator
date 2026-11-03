@@ -67,7 +67,7 @@ PYTHONPATH=src "$SUI_PY" -m unittest discover -s tests -v
 
 演示输出 URL 后，从本机授权 SSH 转发 8766，按 [Console 指南](YAN_CONSOLE.md) 检查 GEN-001、代理换代、原 Job/PID 与单次 execution、Hold/Resume/指令回执、UNKNOWN。Ctrl+C 结束演示会清理它自己的专用进程。**不要用 console-demo 作为正式服务。**
 
-最新完整任务 / Persistent 阶段的测试数量与原始输出见 [自主任务交付报告](AUTONOMY_DELIVERY.md)。默认测试会跳过未启用的本地 CLI 合约测试；使用 `SUI_TEST_REAL_CLAUDE=1` 才运行已安装 Claude Code + loopback 假 API 验收。`yan demo` 的所有 checks 应为 true。历史阶段报告保留当时数量。
+最新职责接续阶段的验证与原始输出见 [职责迭代报告](RESPONSIBILITY_ITERATION.md)；[自主任务报告](AUTONOMY_DELIVERY.md) 保留前阶段证据。默认测试会跳过未启用的本地 CLI 合约测试；使用 `SUI_TEST_REAL_CLAUDE=1` 才运行已安装 Claude Code + loopback 假 API 验收。`yan demo` 的所有 checks 应为 true。历史阶段报告保留当时数量。
 
 可选真实浏览器验收放在独立 QA checkout，避免改写正式源码中的参考报告：
 
@@ -240,7 +240,7 @@ SUI_BACKUP="$HOME/sui-regulator/backups/ledger-$(date -u +%Y%m%dT%H%M%SZ).sqlite
 3. 停止两个用户服务。用 `ln -s NEW_ABSOLUTE_RELEASE ~/sui-regulator/current.next`、`mv -Tf ~/sui-regulator/current.next ~/sui-regulator/current` 原子切换链接（占位符须替换为实际路径）。
 4. 如模板有变，按第 5 节更新 unit 并 daemon-reload。启动 Controller/Console，核验 tick、旧 Task/Job/Incident；最后由操作员按需 Resume。
 
-本次数据库自动迁移至 **schema 5**。升级前的 Task 保持 `bounded` 和 `managed`；新增 Task 默认 `persistent`，仍需明确选择 Claude Code 执行权限。可用 Console“恢复策略”或 `yan policy` 更改恢复模式；策略变更不会自动 Resume。旧任务不能通过策略命令扩大工具权限，要运行完整代码调试请创建带完整任务书和 `claude_code` 的新 Task，注明既有实验 ID，先核验再继续。
+本次数据库自动迁移至 **schema 7**。升级前的 Task 保持 `bounded` 和 `managed`；新增 Task 默认 `persistent`，仍需明确选择 Claude Code 执行权限。可用 Console“恢复策略”或 `yan policy` 更改恢复模式；策略变更不会自动 Resume。旧任务不能通过策略命令扩大工具权限，要运行完整代码调试请创建带完整任务书和 `claude_code` 的新 Task，注明既有实验 ID，先核验再继续。
 
 会话阅读器升级需同时更新 Controller 和 Console。只有新 release 启动的 Sui Proxy 才会采集对话；已有代理需等正常换代，或在确认 Job 状态后通过 Hold/Resume 换代。旧代理没有留存的对话无法补齐。`transcripts/` 和 `completions/` 属于私有运行数据，随完整状态目录备份，不能提交到代码仓库。查看步骤见 [Console 阅读与会话内容](YAN_CONSOLE.md#阅读字号与会话内容)。
 
@@ -259,3 +259,22 @@ SUI_BACKUP="$HOME/sui-regulator/backups/ledger-$(date -u +%Y%m%dT%H%M%SZ).sqlite
 ## 提交真实项目任务
 
 部署后按 [任务书与执行能力](TASK_BRIEFS.md) 配置项目目录、执行模式和可选核验模板。只提交标题、只使用 managed 模式且未配置工具，并不能获得完整代码调试能力。原生实验的身份与恢复不等同于托管合成 Job。
+
+## 职责接续版本的升级检查
+
+先完成上述一致备份、Hold 和 release 切换流程；`git pull` 本身不会更新已安装的非 editable release。schema 5/6 会顺序迁移到 7，保留旧 Task、权限、UNKNOWN、回执与原事件；不改历史 commit。回退必须使用支持当前 schema 的代码，或停机恢复升级前的匹配完整备份，不能手改 user_version。
+
+两种 Claude profile 均要求 Claude Code ≥ 2.1.316；本地实测 2.1.316。managed 改用显式 Sui Hooks 投递新要求，仍只授予 Read / Glob / Grep 与 Sui MCP；claude_code 权限必须由任务创建显式授予。升级时应先 Hold 旧代理，再安装和 Resume，使新代加载新提示词与 Hook。已有后台原生工作在丢失可核验运行时后会保持 UNKNOWN，先用批准的诊断查询或人工核验，再决定处理方式。
+
+目标机在隔离测试目录运行：
+
+```bash
+SUI_ROOT="$HOME/sui-regulator"
+cd "$SUI_ROOT/repository"
+SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src "$SUI_ROOT/current/venv/bin/python" -m unittest discover -s tests -v
+PYTHONPATH=src "$SUI_ROOT/current/venv/bin/python" scripts/export_schemas.py --check
+```
+
+真实 CLI 测试采用本地假 API，只验证协议、Hook、工具与恢复链路，不能代替 GLM 质量验收。使用另一个已安装 Playwright 的 QA venv 可运行 `scripts/verify_responsibility_browser.py`（另有 `--browser` 参数）；它会生成本地合成截图与报告，不连接生产状态。
+
+正式试用建议先用低成本任务检查：长 Session 中追加要求、完整原文与已读 ACK；实验失败后由模型自行决定继续；主动等待后到期接续；Hold / Cancel 优先；没有未决工作时的完成标记。真实 GLM、远端提交、普通 stopped / worker_restart 的目标平台通知和 systemd/cgroup 重启行为仍需在目标服务器验收。资源切换仍由 Session 内模型在已有授权下处理，框架没有新增迁移接口。

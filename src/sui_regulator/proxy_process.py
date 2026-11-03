@@ -19,13 +19,25 @@ def run(config: Config, credentials: Credentials) -> None:
     context = protocol.claim_task(credentials)
     recorder = SessionRecorder(config, credentials, source="mock-proxy")
     recorder.write("text", "user", context["objective"], message_id="initial-input")
-    recorder.write("text", "assistant", "[合成演示] 我是 Mock Sui Proxy，正在查询持久 Task 并连接已有 Job。无需模型 API。")
+    recorder.write(
+        "text",
+        "assistant",
+        "[合成演示] 我是 Mock Sui Proxy，正在查询持久 Task 并连接已有 Job。无需模型 API。",
+    )
     recorder.write("tool_call", "assistant", '{"logical_key":"primary-trial"}', tool_name="launch_job")
     job = protocol.launch_job(credentials, "primary-trial", context["spec"])
     protocol.attach_job(credentials, job["id"])
-    recorder.write("tool_result", "tool", json.dumps({"job_id": job["id"], "status": job["status"]}),
-                   tool_name="launch_job")
-    recorder.write("text", "assistant", "[合成演示] 已连接独立 Runner。下面的心跳和我的声明均不代表 Job 完成，请核对 Runner 观测与指标。")
+    recorder.write(
+        "tool_result",
+        "tool",
+        json.dumps({"job_id": job["id"], "status": job["status"]}),
+        tool_name="launch_job",
+    )
+    recorder.write(
+        "text",
+        "assistant",
+        "[合成演示] 已连接独立 Runner。下面的心跳和我的声明均不代表 Job 完成，请核对 Runner 观测与指标。",
+    )
     protocol.report_progress(
         credentials,
         phase="WAITING_JOB",
@@ -37,6 +49,17 @@ def run(config: Config, credentials: Credentials) -> None:
     while True:
         protocol.heartbeat(credentials)
         context = protocol.get_task_context(credentials)
+        instruction_page = protocol.get_task_records(credentials, "instructions")
+        while True:
+            if instruction_page["items"]:
+                protocol.acknowledge_instructions(
+                    credentials, [row["id"] for row in instruction_page["items"]]
+                )
+            if not instruction_page["has_more"]:
+                break
+            instruction_page = protocol.get_task_records(
+                credentials, "instructions", after=instruction_page["next_after"]
+            )
         if context["rotation_requested"]:
             recorder.write("text", "assistant", "[合成演示] 收到换代请求，提交 Handoff；原有 Job 保持运行。")
             protocol.handoff(
@@ -56,7 +79,12 @@ def run(config: Config, credentials: Credentials) -> None:
             return
         job = service.get_job(job["id"])
         if job["status"] == "COMPLETED":
-            recorder.write("tool_result", "tool", json.dumps({"job_id": job["id"], "status": job["status"], "metric": job["metric"]}), tool_name="get_job")
+            recorder.write(
+                "tool_result",
+                "tool",
+                json.dumps({"job_id": job["id"], "status": job["status"], "metric": job["metric"]}),
+                tool_name="get_job",
+            )
             protocol.complete_task(
                 credentials, "Synthetic job observed completed; no scientific conclusion asserted"
             )

@@ -371,6 +371,52 @@
     {
       "properties": {
         "method": {
+          "const": "yan.get_task_records"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "collection": {
+              "enum": [
+                "artifacts",
+                "attempts",
+                "events",
+                "instructions",
+                "jobs",
+                "proxies"
+              ]
+            },
+            "limit": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "record_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "task_id",
+            "collection"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "method": {
           "const": "yan.get_worker_health"
         },
         "params": {
@@ -813,6 +859,7 @@
         "yan.get_proxy_health",
         "yan.get_proxy_transcript",
         "yan.get_task",
+        "yan.get_task_records",
         "yan.get_worker_health",
         "yan.hold_task",
         "yan.instruct_task",

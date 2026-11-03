@@ -1,0 +1,33 @@
+test_queued_user_controls_and_requirements_precede_completion_acceptance (tests.test_task_continuity.TaskContinuityTests.test_queued_user_controls_and_requirements_precede_completion_acceptance) ... 
+  test_queued_user_controls_and_requirements_precede_completion_acceptance (tests.test_task_continuity.TaskContinuityTests.test_queued_user_controls_and_requirements_precede_completion_acceptance) (kind='instruct_task') ... FAIL
+  test_queued_user_controls_and_requirements_precede_completion_acceptance (tests.test_task_continuity.TaskContinuityTests.test_queued_user_controls_and_requirements_precede_completion_acceptance) (kind='hold_task') ... FAIL
+  test_queued_user_controls_and_requirements_precede_completion_acceptance (tests.test_task_continuity.TaskContinuityTests.test_queued_user_controls_and_requirements_precede_completion_acceptance) (kind='cancel_task') ... FAIL
+
+======================================================================
+FAIL: test_queued_user_controls_and_requirements_precede_completion_acceptance (tests.test_task_continuity.TaskContinuityTests.test_queued_user_controls_and_requirements_precede_completion_acceptance) (kind='instruct_task')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_task_continuity.py", line 209, in test_queued_user_controls_and_requirements_precede_completion_acceptance
+    with self.assertRaises(DomainError):
+AssertionError: DomainError not raised
+
+======================================================================
+FAIL: test_queued_user_controls_and_requirements_precede_completion_acceptance (tests.test_task_continuity.TaskContinuityTests.test_queued_user_controls_and_requirements_precede_completion_acceptance) (kind='hold_task')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_task_continuity.py", line 209, in test_queued_user_controls_and_requirements_precede_completion_acceptance
+    with self.assertRaises(DomainError):
+AssertionError: DomainError not raised
+
+======================================================================
+FAIL: test_queued_user_controls_and_requirements_precede_completion_acceptance (tests.test_task_continuity.TaskContinuityTests.test_queued_user_controls_and_requirements_precede_completion_acceptance) (kind='cancel_task')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_task_continuity.py", line 209, in test_queued_user_controls_and_requirements_precede_completion_acceptance
+    with self.assertRaises(DomainError):
+AssertionError: DomainError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.073s
+
+FAILED (failures=3)

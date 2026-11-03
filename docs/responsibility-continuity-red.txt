@@ -1,0 +1,34 @@
+test_durable_wait_does_not_spawn_and_hold_wins_wakeup (tests.test_task_continuity.TaskContinuityTests.test_durable_wait_does_not_spawn_and_hold_wins_wakeup) ... ERROR
+test_native_hook_offers_new_instruction_without_claiming_read_ack (tests.test_task_continuity.TaskContinuityTests.test_native_hook_offers_new_instruction_without_claiming_read_ack) ... ERROR
+test_tool_completion_cannot_silently_refresh_unread_requirements (tests.test_task_continuity.TaskContinuityTests.test_tool_completion_cannot_silently_refresh_unread_requirements) ... FAIL
+
+======================================================================
+ERROR: test_durable_wait_does_not_spawn_and_hold_wins_wakeup (tests.test_task_continuity.TaskContinuityTests.test_durable_wait_does_not_spawn_and_hold_wins_wakeup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_task_continuity.py", line 48, in test_durable_wait_does_not_spawn_and_hold_wins_wakeup
+    protocol.wait_task(credentials,'Waiting for authorized resource',60)
+    ^^^^^^^^^^^^^^^^^^
+AttributeError: 'SuiProtocol' object has no attribute 'wait_task'
+
+======================================================================
+ERROR: test_native_hook_offers_new_instruction_without_claiming_read_ack (tests.test_task_continuity.TaskContinuityTests.test_native_hook_offers_new_instruction_without_claiming_read_ack)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_task_continuity.py", line 38, in test_native_hook_offers_new_instruction_without_claiming_read_ack
+    self.assertIn('new operator requirement',result['hookSpecificOutput']['additionalContext'])
+                                             ~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'hookSpecificOutput'
+
+======================================================================
+FAIL: test_tool_completion_cannot_silently_refresh_unread_requirements (tests.test_task_continuity.TaskContinuityTests.test_tool_completion_cannot_silently_refresh_unread_requirements)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_task_continuity.py", line 27, in test_tool_completion_cannot_silently_refresh_unread_requirements
+    with self.assertRaises(DomainError):
+AssertionError: DomainError not raised
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.067s
+
+FAILED (failures=1, errors=2)

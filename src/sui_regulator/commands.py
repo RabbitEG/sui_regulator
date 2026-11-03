@@ -8,6 +8,7 @@ with bounded regex patterns. Only template names are accepted from workers.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import selectors
@@ -18,7 +19,7 @@ import tomllib
 from contextlib import suppress
 from pathlib import Path
 
-from .models import DomainError, digest, encode, identifier
+from .models import DomainError, digest, encode, identifier, require_text
 from .protocol import fence
 
 MAX_OUTPUT_BYTES = 65536
@@ -79,17 +80,27 @@ def load_registry(path: str | None) -> dict[str, dict]:
         progress_kind = body.get("progress_kind", "none")
         if type(read_only) is not bool or progress_kind not in {"none", "diagnostic", "check", "test"}:
             raise DomainError("INVALID_ARGUMENT", "invalid command observation metadata")
-        templates[name] = {"argv": argv, "patterns": patterns, "read_only": read_only, "progress_kind": progress_kind, "allow_during_background": allow_during_background}
+        templates[name] = {
+            "argv": argv,
+            "patterns": patterns,
+            "read_only": read_only,
+            "progress_kind": progress_kind,
+            "allow_during_background": allow_during_background,
+        }
     return templates
 
 
-def run_command(service, credentials, template: str, arguments: list[str] | None = None) -> dict:
+def run_command(
+    service, credentials, template: str, arguments: list[str] | None = None, operation_id: str | None = None
+) -> dict:
     """Execute an approved template as this worker, fenced by the lease and audited."""
     if not isinstance(template, str) or not template or len(template) > 64:
         raise DomainError("INVALID_ARGUMENT", "template must be a bounded name")
     arguments = [] if arguments is None else arguments
-    if not isinstance(arguments, list) or len(arguments) > MAX_ARGUMENTS or any(
-        not isinstance(value, str) or len(value) > 256 or not value for value in arguments
+    if (
+        not isinstance(arguments, list)
+        or len(arguments) > MAX_ARGUMENTS
+        or any(not isinstance(value, str) or len(value) > 256 or not value for value in arguments)
     ):
         raise DomainError("INVALID_ARGUMENT", "arguments must be a bounded list of short strings")
     if any("{" in value or "}" in value for value in arguments):
@@ -115,18 +126,49 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
     task = service.get_task(credentials.task_id)
     operation_key = digest([template, argv])
     approach_key = digest([operation_key, attempts.workspace_fingerprint(task["workspace"])])
-    attempt_id = identifier("attempt")
+    if operation_id is not None:
+        require_text(operation_id, "operation_id", 128)
+    attempt_id = (
+        "attempt-" + digest([credentials.task_id, operation_id]) if operation_id else identifier("attempt")
+    )
     with service.store.transaction() as conn:
         fence(conn, credentials)
         task = service._get(conn, "tasks", credentials.task_id)
-        denied = attempts.denial(conn, task, operation_key, approach_key, read_only=spec["read_only"], allow_during_background=spec["allow_during_background"])
+        existing = conn.execute("SELECT * FROM tool_attempts WHERE id=?", (attempt_id,)).fetchone()
+        if existing:
+            if existing["operation_key"] != operation_key:
+                raise DomainError(
+                    "IDEMPOTENCY_CONFLICT", "operation_id already names different command parameters"
+                )
+            if existing["result"] and existing["status"] in {"SUCCEEDED", "FAILED"}:
+                return {**json.loads(existing["result"]), "replayed_receipt": True}
+            raise DomainError(
+                "OPERATION_PENDING", "operation already recorded; inspect the receipt instead of replaying"
+            )
+        denied = attempts.denial(
+            conn,
+            task,
+            operation_key,
+            approach_key,
+            read_only=spec["read_only"],
+            allow_during_background=spec["allow_during_background"],
+        )
         note = attempts.repetition_note(conn, task, operation_key, approach_key)
         if note:
             advise(conn, service, task, note)
         if denied:
             advise(conn, service, task, denied)
         else:
-            attempts.start(conn, task, credentials, attempt_id, template, operation_key, approach_key, read_only=spec["read_only"])
+            attempts.start(
+                conn,
+                task,
+                credentials,
+                attempt_id,
+                template,
+                operation_key,
+                approach_key,
+                read_only=spec["read_only"],
+            )
     if denied:
         raise DomainError("REPLAN_REQUIRED", denied)
     # Commit launch intent first. A crash at any later point leaves an unresolved
@@ -137,11 +179,22 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
             workspace = Path(task["workspace"])
             workspace.mkdir(parents=True, exist_ok=True)
             process = subprocess.Popen(
-                argv, cwd=workspace, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, shell=False, start_new_session=True,
+                argv,
+                cwd=workspace,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=False,
+                start_new_session=True,
             )
-            service.store.event(conn, credentials.task_id, "COMMAND_STARTED", "command-runner",
-                                credentials.worker_id, {"attempt_id": attempt_id, "template": template, "argv": argv, "pid": process.pid})
+            service.store.event(
+                conn,
+                credentials.task_id,
+                "COMMAND_STARTED",
+                "command-runner",
+                credentials.worker_id,
+                {"attempt_id": attempt_id, "template": template, "argv": argv, "pid": process.pid},
+            )
     except (DomainError, OSError):
         with service.store.transaction() as conn:
             attempts.finish(conn, attempt_id, "CANCELLED", "not launched")
@@ -178,21 +231,33 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
             process.stdout.close()
             process.stderr.close()
     result = {
-        "attempt_id": attempt_id, "template": template, "argv": argv, "progress_kind": spec["progress_kind"],
+        "attempt_id": attempt_id,
+        "template": template,
+        "argv": argv,
+        "progress_kind": spec["progress_kind"],
         "exit_code": 124 if timed_out else process.returncode,
         "stdout": output["stdout"].decode(errors="replace"),
         "stderr": output["stderr"].decode(errors="replace"),
         "seconds": round(time.time() - started, 3),
-        "timed_out": timed_out, "output_truncated": truncated,
+        "timed_out": timed_out,
+        "output_truncated": truncated,
     }
     # JSON escaping and Unicode can expand bounded byte output.
     while len(encode(result).encode()) > 60000:
         for name in output:
-            result[name] = result[name][:len(result[name]) // 2]
+            result[name] = result[name][: len(result[name]) // 2]
         result["output_truncated"] = True
     with service.store.transaction() as conn:
-        attempts.finish(conn, attempt_id, "UNKNOWN" if timed_out and not spec["read_only"] else "FAILED" if result["exit_code"] else "SUCCEEDED",
-                        [result["exit_code"], result["stdout"], result["stderr"]])
+        attempts.finish(
+            conn,
+            attempt_id,
+            "UNKNOWN"
+            if timed_out and not spec["read_only"]
+            else "FAILED"
+            if result["exit_code"]
+            else "SUCCEEDED",
+            [result["exit_code"], result["stdout"], result["stderr"]],
+        )
         # Always preserve the actual result, even if ownership ended during execution.
         # Only the still-current Proxy may update its activity timestamp.
         try:
@@ -202,6 +267,8 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
         else:
             result["ownership_current"] = True
             conn.execute("UPDATE workers SET activity_at=? WHERE id=?", (time.time(), credentials.worker_id))
-        service.store.event(conn, credentials.task_id, "COMMAND_EXECUTED", "command-runner",
-                            credentials.worker_id, result)
+        conn.execute("UPDATE tool_attempts SET result=? WHERE id=?", (encode(result), attempt_id))
+        service.store.event(
+            conn, credentials.task_id, "COMMAND_EXECUTED", "command-runner", credentials.worker_id, result
+        )
     return result

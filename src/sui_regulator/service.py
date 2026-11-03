@@ -21,6 +21,7 @@ COMMAND_KINDS = {
     "resolve_attempt",
 }
 JSON_COLUMNS = {
+    "wait_state",
     "runtime",
     "completion",
     "recovery_state",
@@ -88,7 +89,17 @@ class Service:
             self.store.event(
                 conn, task_id, "COMMAND_ACCEPTED", "yan", actor, {"command_id": command_id, "kind": kind}
             )
-            return unpack(self._get(conn, "commands", command_id))
+            command = unpack(self._get(conn, "commands", command_id))
+            if command["kind"] in {"instruct_task", "request_analysis"}:
+                command["delivery"] = [
+                    dict(r)
+                    for r in conn.execute(
+                        "SELECT * FROM instruction_deliveries WHERE command_id=? ORDER BY offered_at",
+                        (command_id,),
+                    )
+                ]
+                command["execution"] = "unknown"
+            return command
 
     def process_commands(self, limit: int = 100) -> int:
         count = 0
@@ -127,7 +138,18 @@ class Service:
     def _apply_command(self, conn: sqlite3.Connection, command: sqlite3.Row, now: float) -> dict:
         kind, tid, payload = command["kind"], command["task_id"], json.loads(command["payload"])
         if kind == "submit_task":
-            if set(payload) - {"title", "objective", "adapter", "spec", "workspace", "execution_profile", "completion_criteria", "verification_template", "recovery_mode", "max_proxy_seconds"}:
+            if set(payload) - {
+                "title",
+                "objective",
+                "adapter",
+                "spec",
+                "workspace",
+                "execution_profile",
+                "completion_criteria",
+                "verification_template",
+                "recovery_mode",
+                "max_proxy_seconds",
+            }:
                 raise DomainError("INVALID_ARGUMENT", "unexpected submit_task fields")
             title = require_text(payload.get("title"), "title", 512)
             objective = require_text(payload.get("objective", title), "objective")
@@ -137,7 +159,11 @@ class Service:
             spec = mock_spec(payload.get("spec", {}))
             workspace = self.config.home / "workspaces" / tid
             profile = payload.get("execution_profile", "managed")
-            if not isinstance(profile, str) or profile not in {"managed", "claude_code"} or (profile == "claude_code" and adapter != "claude"):
+            if (
+                not isinstance(profile, str)
+                or profile not in {"managed", "claude_code"}
+                or (profile == "claude_code" and adapter != "claude")
+            ):
                 raise DomainError("INVALID_ARGUMENT", "claude_code execution requires the claude adapter")
             if "workspace" in payload:
                 workspace = Path(require_text(payload["workspace"], "workspace", 4096)).expanduser()
@@ -146,11 +172,15 @@ class Service:
                 workspace = workspace.resolve()
             criteria = payload.get("completion_criteria", "")
             if not isinstance(criteria, str) or len(criteria) > 16384:
-                raise DomainError("INVALID_ARGUMENT", "completion_criteria must be text of at most 16384 characters")
+                raise DomainError(
+                    "INVALID_ARGUMENT", "completion_criteria must be text of at most 16384 characters"
+                )
             verifier = payload.get("verification_template", "")
             from .recovery import validate_policy
 
-            mode, budget = validate_policy(payload.get("recovery_mode", self.config.recovery_mode), payload.get("max_proxy_seconds", 0))
+            mode, budget = validate_policy(
+                payload.get("recovery_mode", self.config.recovery_mode), payload.get("max_proxy_seconds", 0)
+            )
             if not isinstance(verifier, str) or len(verifier) > 64:
                 raise DomainError("INVALID_ARGUMENT", "verification_template must be a bounded template name")
             if verifier:
@@ -158,12 +188,28 @@ class Service:
 
                 template = load_registry(self.config.command_registry).get(verifier)
                 if template is None or template["patterns"]:
-                    raise DomainError("INVALID_ARGUMENT", "verification requires an approved template with no arguments")
+                    raise DomainError(
+                        "INVALID_ARGUMENT", "verification requires an approved template with no arguments"
+                    )
             conn.execute(
                 """INSERT INTO tasks(id,title,objective,workspace,adapter,spec,created_at,updated_at,
                 execution_profile,completion_criteria,verification_template,recovery_mode,max_proxy_seconds)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (tid, title, objective, str(workspace), adapter, encode(spec), now, now, profile, criteria, verifier, mode, budget),
+                (
+                    tid,
+                    title,
+                    objective,
+                    str(workspace),
+                    adapter,
+                    encode(spec),
+                    now,
+                    now,
+                    profile,
+                    criteria,
+                    verifier,
+                    mode,
+                    budget,
+                ),
             )
             return {"task_id": tid, "effect": "task created"}
         task = self._get(conn, "tasks", tid)
@@ -193,23 +239,48 @@ class Service:
 
             if not payload or set(payload) - {"recovery_mode", "max_proxy_seconds"}:
                 raise DomainError("INVALID_ARGUMENT", "expected recovery_mode and/or max_proxy_seconds")
-            mode, budget = validate_policy(payload.get("recovery_mode", task["recovery_mode"]),
-                                           payload.get("max_proxy_seconds", task["max_proxy_seconds"]))
-            conn.execute("UPDATE tasks SET recovery_mode=?,max_proxy_seconds=?,updated_at=? WHERE id=?", (mode, budget, now, tid))
-            return {"effect": "policy updated; does not resume a paused task", "recovery_mode": mode, "max_proxy_seconds": budget}
+            mode, budget = validate_policy(
+                payload.get("recovery_mode", task["recovery_mode"]),
+                payload.get("max_proxy_seconds", task["max_proxy_seconds"]),
+            )
+            conn.execute(
+                "UPDATE tasks SET recovery_mode=?,max_proxy_seconds=?,updated_at=? WHERE id=?",
+                (mode, budget, now, tid),
+            )
+            return {
+                "effect": "policy updated; does not resume a paused task",
+                "recovery_mode": mode,
+                "max_proxy_seconds": budget,
+            }
         if kind == "resolve_attempt":
             if set(payload) != {"attempt_id", "evidence"}:
                 raise DomainError("INVALID_ARGUMENT", "attempt_id and verification evidence are required")
             attempt_id = require_text(payload["attempt_id"], "attempt_id", 128)
             evidence = require_text(payload["evidence"], "evidence")
             if task["desired"] != "HOLD":
-                raise DomainError("INVALID_STATE", "Hold the Task and verify external effects before resolving an attempt")
-            attempt = conn.execute("SELECT * FROM tool_attempts WHERE task_id=? AND id=?", (tid, attempt_id)).fetchone()
+                raise DomainError(
+                    "INVALID_STATE", "Hold the Task and verify external effects before resolving an attempt"
+                )
+            attempt = conn.execute(
+                "SELECT * FROM tool_attempts WHERE task_id=? AND id=?", (tid, attempt_id)
+            ).fetchone()
             if attempt is None or attempt["status"] not in {"STARTED", "UNKNOWN", "READING"}:
                 raise DomainError("INVALID_STATE", "attempt is absent or already has a known outcome")
-            conn.execute("UPDATE tool_attempts SET status='RESOLVED',finished_at=? WHERE id=?", (now, attempt_id))
-            self.store.event(conn, tid, "ATTEMPT_RESOLVED", "yan", command["actor"], {"attempt_id": attempt_id, "evidence": evidence, "verification_source": "operator-declared"})
-            return {"effect": "operator verification recorded; task remains on Hold", "attempt_id": attempt_id}
+            conn.execute(
+                "UPDATE tool_attempts SET status='RESOLVED',finished_at=? WHERE id=?", (now, attempt_id)
+            )
+            self.store.event(
+                conn,
+                tid,
+                "ATTEMPT_RESOLVED",
+                "yan",
+                command["actor"],
+                {"attempt_id": attempt_id, "evidence": evidence, "verification_source": "operator-declared"},
+            )
+            return {
+                "effect": "operator verification recorded; task remains on Hold",
+                "attempt_id": attempt_id,
+            }
         if kind in {"instruct_task", "request_analysis"}:
             if set(payload) != {"instruction"}:
                 raise DomainError("INVALID_ARGUMENT", "instruction is required")
@@ -222,6 +293,13 @@ class Service:
                 command["actor"],
                 {"command_id": command["id"], "instruction": instruction, "kind": kind},
             )
+            if task["status"] == "WAITING" and task["wait_state"] and task["desired"] == "ACTIVE":
+                conn.execute(
+                    "UPDATE tasks SET status='READY',next_start_at=0,wait_state=NULL WHERE id=?", (tid,)
+                )
+                self.store.event(
+                    conn, tid, "TASK_WAIT_RESUMED", "yan", command["actor"], {"reason": "new instruction"}
+                )
             return {"task_id": tid, "effect": "instruction recorded", "analysis_executed": False}
         if payload:
             raise DomainError("INVALID_ARGUMENT", "control command payload must be empty")
@@ -237,6 +315,8 @@ class Service:
             "UPDATE workers SET status='REVOKED',ended_at=?,lease_expires=0 WHERE id=?",
             (now, task["current_worker"]),
         )
+        if desired == "ACTIVE":
+            conn.execute("UPDATE tasks SET wait_state=NULL WHERE id=?", (tid,))
         conn.execute(
             "UPDATE tasks SET desired=?,status=?,current_worker=NULL,updated_at=?,recovery_reset_at=? WHERE id=?",
             (desired, status, now, now if desired == "ACTIVE" else task["recovery_reset_at"], tid),
@@ -245,7 +325,17 @@ class Service:
 
     def get_command(self, command_id: str) -> dict:
         with self.store.connection() as conn:
-            return unpack(self._get(conn, "commands", command_id))
+            command = unpack(self._get(conn, "commands", command_id))
+            if command["kind"] in {"instruct_task", "request_analysis"}:
+                command["delivery"] = [
+                    dict(r)
+                    for r in conn.execute(
+                        "SELECT * FROM instruction_deliveries WHERE command_id=? ORDER BY offered_at",
+                        (command_id,),
+                    )
+                ]
+                command["execution"] = "unknown"
+            return command
 
     def list_tasks(self) -> list[dict]:
         return [unpack(row) for row in self.store.rows("SELECT * FROM tasks ORDER BY created_at,id")]
@@ -268,15 +358,17 @@ class Service:
             task["jobs"] = [
                 self._job_view(row)
                 for row in conn.execute(
-                    "SELECT * FROM jobs WHERE task_id=? ORDER BY created_at,id", (task_id,)
+                    "SELECT * FROM jobs WHERE task_id=? ORDER BY created_at DESC,id DESC LIMIT 50", (task_id,)
                 )
             ]
             task["workers"] = [
                 unpack(row)
                 for row in conn.execute(
-                    "SELECT * FROM workers WHERE task_id=? ORDER BY generation", (task_id,)
+                    "SELECT * FROM workers WHERE task_id=? ORDER BY generation DESC LIMIT 50", (task_id,)
                 )
             ]
+            task["workers"].reverse()
+            task["jobs"].reverse()
             for worker in task["workers"]:
                 from .console_read import session_view
 
@@ -292,21 +384,77 @@ class Service:
             task["artifacts"] = [
                 dict(row)
                 for row in conn.execute(
-                    "SELECT * FROM artifacts WHERE task_id=? ORDER BY created_at", (task_id,)
+                    "SELECT * FROM artifacts WHERE task_id=? ORDER BY created_at DESC LIMIT 50", (task_id,)
                 )
             ]
-            task["tool_attempts"] = [unpack(row) for row in conn.execute(
-                "SELECT * FROM tool_attempts WHERE task_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100", (task_id,))]
-            task["completion_receipts"] = [dict(row) for row in conn.execute(
-                "SELECT * FROM completion_receipts WHERE task_id=? ORDER BY created_at DESC LIMIT 10", (task_id,))]
+            task["tool_attempts"] = [
+                unpack(row)
+                for row in conn.execute(
+                    "SELECT * FROM tool_attempts WHERE task_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100",
+                    (task_id,),
+                )
+            ]
+            task["completion_receipts"] = [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM completion_receipts WHERE task_id=? ORDER BY created_at DESC LIMIT 10",
+                    (task_id,),
+                )
+            ]
             completion_owner = task["current_worker"] or (task["completion"] or {}).get("proxy_id")
-            task["completion_marker_path"] = str(self.config.home / "completions" / task_id / (completion_owner + ".json")) if completion_owner else None
+            task["completion_marker_path"] = (
+                str(self.config.home / "completions" / task_id / (completion_owner + ".json"))
+                if completion_owner
+                else None
+            )
+            from .records import COLLECTIONS
+
+            task["history_refs"] = {
+                name: {
+                    "method": "get_task_records",
+                    "task_id": task_id,
+                    "collection": name,
+                    "after": 0,
+                    "total": conn.execute(
+                        f"SELECT COUNT(*) FROM {table} WHERE task_id=? {extra}", (task_id,)
+                    ).fetchone()[0],
+                }
+                for name, (table, extra) in COLLECTIONS.items()
+            }
+            task["outstanding_operations"] = {
+                "native_or_command": conn.execute(
+                    "SELECT COUNT(*) FROM tool_attempts WHERE task_id=? AND status IN ('STARTED','UNKNOWN','RUNNING')",
+                    (task_id,),
+                ).fetchone()[0],
+                "jobs": conn.execute(
+                    "SELECT COUNT(*) FROM jobs WHERE task_id=? AND status NOT IN ('COMPLETED','FAILED','CANCELLED')",
+                    (task_id,),
+                ).fetchone()[0],
+                "meaning": "Counts cover the entire ledger, not only the history preview; query history_refs before replay or completion",
+            }
+            task["instruction_delivery"] = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT c.id AS command_id,c.created_at,c.status,d.worker_id,d.offered_at,d.acknowledged_at,d.channel FROM commands c LEFT JOIN instruction_deliveries d ON d.command_id=c.id AND d.worker_id=? WHERE c.task_id=? AND c.kind IN ('instruct_task','request_analysis') ORDER BY c.rowid DESC LIMIT 20",
+                    (task["current_worker"], task_id),
+                )
+            ]
             task["state_sources"] = {
                 "desired": "yan/controller",
                 "declared": "worker; unverified",
                 "jobs": "runner observations",
             }
             task["queried_at"] = time.time()
+            while len(encode(task).encode()) > 850000:
+                candidates = [
+                    k
+                    for k in ("workers", "jobs", "artifacts", "tool_attempts", "incidents")
+                    if len(task[k]) > 1
+                ]
+                if not candidates:
+                    break
+                key = max(candidates, key=lambda k: len(encode(task[k]).encode()))
+                task[key].pop(0)
             return task
 
     def _job_view(self, row: sqlite3.Row | dict) -> dict:

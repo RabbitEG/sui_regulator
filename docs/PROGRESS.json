@@ -321,5 +321,23 @@
       "real_glm_verified": false
     },
     "integrated_upstream": "e96154b"
+  },
+  "responsibility_iteration": {
+    "status": "complete",
+    "scope": "Runtime continuity, honest instruction offers/read ACK, durable waits, bounded lossless context and model-owned task semantics",
+    "evidence": [
+      "docs/RESPONSIBILITY_BASELINE.md",
+      "docs/RESPONSIBILITY_ITERATION.md",
+      "docs/responsibility-verification.json",
+      "docs/responsibility-test-output.txt"
+    ],
+    "verification": {
+      "python311_passed": 157,
+      "installed_cli_loopback_tests": 8,
+      "browser_checks_passed": 45,
+      "schema_version": 7,
+      "real_glm_verified": false
+    },
+    "baseline": "30f0242ba4675d5261adf8cf0e744196543b7ae8"
   }
 }

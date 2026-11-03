@@ -1,0 +1,25 @@
+{
+  "browser": "133.0.6943.141",
+  "checks": {
+    "overview_real_incident_and_tick": true,
+    "owned_proxy_freeze_is_not_reported_healthy": true,
+    "proxy_identity_generation_heartbeat_history": true,
+    "incident_recommendation_final_action_outcome": true,
+    "separate_states_real_metrics_jobs_events": true,
+    "hold_explicit_confirmation_cancel_resume_instruct_real_receipts": true,
+    "same_task_job_pid_single_execution_after_recovery_and_controls": true,
+    "untrusted_instruction_is_text_not_script": true,
+    "receipts_persist_per_ledger_workspace": true,
+    "refresh_pause_stops_requests_and_resume_restores_reads": true,
+    "unknown_job_is_not_success_or_live_training": true,
+    "mobile_has_no_page_overflow": true,
+    "controller_offline_keeps_original_timestamp_disables_controls": true,
+    "independent_console_and_job_survive_controller_exit": true,
+    "no_browser_errors_or_external_page_requests": true
+  },
+  "passed": true,
+  "page_errors": [],
+  "external_page_requests": [],
+  "synthetic": true,
+  "real_model_api": false
+}

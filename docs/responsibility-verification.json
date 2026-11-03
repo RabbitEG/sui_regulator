@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-04",
+  "baseline": "30f0242ba4675d5261adf8cf0e744196543b7ae8",
+  "baseline_commit": "88d2e20",
+  "operations_commit": "4150607",
+  "implementation_commit": null,
+  "source_fingerprint_sha256": "fce74b21f85f8bb68e801540a9bb487c5784ebf83b311f2dfae8f7d55e9406b2",
+  "python": "3.11.13",
+  "schema_version": 7,
+  "prompt_version": "sui-proxy.prompt.v3",
+  "full_suite": {
+    "passed": 157,
+    "skipped": 0,
+    "installed_cli_tests": 8,
+    "claude_version": "2.1.316",
+    "provider": "loopback FakeAnthropic only",
+    "output": "responsibility-test-output.txt"
+  },
+  "browser": {
+    "passed_checks": 45,
+    "groups": {
+      "console": 15,
+      "session_reader": 15,
+      "brief": 7,
+      "continuity": 8
+    },
+    "real_control_plane": true,
+    "real_glm": false
+  },
+  "installed_wheel": {
+    "sha256": "65a5d064b3ab4b1f114331a7f2032b4b37c0f89137c9e555c23f9c940b1376ff",
+    "passed": true,
+    "installed_module": "/tmp/sui-responsibility-install/lib64/python3.11/site-packages/sui_regulator/__init__.py",
+    "schema_version": 7,
+    "checks": [
+      "isolated_noneditable_wheel",
+      "new_protocol_modules_packaged",
+      "installed_console_assets",
+      "installed_console_demo_real_http",
+      "five_real_synthetic_tasks",
+      "fresh_schema7"
+    ],
+    "real_glm": false,
+    "recovery_demo": {
+      "synthetic": true,
+      "task_id": "task-4944dc49850148c7944dd1cc418b8082",
+      "job_id": "job-74df982d04ca481d85fdebab1eb91ad9",
+      "status": "COMPLETED",
+      "generations": 2,
+      "checks": {
+        "worker_sigkill": true,
+        "replacement_generation": true,
+        "single_job": true,
+        "single_execution": true,
+        "same_runner_pid": true,
+        "job_completed": true
+      },
+      "metric": {
+        "loss": 0.01666667,
+        "step": 60,
+        "total_steps": 60
+      }
+    }
+  },
+  "migration": {
+    "v5_to_v7_preserves_unknown_permissions": true,
+    "older_schema_gate_refuses_new_database": true,
+    "pre_upgrade_sqlite_snapshot_readable_with_v5_gate": true,
+    "production_full_state_restore_tested": false
+  },
+  "checks": {
+    "ruff": true,
+    "exported_schemas_current": true,
+    "diff_whitespace": true
+  },
+  "unverified": [
+    "real GLM decisions and long-running behavior",
+    "target platform stopped / worker_restart notifications",
+    "external jobs and remote resource migration",
+    "target systemd/cgroup behavior"
+  ],
+  "unsupported": [
+    "complete Task while handing off a retained running service",
+    "arbitrary-shell effect classification",
+    "remote resource subscriptions"
+  ]
+}

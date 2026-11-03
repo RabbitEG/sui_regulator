@@ -1,0 +1,14 @@
+test_file_completion_cannot_bypass_an_expired_lease_before_health_tick (tests.test_task_continuity.TaskContinuityTests.test_file_completion_cannot_bypass_an_expired_lease_before_health_tick) ... FAIL
+
+======================================================================
+FAIL: test_file_completion_cannot_bypass_an_expired_lease_before_health_tick (tests.test_task_continuity.TaskContinuityTests.test_file_completion_cannot_bypass_an_expired_lease_before_health_tick)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_task_continuity.py", line 197, in test_file_completion_cannot_bypass_an_expired_lease_before_health_tick
+    with self.assertRaises(DomainError):
+AssertionError: DomainError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.033s
+
+FAILED (failures=1)

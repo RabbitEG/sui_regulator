@@ -16,6 +16,27 @@ from .protocol import SuiProtocol
 from .service import Service
 
 WORKER_TOOLS = {
+    "get_task_records": (
+        {
+            "collection": {"type": "string"},
+            "record_id": {"type": "string"},
+            "after": {"type": "integer"},
+            "limit": {"type": "integer"},
+        },
+        ["collection"],
+    ),
+    "acknowledge_instructions": (
+        {"command_ids": {"type": "array", "items": {"type": "string"}}},
+        ["command_ids"],
+    ),
+    "wait_task": (
+        {
+            "reason": {"type": "string"},
+            "check_after_seconds": {"type": "number"},
+            "job_id": {"type": "string"},
+        },
+        ["reason", "check_after_seconds"],
+    ),
     "cancel_job": ({"job_id": {"type": "string"}}, ["job_id"]),
     "get_task_context": ({}, []),
     "report_progress": (
@@ -38,7 +59,11 @@ WORKER_TOOLS = {
     "launch_job": ({"logical_key": {"type": "string"}, "spec": {"type": "object"}}, ["logical_key"]),
     "attach_job": ({"job_id": {"type": "string"}}, ["job_id"]),
     "run_command": (
-        {"template": {"type": "string"}, "arguments": {"type": "array", "items": {"type": "string"}}},
+        {
+            "template": {"type": "string"},
+            "arguments": {"type": "array", "items": {"type": "string"}},
+            "operation_id": {"type": "string"},
+        },
         ["template"],
     ),
     "publish_artifact": ({"path": {"type": "string"}, "kind": {"type": "string"}}, ["path"]),
@@ -96,6 +121,10 @@ class MCPBridge:
             expected = properties[key]["type"]
             if expected == "array":
                 ok = isinstance(value, list) and all(isinstance(item, str) for item in value)
+            elif expected == "integer":
+                ok = type(value) is int
+            elif expected == "number":
+                ok = type(value) in (int, float)
             else:
                 ok = isinstance(value, {"string": str, "array": list, "object": dict}[expected])
             if not ok:

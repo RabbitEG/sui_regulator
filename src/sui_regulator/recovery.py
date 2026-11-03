@@ -59,7 +59,9 @@ def monitor(controller):
                     and process_state(owned_identity) in {"R", "S", "D", "I"}
                 ):
                     state.update(failure_streak=0, last_stable_session_at=now)
-            last = state.get("last_verified_progress_at", task["created_at"])
+            last = state.get(
+                "last_runtime_evidence_at", state.get("last_verified_progress_at", task["created_at"])
+            )
             markers = state.get("job_markers", {})
             progress, evidence = False, []
             for job in conn.execute("SELECT * FROM jobs WHERE task_id=?", (task["id"],)):
@@ -67,7 +69,8 @@ def monitor(controller):
                 marker = {"status": job["status"], "step": metric.get("step", 0)}
                 previous = markers.get(job["id"], {"status": "", "step": 0})
                 if (marker["step"] > previous["step"]) or (
-                    marker["status"] == "COMPLETED" and previous["status"] != "COMPLETED"
+                    marker["status"] in {"COMPLETED", "FAILED", "CANCELLED"}
+                    and previous["status"] != marker["status"]
                 ):
                     progress = True
                     evidence.append({"source": "runner", "job_id": job["id"], **marker})
@@ -88,11 +91,7 @@ def monitor(controller):
                 )
                 if data.get("timed_out") or not data.get("ownership_current", True):
                     continue
-                if not (
-                    (kind in {"check", "test"} or is_verifier)
-                    and data.get("exit_code") == 0
-                    or kind == "diagnostic"
-                ):
+                if not (kind in {"check", "test", "diagnostic"} or is_verifier):
                     continue
                 fingerprint = digest(
                     [data.get("template"), data.get("exit_code"), data.get("stdout"), data.get("stderr")]
@@ -104,17 +103,26 @@ def monitor(controller):
             state["evidence_fingerprints"] = fingerprints
             if progress:
                 last = now
-                state.update(last_verified_progress_at=now, progress_stage=0, phase="WORKING")
+                state.update(
+                    last_runtime_evidence_at=now,
+                    last_verified_progress_at=now,
+                    progress_stage=0,
+                    phase="OBSERVING",
+                )
                 service.store.event(
                     conn,
                     task["id"],
-                    "VERIFIED_PROGRESS",
+                    "RUNTIME_EVIDENCE_UPDATED",
                     "candleholder",
                     "controller",
-                    {"evidence": evidence},
+                    {
+                        "evidence": evidence,
+                        "scope": "configured runtime observations; not task value or semantic progress",
+                    },
                 )
             elapsed = max(0, now - max(last, task["recovery_reset_at"]))
-            state["no_progress_seconds"] = elapsed
+            state["no_progress_seconds"] = elapsed  # Legacy API alias only.
+            state["runtime_evidence_gap_seconds"] = elapsed
             used = conn.execute(
                 "SELECT COALESCE(SUM(MAX(0,COALESCE(ended_at,?)-created_at)),0) FROM workers WHERE task_id=?",
                 (now, task["id"]),
@@ -157,7 +165,7 @@ def monitor(controller):
                 if due:
                     escalated = elapsed >= config.escalation_seconds
                     guidance = (
-                        "No new supported progress evidence has been observed. This is not a Session failure. "
+                        "No new configured runtime evidence has been observed; business progress is unknown. This is not a Session failure. "
                         "Continue active debugging or waiting as appropriate to the task. Record useful evidence "
                         "or a checkpoint when convenient; experimental correctness and the next approach are your decisions."
                     )
@@ -174,6 +182,7 @@ def monitor(controller):
                             "reason": guidance,
                             "no_progress_seconds": elapsed,
                             "session_failure": False,
+                            "scope": "runtime evidence only; no business judgment",
                             "rotation_requested": False,
                         },
                     )

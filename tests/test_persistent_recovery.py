@@ -26,15 +26,42 @@ class PersistentRecoveryTests(ProcessTestCase):
 
         tid, protocol, credentials = self.manual()
         tool_id = "synthetic-background-call"
-        handle(self.service, credentials, {"hook_event_name": "PreToolUse", "tool_name": "Bash",
-                                         "tool_use_id": tool_id, "tool_input": {"command": "synthetic"}})
-        handle(self.service, credentials, {"hook_event_name": "PostToolUse", "tool_name": "Bash",
-                                         "tool_use_id": tool_id, "tool_response": {"backgroundTaskId": "bg-test"}})
+        handle(
+            self.service,
+            credentials,
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Bash",
+                "tool_use_id": tool_id,
+                "tool_input": {"command": "synthetic"},
+            },
+        )
+        handle(
+            self.service,
+            credentials,
+            {
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Bash",
+                "tool_use_id": tool_id,
+                "tool_response": {"backgroundTaskId": "bg-test"},
+            },
+        )
         session = self.service.get_task(tid)["workers"][0]["session_id"]
-        message = {"type": "system", "subtype": "task_notification", "session_id": session, "task_id": "bg-test",
-                   "tool_use_id": tool_id, "status": "completed"}
-        for change in ({"type": "assistant"}, {"session_id": "wrong"}, {"tool_use_id": "unrelated"},
-                       {"status": "running"}, {"status": []}):
+        message = {
+            "type": "system",
+            "subtype": "task_notification",
+            "session_id": session,
+            "task_id": "bg-test",
+            "tool_use_id": tool_id,
+            "status": "completed",
+        }
+        for change in (
+            {"type": "assistant"},
+            {"session_id": "wrong"},
+            {"tool_use_id": "unrelated"},
+            {"status": "running"},
+            {"status": []},
+        ):
             attempts.observe_background(self.service, credentials, session, {**message, **change})
             self.assertEqual(self.service.get_task(tid)["tool_attempts"][0]["status"], "RUNNING")
         attempts.observe_background(self.service, credentials, session, message)
@@ -42,7 +69,9 @@ class PersistentRecoveryTests(ProcessTestCase):
         receipt = self.service.get_task(tid)["tool_attempts"][0]
         self.assertEqual(receipt["id"], "native-" + digest([credentials.worker_id, tool_id]))
         self.assertEqual(receipt["status"], "SUCCEEDED")
-        self.assertEqual(len([e for e in self.service.events(tid) if e["kind"] == "NATIVE_BACKGROUND_RESULT"]), 1)
+        self.assertEqual(
+            len([e for e in self.service.events(tid) if e["kind"] == "NATIVE_BACKGROUND_RESULT"]), 1
+        )
 
     def test_terminal_incident_arriving_after_batch_snapshot_wins_health_race(self):
         tid, protocol, credentials = self.manual()
@@ -196,7 +225,13 @@ class PersistentRecoveryTests(ProcessTestCase):
         monitor(self.controller)
         task = self.service.get_task(tid)
         self.assertEqual(task["generation"], 2)
-        self.assertNotIn("last_verified_progress_at", task["recovery_state"])
+        self.assertIn("last_runtime_evidence_at", task["recovery_state"])
+        observed_at = task["recovery_state"]["last_runtime_evidence_at"]
+        run_command(self.service, credentials, "test")
+        monitor(self.controller)
+        self.assertEqual(
+            self.service.get_task(tid)["recovery_state"]["last_runtime_evidence_at"], observed_at
+        )
         script.write_text("print('verified fix')\n")
         self.assertEqual(run_command(self.service, credentials, "test")["exit_code"], 0)
         monitor(self.controller)

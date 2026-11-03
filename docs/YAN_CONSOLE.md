@@ -104,3 +104,7 @@ PYTHONPATH=src .venv/bin/python scripts/verify_console_browser.py --browser /usr
 浏览器测试使用实际 Chromium、真实 HTTP/RPC、独立合成进程和实际故障注入；不拦截 API 返回假状态。它检查控制回执、相同 Job/PID 与单次执行、刷新暂停、冻结代理、UNKNOWN、Controller 离线、移动视口、文本转义和无外部页面请求。报告见 console-browser-report.json；截图位于 screenshots/。
 
 最终测试、安装包验证和验收映射见 [v0.4 交付报告](YAN_CONSOLE_DELIVERY.md)，原始输出见 console-test-output.txt，结构化结果见 console-verification.json。浏览器的最近回执按账本标识隔离，切换工作目录不会把旧命令当作当前账本回执。
+
+## 指令交付、等待与历史
+
+Task 页面区分入账、投递准备、本代已读声明；相关操作是否执行始终需要回执与产物证明。等待面板展示原因、对象、责任方和下次检查，不能把 WAITING 当作 Session 故障。完整账本索引可翻页读取历史要求、操作、Jobs、代理、产物和事件；代理历史可打开该代实际对话。恢复区的“最近运行证据更新”仅反映配置范围内运行观察，不证明科研进展。离线时保留最后快照和更新时间，操作停用。新界面截图与验收见 [职责迭代报告](RESPONSIBILITY_ITERATION.md)。

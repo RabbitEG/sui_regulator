@@ -1,5 +1,20 @@
 {
   "$defs": {
+    "acknowledge_instructions": {
+      "additionalProperties": false,
+      "properties": {
+        "command_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "command_ids"
+      ],
+      "type": "object"
+    },
     "attach_job": {
       "additionalProperties": false,
       "properties": {
@@ -43,6 +58,27 @@
       "additionalProperties": false,
       "properties": {},
       "required": [],
+      "type": "object"
+    },
+    "get_task_records": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "type": "integer"
+        },
+        "collection": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "record_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "collection"
+      ],
       "type": "object"
     },
     "handoff": {
@@ -144,12 +180,34 @@
           },
           "type": "array"
         },
+        "operation_id": {
+          "type": "string"
+        },
         "template": {
           "type": "string"
         }
       },
       "required": [
         "template"
+      ],
+      "type": "object"
+    },
+    "wait_task": {
+      "additionalProperties": false,
+      "properties": {
+        "check_after_seconds": {
+          "type": "number"
+        },
+        "job_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "check_after_seconds"
       ],
       "type": "object"
     }

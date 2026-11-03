@@ -64,6 +64,17 @@ def run(config: Config, credentials: Credentials) -> None:
     assert process.stdin and process.stdout and process.stderr
     process.stdin.write(prompt.encode())
     process.stdin.close()
+    from .requirements_delivery import offer
+
+    with service.store.transaction() as conn:
+        offer(
+            conn,
+            service,
+            credentials,
+            context["instructions"],
+            "initial-stdin-written",
+            advance_revision=True,
+        )
     detector = ClaudeStreamDetector(
         worker["session_id"],
         FailureRegistry(Path(config.failure_registry)) if config.failure_registry else None,
@@ -165,8 +176,11 @@ def run(config: Config, credentials: Credentials) -> None:
                     event = detector.feed(decoded_line)
                     if event.error:
                         final_seen |= event.final
-                        record_exit(event.error, turn_limit=event.error == "MAX_TURNS_EXHAUSTED",
-                                    incidents=event.incidents)
+                        record_exit(
+                            event.error,
+                            turn_limit=event.error == "MAX_TURNS_EXHAUSTED",
+                            incidents=event.incidents,
+                        )
                         return
                     publish(service, credentials, event.incidents)
                     if detector.normalizer.text_delta_seen and not stream_capability_recorded:
@@ -224,7 +238,7 @@ def run(config: Config, credentials: Credentials) -> None:
                             (credentials.worker_id,),
                         )
         return_code = process.wait(timeout=5)
-        context = protocol.get_task_context(credentials)
+        context = protocol.get_task_context(credentials, offer_context=False)
         if context["rotation_requested"]:
             protocol.handoff(
                 credentials,
@@ -247,7 +261,7 @@ def run(config: Config, credentials: Credentials) -> None:
                 if context["rotation_requested"]:
                     break
                 time.sleep(config.heartbeat_seconds)
-                context = protocol.get_task_context(credentials)
+                context = protocol.get_task_context(credentials, offer_context=False)
             protocol.handoff(
                 credentials,
                 {

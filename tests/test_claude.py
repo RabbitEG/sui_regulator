@@ -161,6 +161,47 @@ class ClaudeContractTests(ProcessTestCase):
     "opt-in real installed CLI + loopback fake API only; no provider credentials",
 )
 class InstalledClaudeTests(ProcessTestCase):
+    def test_live_instruction_reaches_same_cli_session_and_requires_explicit_read_ack(self):
+        for profile in ("managed", "claude_code"):
+            with self.subTest(profile=profile):
+                project = Path(self.temp.name) / ("live-" + profile)
+                project.mkdir()
+                target = project / "note.txt"
+                target.write_text("Read while remaining in the same healthy session")
+                task_id, command_id = None, None
+                observations = []
+                instruction = "New authoritative requirement: inspect Delta report before completion."
+
+                def steps(body, index):
+                    nonlocal command_id
+                    if index == 0:
+                        return "get_task_context", {}
+                    if index == 1:
+                        command = self.service.command("instruct_task", "tester", "live-" + profile,
+                                                       {"instruction": instruction}, task_id)
+                        self.service.process_commands()
+                        command_id = command["id"]
+                        return "Read", {"file_path": str(target)}
+                    if index == 2:
+                        delivery = self.service.get_command(command_id)["delivery"]
+                        observations.append({"visible_in_request": instruction in json.dumps(body),
+                                             "offered": bool(delivery),
+                                             "not_acknowledged": bool(delivery) and delivery[0]["acknowledged_at"] is None})
+                        return "acknowledge_instructions", {"command_ids": [command_id]}
+                    return "complete_task", {"summary": "Synthetic live requirement read and addressed"}
+
+                with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+                    "ANTHROPIC_BASE_URL": backend.url, "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+                    "ANTHROPIC_AUTH_TOKEN": "", "CLAUDE_CODE_DISABLE_THINKING": "1", **NO_PROXIES,
+                }):
+                    task_id = self.submit(adapter="claude", workspace=str(project), execution_profile=profile)
+                    self.until(lambda: self.service.get_task(task_id)["desired"] == "COMPLETED", timeout=30)
+                    self.assertEqual(self.service.get_task(task_id)["generation"], 1)
+                    self.assertEqual(observations, [{"visible_in_request": True, "offered": True, "not_acknowledged": True}])
+                    receipt = self.service.get_command(command_id)
+                    self.assertIsNotNone(receipt["delivery"][0]["acknowledged_at"])
+                    self.assertEqual(receipt["execution"], "unknown")
+
     def test_native_background_failure_allows_verified_followup_in_same_session(self):
         project = Path(self.temp.name) / "background"
         project.mkdir()
