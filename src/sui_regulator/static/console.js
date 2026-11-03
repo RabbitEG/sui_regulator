@@ -163,7 +163,7 @@ function listView(section){
   else {headers=['Incident / 规则','关联 Task','Generation','检测建议','最终动作','应用结果',''];rows=items.map(i=>`<tr><td><a class='row-title mono' href='${incidentLink(i)}'>${esc(i.rule_id)} / v${i.payload.rule_version}</a><span class='sub'>${clock(i.created_at)} · ${esc(i.payload.category)}</span></td><td>${taskLink(i.task_id,i.task_title)}</td><td class='mono'>G${i.generation}</td><td>${esc(actionNames[i.payload.action] || i.payload.action)}</td><td>${esc(actionNames[i.action] || i.action)}</td><td>${badge(i.status)}</td><td><a class='table-link' href='${incidentLink(i)}'>证据 ${icon('arrow')}</a></td></tr>`).join('');}
   const options=section==='sessions' ? ['HEALTHY','LOST','FROZEN','DELAYED','HISTORICAL']:section==='tasks' ? ['RUNNING','HOLD','WAITING','QUARANTINED','COMPLETED']:['PENDING','APPLIED','OBSERVED','STALE','IGNORED'];
   const tools=`<div class='table-tools'><input id='list-search' class='filter-input' aria-label='本页搜索' placeholder='搜索本页名称或 ID…' value='${esc(state.search)}'><select id='list-filter' class='filter-select' aria-label='本页状态筛选'><option value=''>本页全部状态</option>${options.map(v=>`<option value='${v}' ${state.filter===v ? 'selected':''}>${esc(statusNames[v])}</option>`).join('')}</select></div>`;
-  return `<div class='page-heading'><div><div class='eyebrow'>${labels[section][1]}</div><h1>${labels[section][0]}</h1><p>${labels[section][2]}</p></div><span class='heading-meta'>${s.total} 条账本记录</span></div>${panel(labels[section][0]+'列表',table(headers,rows)+pager(),'Ledger records',tools)}`;
+  return `<div class='page-heading'><div><div class='eyebrow'>${labels[section][1]}</div><h1>${labels[section][0]}</h1><p>${labels[section][2]}</p></div><div class='actions'>${section==='tasks' ? `<button class='button primary' data-create-task data-requires-live data-eligible='true'>创建任务</button>`:''}<span class='heading-meta'>${s.total} 条账本记录</span></div></div>${panel(labels[section][0]+'列表',table(headers,rows)+pager(),'Ledger records',tools)}`;
 }
 function generationList(task){return `<div class='generation-list'>${[...(task.proxies || task.workers)].reverse().map(p=>`<div class='generation ${task.current_proxy===p.id || task.current_worker===p.id ? 'current':''}'><span class='generation-num'>G${p.generation}</span><div><a href='${proxyLink(p)}'>${esc(short(p.id))}</a><p>${fmt(p.created_at)} · ${esc(p.error || '已领取 Task')}</p></div>${badge(p.status,p.status==='RUNNING')}</div>`).join('')}</div>`;}
 function intervention(task){const eligible=!['COMPLETED','CANCELLED'].includes(task.desired);return `<div class='actions'><button class='button secondary' data-command='hold_task' data-requires-live data-eligible='${eligible && task.desired==='ACTIVE' && !!task.current_worker}'>${icon('pause')}Hold</button><button class='button secondary' data-command='resume_task' data-requires-live data-eligible='${eligible && (task.desired==='HOLD' || ['WAITING','QUARANTINED'].includes(task.status))}'>${icon('play')}Resume</button><button class='button primary' data-command='instruct_task' data-requires-live data-eligible='${eligible}'>追加指令 ${icon('arrow')}</button></div>`;}
@@ -178,7 +178,7 @@ function jobsView(task){return task.jobs.length ? task.jobs.map(j=>{const m=j.me
 function taskDetail(task){
   const d=task.declared || {},proxies=task.proxies || task.workers;
   const observed=task.jobs.length ? task.jobs.map(j=>badge(j.status,j.status==='RUNNING')).join(' '):'<span class="muted">尚无 Job 观测</span>';
-  return `<a class='back-link' href='#/tasks'>${icon('back')}返回任务</a><div class='page-heading detail-heading'><div><div class='eyebrow'>TASK DETAIL</div><h1>${esc(task.title)}</h1><span class='sub'>${esc(task.id)} · ${esc(task.adapter)} · Generation ${task.generation}</span></div>${intervention(task)}</div><div class='state-grid'><div class='state-card desired'><div class='eyebrow'>DESIRED STATE</div><h3>用户意图</h3><div class='large-value'>${esc(task.desired)}</div><p>来源：Yan Command<br>执行视图 ${esc(task.status)}</p></div><div class='state-card declared'><div class='eyebrow'>DECLARED STATE · 未核验</div><h3>Sui Proxy 声明</h3><div class='large-value'>${esc(d.phase || '尚无声明')}</div><p class='summary'>${esc(d.summary || '代理尚未提交进度报告。')}</p><p>${fmt(d.updated_at)}</p></div><div class='state-card observed'><div class='eyebrow'>OBSERVED STATE</div><h3>Runner 观测</h3><div>${observed}</div><p>${task.jobs.length} 个 Job · ${task.execution_count} 条 execution<br>Proxy 更替不等于重新执行 Job。</p></div></div><div class='detail-columns'><div>${panel('Job 与指标',jobsView(task),'Runner observations')}${panel('历史事件',eventList([...state.events].reverse(),true)+`<div class='source-note'>已加载 ${state.events.length} 条；按 Event ID 增量读取，最多保留 500 条。<button class='text-button' data-action='events'>刷新 / 加载后续</button></div>`,'Audit trail')}</div><div>${panel('代理换代历史',generationList(task),'Generations')}${panel('最近故障',task.incidents.length ? [...task.incidents].slice(0,5).map(incidentPreview).join(''):empty('暂无故障'),'Incidents')}${panel('Handoff',proxies.filter(p=>p.handoff).map(p=>`<div class='handoff'><span class='mono'>G${p.generation} · ${esc(short(p.id))}</span>${details('查看结构化交接',p.handoff,'handoff-'+p.id)}</div>`).join('') || empty('尚无 Handoff','异常退出时可直接从账本恢复。'))}</div></div>`;
+  return `<a class='back-link' href='#/tasks'>${icon('back')}返回任务</a><div class='page-heading detail-heading'><div><div class='eyebrow'>TASK DETAIL</div><h1>${esc(task.title)}</h1><span class='sub'>${esc(task.id)} · ${esc(task.adapter)} · Generation ${task.generation}</span></div>${intervention(task)}</div><div class='state-grid'><div class='state-card desired'><div class='eyebrow'>DESIRED STATE</div><h3>用户意图</h3><div class='large-value'>${esc(task.desired)}</div><p>来源：Yan Command<br>执行视图 ${esc(task.status)}</p></div><div class='state-card declared'><div class='eyebrow'>DECLARED STATE · 未核验</div><h3>Sui Proxy 声明</h3><div class='large-value'>${esc(d.phase || '尚无声明')}</div><p class='summary'>${esc(d.summary || '代理尚未提交进度报告。')}</p><p>${fmt(d.updated_at)}</p></div><div class='state-card observed'><div class='eyebrow'>OBSERVED STATE</div><h3>Runner 观测</h3><div>${observed}</div><p>${task.jobs.length} 个 Job · ${task.execution_count} 条 execution<br>Proxy 更替不等于重新执行 Job。</p></div></div>${panel('任务书与验收',`<div class='task-brief'>${esc(task.objective)}</div><h3>验收条件</h3><div class='task-brief'>${esc(task.completion_criteria || '未单独定义；按任务书要求核验')}</div><dl class='kv'><dt>项目目录</dt><dd class='break'>${esc(task.workspace)}</dd><dt>执行能力</dt><dd>${esc(task.execution_profile || 'managed')}</dd><dt>完成前核验</dt><dd>${esc(task.verification_template || '未配置；语义完成为代理声明')}</dd></dl>`,'Operator requirements')}<div class='detail-columns'><div>${panel('Job 与指标',jobsView(task),'Runner observations')}${panel('历史事件',eventList([...state.events].reverse(),true)+`<div class='source-note'>已加载 ${state.events.length} 条；按 Event ID 增量读取，最多保留 500 条。<button class='text-button' data-action='events'>刷新 / 加载后续</button></div>`,'Audit trail')}</div><div>${panel('代理换代历史',generationList(task),'Generations')}${panel('最近故障',task.incidents.length ? [...task.incidents].slice(0,5).map(incidentPreview).join(''):empty('暂无故障'),'Incidents')}${panel('Handoff',proxies.filter(p=>p.handoff).map(p=>`<div class='handoff'><span class='mono'>G${p.generation} · ${esc(short(p.id))}</span>${details('查看结构化交接',p.handoff,'handoff-'+p.id)}</div>`).join('') || empty('尚无 Handoff','异常退出时可直接从账本恢复。'))}</div></div>`;
 }
 function proxyDetail(task,id){
   const p=(task.proxies || task.workers).find(p=>p.id===id);if(!p) return empty('此 Sui Proxy 不存在');
@@ -237,9 +237,10 @@ function render(){
 }
 function renderReceipts(){
   $('receipt-count').textContent=state.receipts.length;
-  $('receipt-list').innerHTML=state.receipts.length ? state.receipts.map(i=>`<article class='receipt-item ${['REJECTED','UNCONFIRMED'].includes(i.status) ? 'error':''}'><div><h3>${esc({hold_task:'Hold',resume_task:'Resume',instruct_task:'追加指令'}[i.kind])}</h3>${badge(i.status)}</div><p>${esc(i.title || short(i.task_id))}</p><code>${esc(i.id || i.key)}</code><span class='sub'>${fmt(i.updated_at || i.created_at)}</span>${i.error ? `<p>${esc(i.error)}</p>`:''}${i.result ? details('应用结果',i.result,'receipt-'+i.key):''}${['UNCONFIRMED','NOT_SENT'].includes(i.status) ? `<button class='text-button' data-retry='${esc(i.key)}'>使用原幂等键核验 / 重试</button>`:''}</article>`).join(''):empty('尚无本浏览器提交的指令','历史操作仍保留在 Task 的审计事件中。');
+  $('receipt-list').innerHTML=state.receipts.length ? state.receipts.map(i=>`<article class='receipt-item ${['REJECTED','UNCONFIRMED'].includes(i.status) ? 'error':''}'><div><h3>${esc({submit_task:'创建任务',hold_task:'Hold',resume_task:'Resume',instruct_task:'追加指令'}[i.kind])}</h3>${badge(i.status)}</div><p>${esc(i.title || short(i.task_id))}</p><code>${esc(i.id || i.key)}</code><span class='sub'>${fmt(i.updated_at || i.created_at)}</span>${i.error ? `<p>${esc(i.error)}</p>`:''}${i.result ? details('应用结果',i.result,'receipt-'+i.key):''}${['UNCONFIRMED','NOT_SENT'].includes(i.status) ? `<button class='text-button' data-retry='${esc(i.key)}'>使用原幂等键核验 / 重试</button>`:''}</article>`).join(''):empty('尚无本浏览器提交的指令','历史操作仍保留在 Task 的审计事件中。');
 }
 function openCommand(kind,old=null){
+  if(kind==='submit_task'){openTask(old);return;}
   if(!old && !state.task) return;
   state.modal=old || {key:crypto.randomUUID(),kind,task_id:state.task.id,title:state.task.title,created_at:Date.now()/1000};
   const names={hold_task:'暂停代理 · Hold',resume_task:'恢复任务 · Resume',instruct_task:'向 Task 追加指令'};
@@ -265,6 +266,7 @@ async function submitCommand(e){
   finally{state.submitting=false;$('dialog-submit').disabled=false;storeReceipts();renderReceipts();refresh();}
 }
 document.addEventListener('click',e=>{
+  if(e.target.closest('[data-create-task]') && canControl()) openTask();
   const command=e.target.closest('[data-command]');if(command && !command.disabled) openCommand(command.dataset.command);
   const retry=e.target.closest('[data-retry]');if(retry){const old=state.receipts.find(i=>i.key===retry.dataset.retry);if(old) openCommand(old.kind,old);}
   const page=e.target.closest('[data-page]');if(page && !page.disabled){state.offset=Math.max(0,state.offset+(page.dataset.page==='next' ? state.limit:-state.limit));refresh();}
@@ -284,3 +286,40 @@ const closeDialog=()=>{if(!state.submitting) $('command-dialog').close();};$('di
 window.addEventListener('hashchange',()=>{state.offset=0;state.search='';state.filter='';state.task=null;state.incident=null;state.events=[];state.jobId=null;state.jobData=null;state.error=null;state.transcript=null;state.transcriptItems=[];state.transcriptAfter=0;state.transcriptError=null;state.transcriptDiscarded=0;state.transcriptFilter='all';state.followTranscript=true;$('main').innerHTML='<div class="loading"><span class="loading-dot"></span>正在读取账本…</div>';refresh();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);updateHealth();}else if(!state.paused) refresh();});
 setInterval(updateHealth,1000);renderReceipts();refresh();
+
+let taskDraft=null;
+const taskFields={title:'task-title',objective:'task-objective',completion_criteria:'task-criteria',workspace:'task-workspace',adapter:'task-adapter',execution_profile:'task-profile',verification_template:'task-verifier'};
+function openTask(old=null){
+  if(!canControl()) return;
+  taskDraft=old || {kind:'submit_task',key:crypto.randomUUID(),created_at:Date.now()/1000};
+  for(const [field,id] of Object.entries(taskFields)){
+    if(old?.payload) $(id).value=old.payload[field] || (field==='adapter' ? 'claude':field==='execution_profile' ? 'managed':'');
+    $(id).disabled=!!old?.payload;
+  }
+  $('task-error').hidden=true;$('task-submit').disabled=false;$('task-dialog').showModal();
+}
+async function submitTask(event){
+  event.preventDefault();if(state.submitting || !taskDraft) return;
+  const item=taskDraft;
+  if(!item.payload){
+    item.payload=Object.fromEntries(Object.entries(taskFields).map(([field,id])=>[field,$(id).value]));
+    if(!item.payload.workspace.trim()) delete item.payload.workspace;
+    if(item.payload.adapter==='mock') item.payload.execution_profile='managed';
+    item.title=item.payload.title;
+  }
+  if(!state.receipts.includes(item)) state.receipts.unshift(item);
+  item.status='SENDING';state.submitting=true;$('task-submit').disabled=true;
+  for(const id of Object.values(taskFields)) $(id).disabled=true;
+  storeReceipts();renderReceipts();
+  try{
+    const receipt=result(await http('/api/rpc',{request:{method:'yan.submit_task',params:{idempotency_key:item.key,payload:item.payload}}}));
+    Object.assign(item,{id:receipt.id,task_id:receipt.task_id,status:receipt.status,error:receipt.error,result:receipt.result,updated_at:receipt.updated_at});
+    $('task-dialog').close();$('receipts').hidden=false;notice('任务已提交；通过回执确认应用结果。');
+  }catch(err){
+    item.status=err.code && err.code!=='DELIVERY_UNCONFIRMED' ? 'NOT_SENT':'UNCONFIRMED';item.error=err.message;
+    $('task-error').textContent=err.message+'；重试保留原任务书和幂等键。';$('task-error').hidden=false;
+  }finally{state.submitting=false;$('task-submit').disabled=false;storeReceipts();renderReceipts();refresh();}
+}
+$('task-form').addEventListener('submit',submitTask);
+for(const id of ['task-close','task-cancel']) $(id).addEventListener('click',()=>{if(!state.submitting)$('task-dialog').close();});
+$('task-dialog').addEventListener('cancel',e=>{if(state.submitting)e.preventDefault();});

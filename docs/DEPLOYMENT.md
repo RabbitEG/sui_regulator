@@ -253,3 +253,7 @@ SUI_BACKUP="$HOME/sui-regulator/backups/ledger-$(date -u +%Y%m%dT%H%M%SZ).sqlite
 本指南的命令已在独立临时目录验证离线 wheelhouse 安装、8 项启动/重启/控制/备份检查，以及 systemd 239 的渲染模板静态校验，结果见 [部署验证记录](deployment-verification.json)。在线包源测试因当前环境代理连接失败未完成，未将其记为通过；离线路径已通过。使用的是全新本地 Git 克隆，目标机的 GitHub 认证仍需自行配置。
 
 相关资料：[Console 使用](YAN_CONSOLE.md)、[v0.4 验收](YAN_CONSOLE_DELIVERY.md)、[命名与兼容](NAMING.md)、[安全边界](SECURITY.md)。
+
+## 提交真实项目任务
+
+部署后按 [任务书与执行能力](TASK_BRIEFS.md) 配置项目目录、执行模式和可选核验模板。只提交标题、只使用 managed 模式且未配置工具，并不能获得完整代码调试能力。原生实验的身份与恢复不等同于托管合成 Job。

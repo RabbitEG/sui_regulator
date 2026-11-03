@@ -13,6 +13,7 @@ from .models import Credentials, encode
 from .processes import child_environment, detached
 from .protocol import SuiProtocol
 from .service import Service
+from .task_prompt import SUPERVISOR_PROMPT
 
 
 @dataclass
@@ -86,7 +87,10 @@ class ClaudeStreamDetector:
         return self._convert(Decoded([self.normalizer.end(now, partial_line, authorized_stop)]))
 
 
-def build_command(config, session_id: str) -> list[str]:
+def build_command(config, session_id: str, *, execution_profile: str = "managed") -> list[str]:
+    if execution_profile not in {"managed", "claude_code"}:
+        raise ValueError("unknown execution profile")
+    native_tools = "Read,Edit,Write,Glob,Grep,Bash" if execution_profile == "claude_code" else ""
     mcp_config = {
         "mcpServers": {
             "sui": {
@@ -113,9 +117,11 @@ def build_command(config, session_id: str) -> list[str]:
         "--mcp-config",
         encode(mcp_config),
         "--tools",
-        "",
+        native_tools,
         "--allowedTools",
-        "mcp__sui__*",
+        (native_tools + "," if native_tools else "") + "mcp__sui__*",
+        "--append-system-prompt",
+        SUPERVISOR_PROMPT,
         "--permission-mode",
         "dontAsk",
         "--permission-prompts",

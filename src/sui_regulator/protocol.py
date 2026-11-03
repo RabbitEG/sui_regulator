@@ -405,11 +405,24 @@ class SuiProtocol:
                 ).fetchone()
             )
 
-    def complete_task(self, credentials: Credentials, summary: str) -> dict:
+    def complete_task(self, credentials: Credentials, summary: str, evidence: str = "") -> dict:
         require_text(summary, "summary")
+        context = self.get_task_context(credentials)
+        if context["completion_criteria"]:
+            require_text(evidence, "completion evidence")
+        elif not isinstance(evidence, str) or len(evidence) > 16384:
+            raise DomainError("INVALID_ARGUMENT", "invalid completion evidence")
+        verification = None
+        if context["verification_template"]:
+            from .commands import run_command
+
+            verification = run_command(self.service, credentials, context["verification_template"])
+            if verification["exit_code"] != 0:
+                raise DomainError("UNVERIFIED_COMPLETION", "the operator's verification command failed; inspect and debug")
         with self._write(credentials) as (conn, _):
             jobs = conn.execute("SELECT status FROM jobs WHERE task_id=?", (credentials.task_id,)).fetchall()
-            if any(job["status"] != "COMPLETED" for job in jobs):
+            allowed = {"COMPLETED", "FAILED", "CANCELLED"} if verification else {"COMPLETED"}
+            if any(job["status"] not in allowed for job in jobs):
                 raise DomainError("UNVERIFIED_COMPLETION", "all managed jobs must be observed COMPLETED")
             now = time.time()
             conn.execute(
@@ -426,7 +439,9 @@ class SuiProtocol:
                 "TASK_COMPLETED",
                 "protocol",
                 credentials.worker_id,
-                {"summary": summary, "semantic_result": "worker-declared", "managed_jobs_verified": True},
+                {"summary": summary, "evidence": evidence, "semantic_result": "worker-declared",
+                 "managed_jobs_verified": all(job["status"] == "COMPLETED" for job in jobs),
+                 "verification": verification},
             )
         return {"task_id": credentials.task_id, "status": "COMPLETED"}
 

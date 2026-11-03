@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import re
+import selectors
+import signal
 import subprocess
 import time
 import tomllib
@@ -98,33 +100,71 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
             raise DomainError("INVALID_ARGUMENT", f"argument {position} does not match the approved pattern")
     argv = list(spec["argv"]) + list(arguments)
     started = time.time()
-    finished = subprocess.run(
-        argv,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=MAX_RUNTIME_SECONDS,
-        shell=False,
-    )
-    result = {
-        "template": template,
-        "argv": argv,
-        "exit_code": finished.returncode,
-        "stdout": finished.stdout[:MAX_OUTPUT_BYTES].decode(errors="replace"),
-        "stderr": finished.stderr[:MAX_OUTPUT_BYTES].decode(errors="replace"),
-        "seconds": round(time.time() - started, 3),
-    }
-    if len(encode(result)) > 65536:
-        result = {**result, "stdout": result["stdout"][:8192]}
+    # Fence and launch under the same write lock as Hold/takeover. Never hold
+    # that lock while waiting for a command to finish.
     with service.store.transaction() as conn:
-        worker = fence(conn, credentials)
-        conn.execute("UPDATE workers SET activity_at=? WHERE id=?", (time.time(), credentials.worker_id))
-        service.store.event(
-            conn,
-            credentials.task_id,
-            "COMMAND_EXECUTED",
-            "worker-declared",
-            credentials.worker_id,
-            {"template": template, "argv": argv, "exit_code": result["exit_code"], "seconds": result["seconds"]},
+        fence(conn, credentials)
+        task = service._get(conn, "tasks", credentials.task_id)
+        workspace = Path(task["workspace"])
+        workspace.mkdir(parents=True, exist_ok=True)
+        process = subprocess.Popen(
+            argv, cwd=workspace, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, shell=False, start_new_session=True,
         )
+        service.store.event(conn, credentials.task_id, "COMMAND_STARTED", "command-runner",
+                            credentials.worker_id, {"template": template, "argv": argv, "pid": process.pid})
+    output = {"stdout": bytearray(), "stderr": bytearray()}
+    truncated, timed_out = False, False
+    deadline = time.monotonic() + MAX_RUNTIME_SECONDS
+    with selectors.DefaultSelector() as selector:
+        for name in output:
+            stream = getattr(process, name)
+            os.set_blocking(stream.fileno(), False)
+            selector.register(stream, selectors.EVENT_READ, name)
+        try:
+            while selector.get_map() or process.poll() is None:
+                if time.monotonic() >= deadline:
+                    timed_out = True
+                    os.killpg(process.pid, signal.SIGKILL)
+                    break
+                for key, _ in selector.select(timeout=0.1):
+                    chunk = os.read(key.fd, 65536)
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                    else:
+                        remaining = MAX_OUTPUT_BYTES - len(output[key.data])
+                        output[key.data].extend(chunk[:remaining])
+                        truncated |= len(chunk) > remaining
+            process.wait(timeout=5)
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=5)
+            process.stdout.close()
+            process.stderr.close()
+    result = {
+        "template": template, "argv": argv,
+        "exit_code": 124 if timed_out else process.returncode,
+        "stdout": output["stdout"].decode(errors="replace"),
+        "stderr": output["stderr"].decode(errors="replace"),
+        "seconds": round(time.time() - started, 3),
+        "timed_out": timed_out, "output_truncated": truncated,
+    }
+    # JSON escaping and Unicode can expand bounded byte output.
+    while len(encode(result).encode()) > 60000:
+        for name in output:
+            result[name] = result[name][:len(result[name]) // 2]
+        result["output_truncated"] = True
+    with service.store.transaction() as conn:
+        # Always preserve the actual result, even if ownership ended during execution.
+        # Only the still-current Proxy may update its activity timestamp.
+        try:
+            fence(conn, credentials)
+        except DomainError:
+            result["ownership_current"] = False
+        else:
+            result["ownership_current"] = True
+            conn.execute("UPDATE workers SET activity_at=? WHERE id=?", (time.time(), credentials.worker_id))
+        service.store.event(conn, credentials.task_id, "COMMAND_EXECUTED", "command-runner",
+                            credentials.worker_id, result)
     return result

@@ -159,6 +159,31 @@ class ClaudeContractTests(ProcessTestCase):
     "opt-in real installed CLI + loopback fake API only; no provider credentials",
 )
 class InstalledClaudeTests(ProcessTestCase):
+    def test_native_cli_verifies_edits_and_runs_followup_experiment(self):
+        project = Path(self.temp.name) / "research"
+        project.mkdir()
+        program = project / "experiment.py"
+        program.write_text("from pathlib import Path\nvalue = 1\nassert value == 2\nPath('result.txt').write_text('verified next experiment')\n")
+        command = f"{sys.executable} experiment.py"
+        steps = [
+            ("get_task_context", {}),
+            ("Bash", {"command": command, "description": "Run experiment validation"}),
+            ("Read", {"file_path": str(program)}),
+            ("Edit", {"file_path": str(program), "old_string": "value = 1", "new_string": "value = 2"}),
+            ("Bash", {"command": command, "description": "Verify fix and run followup experiment"}),
+            ("complete_task", {"summary": "Validated and continued", "evidence": "result.txt produced after fixing assertion"}),
+        ]
+        with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+            "ANTHROPIC_BASE_URL": backend.url, "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+            "ANTHROPIC_AUTH_TOKEN": "", "CLAUDE_CODE_DISABLE_THINKING": "1", **NO_PROXIES,
+        }):
+            tid = self.submit(adapter="claude", workspace=str(project), execution_profile="claude_code",
+                              objective="Verify experiment, debug failure and continue", completion_criteria="result.txt exists")
+            self.until(lambda: self.service.get_task(tid)["desired"] == "COMPLETED", timeout=40)
+            self.assertEqual((project / "result.txt").read_text(), "verified next experiment")
+            self.assertIn("value = 2", program.read_text())
+            self.assertGreaterEqual(len(backend.requests), 6)
+
     def test_installed_cli_repetition_is_interrupted_before_api_response_finishes(self):
         with (
             FakeAnthropic("degenerate") as backend,

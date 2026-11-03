@@ -27,6 +27,9 @@
     "complete_task": {
       "additionalProperties": false,
       "properties": {
+        "evidence": {
+          "type": "string"
+        },
         "summary": {
           "type": "string"
         }

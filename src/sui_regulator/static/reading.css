@@ -74,3 +74,9 @@
   .kv dt { margin-top: 16px; }
   .kv dd { margin: 6px 0 0; }
 }
+
+/* Task briefs retain line breaks and remain readable while refresh runs. */
+#task-dialog { width: min(900px, 94vw); max-height: 90vh; overflow: auto; }
+#task-form { display: grid; gap: 12px; }
+#task-form input, #task-form textarea, #task-form select { font: inherit; width: 100%; padding: 10px; border: 1px solid #bfc7d8; border-radius: 6px; box-sizing: border-box; }
+.task-brief { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }

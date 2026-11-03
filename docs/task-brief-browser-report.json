@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "real_submit_receipt",
+    "full_multiline_brief_persisted",
+    "criteria_displayed",
+    "hold_preserves_created_task",
+    "no_browser_errors"
+  ],
+  "scope": "Mock UI and real local control plane; no real model or training"
+}

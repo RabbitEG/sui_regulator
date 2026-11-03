@@ -9,7 +9,7 @@ claude --version
 
 版本文件位于 `~/.local/share/sui-regulator/tools/claude-code/2.1.316/`，`~/.local/bin/claude` 在不存在时建立符号链接。可在私有 config.toml 的 claude_binary 指定其他版本绝对路径。
 
-Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json + include-partial-messages、显式 session UUID、bare、strict-mcp-config、禁用内置 tools、受管 MCP allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
+Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json + include-partial-messages、显式 session UUID、bare、strict-mcp-config、按 Task execution_profile 选择内置工具、显式工具 allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
 
 Wrapper 自动采集进程身份、真实 session_id、结构化流事件、API retry、工具成功/异常与结束结果，独立续租。stdout/stderr 同时排空，单行与 stderr 内存有上限。没有最终 result 或末行截断不视为成功。401/403、配额错误及时隔离；连续传输重试有上限；不会无限发送 Continue。
 
@@ -39,3 +39,5 @@ PYTHONPATH=src SUI_TEST_REAL_CLAUDE=1 python3.11 -m unittest tests.test_claude.I
 内部 GLM 的地址、模型名、鉴权、Messages/SSE dialect、工具格式、CLI 限制、企业网络和长时间行为都未验证。Adapter 不会自动猜测 endpoint 或读取公司凭据。实际接入由操作员通过批准的运行环境设置 ANTHROPIC_BASE_URL/ANTHROPIC_API_KEY 等配置。
 
 本阶段默认只开放受管 MCP 和合成 Job，尚不提供完整任意代码开发/真实训练 Runner。代码编辑权限、真实训练启动、检查点、TensorBoard、远程资源与进程终止须在真实平台完成受控 Adapter 扩展。Session 原生 resume/export、VS Code Extension 控制没有验证；恢复依赖持久账本，默认创建新 Session。
+
+完整任务书、原生代码调试与完成前核验见 [任务书与执行能力](TASK_BRIEFS.md)。固定协议通过 append-system-prompt 追加，用户任务书作为独立初始输入完整传入，不再以巡检替代任务目标。

@@ -43,7 +43,7 @@ WORKER_TOOLS = {
     ),
     "publish_artifact": ({"path": {"type": "string"}, "kind": {"type": "string"}}, ["path"]),
     "handoff": ({"summary": {"type": "object"}}, ["summary"]),
-    "complete_task": ({"summary": {"type": "string"}}, ["summary"]),
+    "complete_task": ({"summary": {"type": "string"}, "evidence": {"type": "string"}}, ["summary"]),
 }
 
 
@@ -95,7 +95,6 @@ class MCPBridge:
         for key, value in arguments.items():
             expected = properties[key]["type"]
             if expected == "array":
-                items = properties[key].get("items", {}).get("type", "string")
                 ok = isinstance(value, list) and all(isinstance(item, str) for item in value)
             else:
                 ok = isinstance(value, {"string": str, "array": list, "object": dict}[expected])

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from pathlib import Path
 
 from .config import Config
 from .models import DomainError, digest, encode, identifier, mock_spec, require_text
@@ -121,7 +122,7 @@ class Service:
     def _apply_command(self, conn: sqlite3.Connection, command: sqlite3.Row, now: float) -> dict:
         kind, tid, payload = command["kind"], command["task_id"], json.loads(command["payload"])
         if kind == "submit_task":
-            if set(payload) - {"title", "objective", "adapter", "spec"}:
+            if set(payload) - {"title", "objective", "adapter", "spec", "workspace", "execution_profile", "completion_criteria", "verification_template"}:
                 raise DomainError("INVALID_ARGUMENT", "unexpected submit_task fields")
             title = require_text(payload.get("title"), "title", 512)
             objective = require_text(payload.get("objective", title), "objective")
@@ -130,10 +131,30 @@ class Service:
                 raise DomainError("INVALID_ARGUMENT", "unsupported adapter")
             spec = mock_spec(payload.get("spec", {}))
             workspace = self.config.home / "workspaces" / tid
+            profile = payload.get("execution_profile", "managed")
+            if profile not in {"managed", "claude_code"} or (profile == "claude_code" and adapter != "claude"):
+                raise DomainError("INVALID_ARGUMENT", "claude_code execution requires the claude adapter")
+            if "workspace" in payload:
+                workspace = Path(require_text(payload["workspace"], "workspace", 4096)).expanduser()
+                if not workspace.is_absolute() or not workspace.is_dir():
+                    raise DomainError("INVALID_ARGUMENT", "workspace must be an existing absolute directory")
+                workspace = workspace.resolve()
+            criteria = payload.get("completion_criteria", "")
+            if not isinstance(criteria, str) or len(criteria) > 16384:
+                raise DomainError("INVALID_ARGUMENT", "completion_criteria must be text of at most 16384 characters")
+            verifier = payload.get("verification_template", "")
+            if not isinstance(verifier, str) or len(verifier) > 64:
+                raise DomainError("INVALID_ARGUMENT", "verification_template must be a bounded template name")
+            if verifier:
+                from .commands import load_registry
+
+                template = load_registry(self.config.command_registry).get(verifier)
+                if template is None or template["patterns"]:
+                    raise DomainError("INVALID_ARGUMENT", "verification requires an approved template with no arguments")
             conn.execute(
-                """INSERT INTO tasks(id,title,objective,workspace,adapter,spec,created_at,updated_at)
-                VALUES(?,?,?,?,?,?,?,?)""",
-                (tid, title, objective, str(workspace), adapter, encode(spec), now, now),
+                """INSERT INTO tasks(id,title,objective,workspace,adapter,spec,created_at,updated_at,
+                execution_profile,completion_criteria,verification_template) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (tid, title, objective, str(workspace), adapter, encode(spec), now, now, profile, criteria, verifier),
             )
             return {"task_id": tid, "effect": "task created"}
         task = self._get(conn, "tasks", tid)

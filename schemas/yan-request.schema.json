@@ -615,6 +615,16 @@
                     "unavailable"
                   ]
                 },
+                "completion_criteria": {
+                  "maxLength": 16384,
+                  "type": "string"
+                },
+                "execution_profile": {
+                  "enum": [
+                    "managed",
+                    "claude_code"
+                  ]
+                },
                 "objective": {
                   "maxLength": 16384,
                   "minLength": 1,
@@ -648,6 +658,15 @@
                 },
                 "title": {
                   "maxLength": 512,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "verification_template": {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "workspace": {
+                  "maxLength": 4096,
                   "minLength": 1,
                   "type": "string"
                 }

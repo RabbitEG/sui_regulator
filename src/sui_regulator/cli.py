@@ -20,7 +20,13 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("init")
     submit = commands.add_parser("submit")
     submit.add_argument("title")
-    submit.add_argument("--objective")
+    brief = submit.add_mutually_exclusive_group()
+    brief.add_argument("--objective")
+    brief.add_argument("--objective-file", type=Path, help="UTF-8 task brief, preserved verbatim across generations")
+    submit.add_argument("--completion-criteria", default="")
+    submit.add_argument("--verification-template", default="", help="approved no-argument command required to pass before completion")
+    submit.add_argument("--workspace", type=Path, help="existing project directory")
+    submit.add_argument("--execution-profile", choices=["managed", "claude_code"], default="managed")
     submit.add_argument("--key", default=None)
     submit.add_argument("--adapter", choices=["mock", "claude", "unavailable"], default="mock")
     submit.add_argument("--spec", default="{}", help="bounded mock job JSON")
@@ -143,6 +149,12 @@ def main(argv: list[str] | None = None) -> None:
             payload = {"title": args.title, "adapter": args.adapter, "spec": json.loads(args.spec)}
             if args.objective:
                 payload["objective"] = args.objective
+            if args.objective_file:
+                payload["objective"] = args.objective_file.read_text(encoding="utf-8")
+            payload.update(execution_profile=args.execution_profile, completion_criteria=args.completion_criteria,
+                           verification_template=args.verification_template)
+            if args.workspace:
+                payload["workspace"] = str(args.workspace.expanduser().resolve())
             result = service.command("submit_task", actor, key, payload)
         elif args.command == "list":
             result = service.list_tasks()

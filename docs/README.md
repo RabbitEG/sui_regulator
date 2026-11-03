@@ -10,6 +10,7 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 |---|---|
 | 了解能力、运行 Mock、安装和测试 | [项目概览与本地验证](PROJECT_OVERVIEW.md) |
 | 在另一台服务器部署、验收、备份或回滚 | [部署与验收指南](DEPLOYMENT.md) · [systemd 用户服务模板](../deploy/systemd/user/) |
+| 定义完整任务、启用代码调试、配置完成前核验 | [任务书与执行能力](TASK_BRIEFS.md) |
 | 使用四个 Console 页面、人工干预、SSH 转发 | [Yan Console 使用与演示](YAN_CONSOLE.md) |
 | 调整阅读字号、查看代理对话、核对进程与工具返回 | [会话阅读器交付与验收](SESSION_READER_DELIVERY.md) |
 | 理解世界观角色与兼容字段 | [命名体系](NAMING.md) |

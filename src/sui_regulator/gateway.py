@@ -74,6 +74,10 @@ def request_schema() -> dict:
                     "properties": {
                         "title": {"type": "string", "minLength": 1, "maxLength": 512},
                         "objective": {"type": "string", "minLength": 1, "maxLength": 16384},
+                        "workspace": {"type": "string", "minLength": 1, "maxLength": 4096},
+                        "execution_profile": {"enum": ["managed", "claude_code"]},
+                        "completion_criteria": {"type": "string", "maxLength": 16384},
+                        "verification_template": {"type": "string", "maxLength": 64},
                         "adapter": {"enum": ["mock", "claude", "unavailable"]},
                         "spec": {
                             "type": "object",

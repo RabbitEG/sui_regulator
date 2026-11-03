@@ -286,7 +286,7 @@ class FaultTests(ProcessTestCase):
         upgraded = Service(Config(home))
         self.assertEqual(upgraded.get_task("task-v1")["title"], "persisted")
         with upgraded.store.connection() as conn:
-            self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
+            self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 4)
             self.assertIn("cancel_auth", [row[1] for row in conn.execute("PRAGMA table_info(jobs)")])
 
     def test_cross_task_job_and_artifact_path_escape_are_rejected(self):

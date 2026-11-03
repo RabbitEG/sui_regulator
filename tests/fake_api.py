@@ -9,8 +9,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 class FakeAnthropic(AbstractContextManager):
-    def __init__(self, mode="tools"):
+    def __init__(self, mode="tools", steps=None):
         self.mode, self.requests = mode, []
+        self.steps = steps
         self.stream_finished = threading.Event()
 
     def __enter__(self):
@@ -45,6 +46,9 @@ class FakeAnthropic(AbstractContextManager):
                 index = len(owner.requests) - 1
                 operation = ["get_task_context", "report_progress", "complete_task"][min(index, 2)]
                 tool = next((tool for tool in tools if tool["name"].endswith("__" + operation)), None)
+                if owner.steps:
+                    operation, planned_arguments = owner.steps[min(index, len(owner.steps) - 1)]
+                    tool = next((t for t in tools if t["name"] == operation or t["name"].endswith("__" + operation)), None)
                 if owner.mode in {"streaming", "degenerate"}:
                     blocks = [("text", {"text": "synthetic streaming capability probe"})]
                     stop_reason = "end_turn"
@@ -59,6 +63,8 @@ class FakeAnthropic(AbstractContextManager):
                         if operation == "report_progress"
                         else {"summary": "synthetic integration complete"}
                     )
+                    if owner.steps:
+                        arguments = planned_arguments
                     blocks = [
                         ("tool_use", {"id": f"toolu_stub_{index}", "name": tool["name"], "input": arguments})
                     ]
