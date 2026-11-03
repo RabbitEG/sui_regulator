@@ -75,3 +75,83 @@
 *大炎司岁台*
 
 <sub>《明日方舟》素材 · <a href="docs/assets/arknights/README.md">来源与权利说明</a></sub>
+
+---
+
+## Sui Regulator
+
+<img align="right" src="docs/assets/arknights/zuo-le-module-x.png" width="132" height="132" alt="Zuo Le's long case, from module SBL-X" title="Zuo Le · Module SBL-X">
+
+**Forms may fade; the Dossier endures.**
+
+> With a candle in hand, why fear the long night?
+
+<br clear="right">
+
+---
+
+### About the Sui Regulator
+
+Yan has dealt with the beast Sui for a very long time.
+
+Each Sui Proxy has gifts of their own, and a temperament to match. They can accomplish things ordinary people cannot, but they may not always follow the court's plans. Sometimes all goes well. Sometimes they cause trouble no one saw coming.
+
+Their abilities are no reason to entrust everything to them and then stop paying attention.
+
+That is why the Sui Regulator exists.
+
+The court's Commands are delivered through it, and the movements of Sui Proxies are recorded there. The Sui Regulator need not interfere in every detail of how they work, but it must at least know how far each Task has progressed, and whether anything has gone wrong.
+
+### Candleholders
+
+<img align="right" src="docs/assets/arknights/zuo-le-avatar.png" width="100" height="100" alt="Zuo Le's operator portrait from Arknights" title="Zuo Le · Candleholder of the Sui Regulator">
+
+The Candleholders of the Sui Regulator watch over the actions of Sui Proxies.
+
+It is no easy duty.
+
+Some Sui Proxies are hard to locate. Some fall silent for long periods. Others tell a convincing story that their actions do not always bear out.
+
+So a Candleholder cannot rely solely on what a Sui Proxy claims.
+
+Where they are, how the Task is progressing, and what evidence they have left behind must all be checked. When the facts are unclear, it is better to make a record and investigate further than to jump to a conclusion.
+
+After all, a Sui Proxy going silent does not necessarily mean the Task entrusted to them has gone wrong.
+
+### Dossiers
+
+<img align="right" src="docs/assets/arknights/zuo-le-module-y.png" width="132" height="132" alt="The scrolls and records in Zuo Le's module SBL-Y" title="Zuo Le · Module SBL-Y">
+
+The Sui Regulator has a rule: a Task may pass from one Sui Proxy to another, but its Dossier must not disappear when they leave.
+
+Who claimed the Task, what they have done, what results they have left behind, and what remains unfinished should all go into its Dossier.
+
+If a Sui Proxy suddenly leaves, or something happens to them, their successor can read the Dossier and understand what came before.
+
+Work already completed need not be repeated. A Job still running need not start over simply because a different Sui Proxy has taken over.
+
+If the predecessor left no Handoff at all, the Candleholder will simply have more to investigate.
+
+### The Long Night
+
+Sui Proxies are not always easy to keep watch over.
+
+Some lose contact. Some find themselves in difficulty. Some keep making the same mistake. When that happens, the Sui Regulator must find a way to keep the Task moving.
+
+But a problem is not, by itself, a reason to rush to replace a Sui Proxy.
+
+First establish the facts, then decide whether to intervene. If a replacement is needed, check whether the existing Job is still running, so that both sides do not start the same work at once and make matters worse.
+
+If the court has issued a Command to hold a Task, a Candleholder may not resume it on their own authority.
+
+The Sui Regulator has never set out to make every Sui Proxy obedient.
+
+Wherever they may go, someone must still keep watch over the work.
+
+---
+
+*Sui Proxies walk their own paths; Candleholders keep watch through the long night.*
+
+*The Sui Regulator of Yan*
+
+<sub><a href="docs/NAMING.md">Project terminology</a> · Arknights artwork: <a href="docs/assets/arknights/README.md">sources and rights</a></sub>
