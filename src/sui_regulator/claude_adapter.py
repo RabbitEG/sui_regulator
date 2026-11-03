@@ -90,7 +90,13 @@ class ClaudeStreamDetector:
 def build_command(config, session_id: str, *, execution_profile: str = "managed") -> list[str]:
     if execution_profile not in {"managed", "claude_code"}:
         raise ValueError("unknown execution profile")
-    native_tools = "Read,Edit,Write,Glob,Grep,Bash" if execution_profile == "claude_code" else ""
+    # managed: read-only built-ins so workers can study session records and
+    # repositories as context; every action and state change still goes through
+    # the managed MCP tools (no Bash/Edit/Write). claude_code: full native
+    # capability for explicit operator-approved execution tasks.
+    native_tools = {"managed": "Read,Glob,Grep", "claude_code": "Read,Edit,Write,Glob,Grep,Bash"}[
+        execution_profile
+    ]
     mcp_config = {
         "mcpServers": {
             "sui": {

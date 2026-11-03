@@ -9,7 +9,7 @@ claude --version
 
 版本文件位于 `~/.local/share/sui-regulator/tools/claude-code/2.1.316/`，`~/.local/bin/claude` 在不存在时建立符号链接。可在私有 config.toml 的 claude_binary 指定其他版本绝对路径。
 
-Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json + include-partial-messages、显式 session UUID、bare、strict-mcp-config、按 Task execution_profile 选择内置工具、显式工具 allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
+Adapter 使用 [非交互 CLI](https://code.claude.com/docs/en/headless) 的 print + verbose stream-json + include-partial-messages、显式 session UUID、bare、strict-mcp-config、按 Task execution_profile 选择内置工具、显式工具 allowlist、dontAsk/permission-prompts none、max-turns、独立配置目录。**managed 档内置 tools 仅开放三个只读项 (Read/Glob/Grep)**，供 Sui Proxy 把 session 记录与 repo 内容当作背景上下文阅读（接受绝对路径，无需变更 cwd）；一切动作与状态变更仍走受管 MCP 工具，Bash/Edit/Write 不在 managed allowlist 中。claude_code 档才解锁原生编辑与命令执行，且须操作员显式批准。没有跳过全部权限。启动参数以安装版本的 help 和实际假服务测试为准；后续版本须重跑合约测试。
 
 Wrapper 自动采集进程身份、真实 session_id、结构化流事件、API retry、工具成功/异常与结束结果，独立续租。stdout/stderr 同时排空，单行与 stderr 内存有上限。没有最终 result 或末行截断不视为成功。401/403、配额错误及时隔离；连续传输重试有上限；不会无限发送 Continue。
 

@@ -18,7 +18,12 @@ def main():
     for flag in ["--print", "--bare", "--strict-mcp-config", "--no-session-persistence"]:
         assert flag in args, flag
     assert "--dangerously-skip-permissions" not in args
-    assert args[args.index("--tools") + 1] == ""
+    native = set(args[args.index("--tools") + 1].split(","))
+    # managed profile grants read-only built-ins; claude_code grants the full
+    # native set. Either way the managed MCP tools must stay in the allowlist.
+    assert native in ({"Read", "Glob", "Grep"}, {"Read", "Edit", "Write", "Glob", "Grep", "Bash"})
+    allowed = set(args[args.index("--allowedTools") + 1].split(","))
+    assert "mcp__sui__*" in allowed and native <= allowed
     sid = args[args.index("--session-id") + 1]
     prompt = sys.stdin.read()
     assert "lease_token" not in prompt
