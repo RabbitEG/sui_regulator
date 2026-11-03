@@ -176,7 +176,7 @@ class InstalledClaudeTests(ProcessTestCase):
             if index == 1:
                 return "Bash", {"command": f"{sys.executable} experiment.py", "run_in_background": True}
             receipts = self.service.get_task(tid)["tool_attempts"]
-            if not receipts or any(r["status"] in {"STARTED", "UNKNOWN"} for r in receipts):
+            if not receipts or any(r["status"] in {"STARTED", "UNKNOWN", "RUNNING"} for r in receipts):
                 time.sleep(.05)
                 return "get_task_context", {}
             if not followup:

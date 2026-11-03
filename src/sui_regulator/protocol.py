@@ -213,7 +213,7 @@ class SuiProtocol:
         from .commands import load_registry
 
         task["command_templates"] = {
-            name: {key: entry[key] for key in ("patterns", "read_only", "progress_kind")}
+            name: {key: entry[key] for key in ("patterns", "read_only", "progress_kind", "allow_during_background")}
             for name, entry in load_registry(self.config.command_registry).items()
         }
         task["execution_capabilities"] = {
@@ -307,6 +307,12 @@ class SuiProtocol:
                 return self.service._job_view(old)
             if conn.execute("SELECT 1 FROM jobs WHERE task_id=? AND status IN ('STARTING','UNKNOWN') LIMIT 1", (credentials.task_id,)).fetchone():
                 raise DomainError("UNRESOLVED_JOB", "inspect the existing Job before launching a new logical key")
+            from .attempts import denial
+
+            task = self.service._get(conn, "tasks", credentials.task_id)
+            denied = denial(conn, task, digest(["launch_job", logical_key]), "")
+            if denied:
+                raise DomainError("UNRESOLVED_OPERATION", denied)
             job_id, exp_id, now = identifier("job"), identifier("experiment"), time.time()
             conn.execute(
                 "INSERT INTO experiments(id,task_id,name,spec,created_at) VALUES(?,?,?,?,?)",

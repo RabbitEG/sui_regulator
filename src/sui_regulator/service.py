@@ -21,6 +21,7 @@ COMMAND_KINDS = {
     "resolve_attempt",
 }
 JSON_COLUMNS = {
+    "runtime",
     "completion",
     "recovery_state",
     "outcome",
@@ -294,7 +295,7 @@ class Service:
                     "SELECT * FROM artifacts WHERE task_id=? ORDER BY created_at", (task_id,)
                 )
             ]
-            task["tool_attempts"] = [dict(row) for row in conn.execute(
+            task["tool_attempts"] = [unpack(row) for row in conn.execute(
                 "SELECT * FROM tool_attempts WHERE task_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100", (task_id,))]
             task["completion_receipts"] = [dict(row) for row in conn.execute(
                 "SELECT * FROM completion_receipts WHERE task_id=? ORDER BY created_at DESC LIMIT 10", (task_id,))]

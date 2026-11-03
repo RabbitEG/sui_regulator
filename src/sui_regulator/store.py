@@ -9,8 +9,9 @@ from typing import Iterator
 
 from .models import encode
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 MIGRATIONS = {
+    6: ["ALTER TABLE tool_attempts ADD COLUMN runtime TEXT NOT NULL DEFAULT '{}'"],
     1: [
         """CREATE TABLE tasks (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, objective TEXT NOT NULL,

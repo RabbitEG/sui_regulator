@@ -30,14 +30,15 @@ class PersistentRecoveryTests(ProcessTestCase):
                                          "tool_use_id": tool_id, "tool_input": {"command": "synthetic"}})
         handle(self.service, credentials, {"hook_event_name": "PostToolUse", "tool_name": "Bash",
                                          "tool_use_id": tool_id, "tool_response": {"backgroundTaskId": "bg-test"}})
-        message = {"type": "system", "subtype": "task_notification", "session_id": "expected",
+        session = self.service.get_task(tid)["workers"][0]["session_id"]
+        message = {"type": "system", "subtype": "task_notification", "session_id": session, "task_id": "bg-test",
                    "tool_use_id": tool_id, "status": "completed"}
         for change in ({"type": "assistant"}, {"session_id": "wrong"}, {"tool_use_id": "unrelated"},
-                       {"reason": "worker_restart"}, {"status": "running"}, {"status": []}):
-            attempts.observe_background(self.service, credentials, "expected", {**message, **change})
-            self.assertEqual(self.service.get_task(tid)["tool_attempts"][0]["status"], "UNKNOWN")
-        attempts.observe_background(self.service, credentials, "expected", message)
-        attempts.observe_background(self.service, credentials, "expected", message)
+                       {"status": "running"}, {"status": []}):
+            attempts.observe_background(self.service, credentials, session, {**message, **change})
+            self.assertEqual(self.service.get_task(tid)["tool_attempts"][0]["status"], "RUNNING")
+        attempts.observe_background(self.service, credentials, session, message)
+        attempts.observe_background(self.service, credentials, session, message)
         receipt = self.service.get_task(tid)["tool_attempts"][0]
         self.assertEqual(receipt["id"], "native-" + digest([credentials.worker_id, tool_id]))
         self.assertEqual(receipt["status"], "SUCCEEDED")

@@ -152,7 +152,7 @@ def accept(service, task_id, proxy_id, payload, receipt_id=None):
             if any(job["status"] not in {"COMPLETED", "FAILED", "CANCELLED"} for job in jobs):
                 raise DomainError("UNVERIFIED_COMPLETION", "managed jobs must have known terminal outcomes")
             if conn.execute(
-                "SELECT 1 FROM tool_attempts WHERE task_id=? AND status IN ('STARTED','UNKNOWN') LIMIT 1",
+                "SELECT 1 FROM tool_attempts WHERE task_id=? AND status IN ('STARTED','UNKNOWN','RUNNING') LIMIT 1",
                 (task_id,),
             ).fetchone():
                 raise DomainError(

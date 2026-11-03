@@ -1,0 +1,53 @@
+test_background_handle_is_running_and_terminal_notification_is_idempotent (tests.test_operation_boundaries.OperationBoundaryTests.test_background_handle_is_running_and_terminal_notification_is_idempotent) ... FAIL
+test_normal_stop_is_separate_and_restart_does_not_claim_known_exit (tests.test_operation_boundaries.OperationBoundaryTests.test_normal_stop_is_separate_and_restart_does_not_claim_known_exit) ... 
+  test_normal_stop_is_separate_and_restart_does_not_claim_known_exit (tests.test_operation_boundaries.OperationBoundaryTests.test_normal_stop_is_separate_and_restart_does_not_claim_known_exit) (reason=None) ... FAIL
+  test_normal_stop_is_separate_and_restart_does_not_claim_known_exit (tests.test_operation_boundaries.OperationBoundaryTests.test_normal_stop_is_separate_and_restart_does_not_claim_known_exit) (reason='worker_restart') ... ERROR
+test_operator_approved_independent_work_runs_alongside_known_background_only (tests.test_operation_boundaries.OperationBoundaryTests.test_operator_approved_independent_work_runs_alongside_known_background_only) ... ERROR
+test_unknown_still_allows_actual_approved_diagnostics (tests.test_operation_boundaries.OperationBoundaryTests.test_unknown_still_allows_actual_approved_diagnostics) ... ok
+
+======================================================================
+ERROR: test_normal_stop_is_separate_and_restart_does_not_claim_known_exit (tests.test_operation_boundaries.OperationBoundaryTests.test_normal_stop_is_separate_and_restart_does_not_claim_known_exit) (reason='worker_restart')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_operation_boundaries.py", line 61, in test_normal_stop_is_separate_and_restart_does_not_claim_known_exit
+    self.assertEqual(self.receipt(tid)['runtime']['raw_status'], 'stopped')
+                     ~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'runtime'
+
+======================================================================
+ERROR: test_operator_approved_independent_work_runs_alongside_known_background_only (tests.test_operation_boundaries.OperationBoundaryTests.test_operator_approved_independent_work_runs_alongside_known_background_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_operation_boundaries.py", line 82, in test_operator_approved_independent_work_runs_alongside_known_background_only
+    self.assertEqual(run_command(self.service, credentials, 'independent')['exit_code'],0)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/zychen/Sui_Regulator/src/sui_regulator/commands.py", line 128, in run_command
+    raise DomainError("REPLAN_REQUIRED", denied)
+sui_regulator.models.DomainError: An earlier Job or command has an unresolved outcome. Inspect it; do not replay side effects. Yan can resolve a command receipt after verification.
+
+======================================================================
+FAIL: test_background_handle_is_running_and_terminal_notification_is_idempotent (tests.test_operation_boundaries.OperationBoundaryTests.test_background_handle_is_running_and_terminal_notification_is_idempotent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_operation_boundaries.py", line 44, in test_background_handle_is_running_and_terminal_notification_is_idempotent
+    self.assertEqual(self.receipt(tid)['status'], 'RUNNING')
+AssertionError: 'UNKNOWN' != 'RUNNING'
+- UNKNOWN
++ RUNNING
+
+
+======================================================================
+FAIL: test_normal_stop_is_separate_and_restart_does_not_claim_known_exit (tests.test_operation_boundaries.OperationBoundaryTests.test_normal_stop_is_separate_and_restart_does_not_claim_known_exit) (reason=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/zychen/Sui_Regulator/tests/test_operation_boundaries.py", line 60, in test_normal_stop_is_separate_and_restart_does_not_claim_known_exit
+    self.assertEqual(self.receipt(tid)['status'], expected)
+AssertionError: 'FAILED' != 'STOPPED'
+- FAILED
++ STOPPED
+
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.312s
+
+FAILED (failures=2, errors=2)

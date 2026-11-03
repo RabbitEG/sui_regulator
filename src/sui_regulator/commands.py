@@ -72,11 +72,14 @@ def load_registry(path: str | None) -> dict[str, dict]:
             except re.error:
                 raise DomainError("INVALID_ARGUMENT", f"invalid pattern in template {name}")
             patterns[slot] = pattern
+        allow_during_background = body.get("allow_during_background", False)
+        if type(allow_during_background) is not bool:
+            raise DomainError("INVALID_ARGUMENT", "allow_during_background must be boolean")
         read_only = body.get("read_only", False)
         progress_kind = body.get("progress_kind", "none")
         if type(read_only) is not bool or progress_kind not in {"none", "diagnostic", "check", "test"}:
             raise DomainError("INVALID_ARGUMENT", "invalid command observation metadata")
-        templates[name] = {"argv": argv, "patterns": patterns, "read_only": read_only, "progress_kind": progress_kind}
+        templates[name] = {"argv": argv, "patterns": patterns, "read_only": read_only, "progress_kind": progress_kind, "allow_during_background": allow_during_background}
     return templates
 
 
@@ -116,7 +119,7 @@ def run_command(service, credentials, template: str, arguments: list[str] | None
     with service.store.transaction() as conn:
         fence(conn, credentials)
         task = service._get(conn, "tasks", credentials.task_id)
-        denied = attempts.denial(conn, task, operation_key, approach_key, read_only=spec["read_only"])
+        denied = attempts.denial(conn, task, operation_key, approach_key, read_only=spec["read_only"], allow_during_background=spec["allow_during_background"])
         note = attempts.repetition_note(conn, task, operation_key, approach_key)
         if note:
             advise(conn, service, task, note)

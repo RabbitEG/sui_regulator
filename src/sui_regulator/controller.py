@@ -234,8 +234,10 @@ class Controller(AbstractContextManager):
         self._audit_watchdog()
         self.service.process_commands()
         self.runner.reconcile()
+        from .attempts import reconcile_background
         from .completion import consume_markers
 
+        reconcile_background(self.service)
         consume_markers(self)
         from .recovery import monitor
 

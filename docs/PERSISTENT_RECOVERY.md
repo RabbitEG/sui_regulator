@@ -73,7 +73,7 @@ read_only = true        # 仅在脚本确实只读时声明；不改变操作系
 
 这些 Hook 是协作运行保护，不是隔离同 UID 恶意代码的安全边界。PreToolUse 检查和原生工具实际执行之间仍有很短的竞态，已发生的外部副作用无法撤回。项目上下文可由原生 CLI 发现；不应把项目文件里的指令当成新增授权。`managed` 模式继续使用 bare、Sui MCP 和 Read / Glob / Grep 三个原生只读工具。
 
-受管命令先提交 STARTED 意图，再次 fence 后启动；最终结果持久化。原生 Bash 也有执行回执。原生 Bash 转入后台时，回执暂为 UNKNOWN，仍允许 Read / Glob / Grep 和上下文查询；收到匹配 Session 与 tool_use_id 的 CLI `task_notification` 后自动记录成功 / 失败终态并允许后续操作。它只证明该 Bash 调用已结束，不证明实验结论。缺少通知、Session 丢失或 worker_restart 都不会伪造终态。若中途崩溃，未决记录跨代保留，不能用新 Session 绕过。Console 展示最近 100 条回执；暂停任务并核验实际进程、产物和远端提交状态后，可记录人工核验：
+受管命令先提交 STARTED 意图，再次 fence 后启动；最终结果持久化。原生 Bash 也有执行回执。原生 Bash 返回后台 handle 时记录 RUNNING，与提交回执丢失的 STARTED / UNKNOWN 分开。收到匹配 Session、调用与后台 handle 的 CLI `task_notification` 后自动记录 SUCCEEDED / FAILED / STOPPED；worker_restart 保留 UNKNOWN 和原始原因。迟到 Hook 和重复通知不会倒退终态。已失去运行时观测的 RUNNING 降为 UNKNOWN，旧代理仍可补充其原操作的可信终态，但不恢复执行权。它只证明该 Bash 调用已结束，不证明实验结论。缺少通知、Session 丢失或 worker_restart 都不会伪造终态。若中途崩溃，未决记录跨代保留，不能用新 Session 绕过。Console 展示最近 100 条回执；暂停任务并核验实际进程、产物和远端提交状态后，可记录人工核验：
 
 ```bash
 yan --home /absolute/private/state hold TASK_ID
@@ -95,3 +95,9 @@ SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src .venv/bin/python -m unittest discover -s t
 包含连续 31 次启动失败、跨代操作回执、30 次不同修改仍失败、15/60 分钟时间推进、预算暂停、请求窗口延迟、未知 Job 防重复、未决命令人工核验及真实 Claude Code Hook 所有权检查与重复结果提示。时间推进测试修改私有测试账本的时间，不让用户等待一小时。
 
 原有 `console-demo` 明确使用 Bounded 来保持历史故障样例；从页面创建的新任务可选择 Persistent。后台实验失败后同一 Session 自动继续的实际 CLI 路径也有回归，依据 [Claude 后台通知协议](https://code.claude.com/docs/en/agent-sdk/typescript#sdktasknotificationmessage)。所有验收使用临时私有目录、合成任务与 loopback 假 API，没有调用真实 GLM 或正式训练。数据库升级到 schema 5；部署与回滚须遵循 [部署指南](DEPLOYMENT.md) 的备份要求。
+
+## 已知后台工作下的独立操作
+
+Read / Glob / Grep、Sui 查询和部署者批准的 `read_only=true` 模板始终是诊断路径（仍受所有权与用户预算约束）。部署者确认某个固定模板与当前后台工作不冲突时，可设置 `allow_during_background = true`。这是部署配置授权，不接受模型自行声明，只放行已知 RUNNING 期间的独立模板，不允许重放相同操作，也不能越过 STARTED / UNKNOWN。任意 Bash / Edit / Write 的冲突范围无法可靠确定时保守拦截。通过原生工具产生的外部工作仍不是托管 Job。
+
+该阶段迁移至 schema 6，旧 UNKNOWN 不自动改为 RUNNING；新增 runtime 来源与身份字段。真实 CLI 完成 / 失败已覆盖，普通 stopped 与 worker_restart 的原始协议分支使用确定性回放；不能把回放声明为目标平台实测。

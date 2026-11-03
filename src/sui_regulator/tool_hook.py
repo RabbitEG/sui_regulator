@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from . import attempts
@@ -33,7 +34,11 @@ def handle(service, credentials, event):
         with service.store.transaction() as conn:
             fence(conn, credentials)
             current = service._get(conn, "tasks", credentials.task_id)
-            denied = attempts.denial(conn, current, operation_key, approach_key) if name == "Bash" else None
+            denied = (
+                attempts.denial(conn, current, operation_key, approach_key)
+                if name in {"Bash", "Edit", "Write"}
+                else None
+            )
             note = (
                 attempts.repetition_note(conn, current, operation_key, approach_key)
                 if name == "Bash"
@@ -63,9 +68,19 @@ def handle(service, credentials, event):
         result = event.get("error") if stage == "PostToolUseFailure" else event.get("tool_response")
         status = "FAILED" if stage == "PostToolUseFailure" else "SUCCEEDED"
         if isinstance(result, dict) and result.get("backgroundTaskId"):
-            status = "UNKNOWN"
+            status = "RUNNING"
         with service.store.transaction() as conn:
-            attempts.finish(conn, attempt_id, status, result)
+            worker = service._get(conn, "workers", credentials.worker_id)
+            runtime = {
+                "source": "claude-hook",
+                "session_id": worker["session_id"],
+                "tool_use_id": event.get("tool_use_id"),
+                "observed_at": time.time(),
+            }
+            if status == "RUNNING":
+                runtime["handle"] = str(result["backgroundTaskId"])[:256]
+            if not attempts.finish(conn, attempt_id, status, result, runtime):
+                return {}
             service.store.event(
                 conn,
                 credentials.task_id,
@@ -76,6 +91,7 @@ def handle(service, credentials, event):
                     "attempt_id": attempt_id,
                     "tool": name,
                     "status": status,
+                    "runtime": runtime,
                     "result_hash": attempts.error_fingerprint(result),
                     "counts_as_verified_progress": False,
                 },
