@@ -30,6 +30,7 @@ WRITE_METHODS = {"yan.hold_task", "yan.resume_task", "yan.instruct_task"}
 ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/assets/console.css": ("console.css", "text/css; charset=utf-8"),
+    "/assets/reading.css": ("reading.css", "text/css; charset=utf-8"),
     "/assets/console.js": ("console.js", "text/javascript; charset=utf-8"),
     "/favicon.svg": ("favicon.svg", "image/svg+xml"),
 }

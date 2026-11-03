@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-03",
+  "base_revision": "c0b15ad43239add920e1556735805ba1c48e45f2",
+  "scope": "readable Yan Console, read-only Sui Proxy conversations, observed process evidence",
+  "reproduction": {
+    "before_body_font_px": 14,
+    "after_body_font_px": 18.02,
+    "conversation_reader_before": false,
+    "conversation_reader_after": true
+  },
+  "tests": {
+    "python311_passed": 107,
+    "python311_skipped": 0,
+    "installed_cli_loopback_tests": 4,
+    "original_browser_checks": 15,
+    "session_browser_checks": 15,
+    "session_screenshots": 5
+  },
+  "packaging": {
+    "wheel_version": "0.4.0",
+    "static_assets": 5,
+    "transcript_module": true,
+    "installed_mock_demo": "passed",
+    "installed_reading_css_http": "passed",
+    "installed_transcript_rpc": "passed"
+  },
+  "limits": {
+    "bytes_per_proxy": 4194304,
+    "characters_per_record": 8000,
+    "bytes_per_page": 131072,
+    "rows_in_browser": 400
+  },
+  "exit_evidence_race": {
+    "delayed_exit_record_seconds": 0.35,
+    "before_fix": "failed",
+    "after_fix": "passed",
+    "resolution": "commit terminal Incident and runtime exit evidence in one transaction"
+  },
+  "schema_migrations": 0,
+  "real_glm_tested": false,
+  "remote_deployment_modified": false,
+  "evidence": [
+    "docs/SESSION_READER_DELIVERY.md",
+    "docs/session-reader-test-output.txt",
+    "docs/session-reader-browser-report.json",
+    "docs/screenshots/session-reader",
+    "tests/test_transcripts.py",
+    "scripts/verify_session_reader.py"
+  ]
+}

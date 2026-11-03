@@ -240,6 +240,8 @@ SUI_BACKUP="$HOME/sui-regulator/backups/ledger-$(date -u +%Y%m%dT%H%M%SZ).sqlite
 3. 停止两个用户服务。用 `ln -s NEW_ABSOLUTE_RELEASE ~/sui-regulator/current.next`、`mv -Tf ~/sui-regulator/current.next ~/sui-regulator/current` 原子切换链接（占位符须替换为实际路径）。
 4. 如模板有变，按第 5 节更新 unit 并 daemon-reload。启动 Controller/Console，核验 tick、旧 Task/Job/Incident；最后由操作员按需 Resume。
 
+会话阅读器升级需同时更新 Controller 和 Console。只有新 release 启动的 Sui Proxy 才会采集对话；已有代理需等正常换代，或在确认 Job 状态后通过 Hold/Resume 换代。旧代理没有留存的对话无法补齐。`transcripts/` 属于私有运行数据，随完整状态目录备份，不能提交到代码仓库。查看步骤见 [Console 阅读与会话内容](YAN_CONSOLE.md#阅读字号与会话内容)。
+
 回滚代码同样切回保留的旧 release 后重启，但必须确认旧代码能读取当前 schema。应用会拒绝较新的数据库版本；不能通过降低 user_version 强行降级。需要恢复旧备份时先确保所有相关进程停止，并一起恢复匹配的状态/产物。持久字段含绝对 workspace/产物路径，恢复到另一服务器应维持原绝对路径；跨路径迁移尚无自动工具。新主机不能恢复已丢失的物理进程，旧 Job 应核验为 UNKNOWN，不会自动复活训练。
 
 不要删除旧 release，直到旧代理和 Runner 全部退出；它们可能仍在使用旧解释器/包。`KillMode=process` 只影响该 Controller unit 的停机动作，不能保证服务器重启、用户管理器退出、其他 cgroup 管理或容器销毁时进程存活。

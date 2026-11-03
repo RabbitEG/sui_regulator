@@ -27,6 +27,10 @@ flowchart TB
     C -->|按证据与预算分配| P2
     P <-->|Sui Proxy Protocol<br/>声明 / Job 意图 / Handoff| Ledger
     P2 <-->|继承同一 Task，连接已有 Job| Ledger
+    Transcript[(私有会话记录 / JSONL<br/>输入 · 可见输出 · 工具轨迹<br/>每代 4 MiB，不进入恢复上下文)]
+    P -->|包装进程按流采集| Transcript
+    P2 -->|新代际独立记录| Transcript
+    Gateway -->|只读游标查询| Transcript
     Detect[Failure Registry + Detection Engine<br/>确定性检测 / 结构化 Incident]
     P -->|Wrapper 增量与工具事件| Detect
     C -->|进程 / 心跳 / 进展事实| Detect
@@ -50,6 +54,7 @@ Controller 与 Candleholder 是同一独立控制进程中的协调与监控职�
 - `failures/`：与进程登记不同的版本化故障库、固定检测算法、Claude 事件解码、Incident 持久化/恢复和离线重放；详见 FAILURE_ARCHITECTURE.md。
 - `controller.py`：单实例 flock；先协调 Job，再检查 Sui Proxy，回收后增 generation，新 Sui Proxy 从账本取上下文。
 - `console.py` / `static/`：独立 localhost Web 进程和原生前端，复用 Yan RPC；快照缓存、离线提示与人工指令回执，不直接打开 SQLite 或管理进程。
+- `transcripts.py`：包装进程采集有界、脱敏的会话记录；Yan 按 Task/Proxy 归属只读分页查询。记录与账本状态分离，界面分别展示对话、进程身份与 Runner 事实，详见 [会话阅读器](SESSION_READER_DELIVERY.md)。
 - `gateway.py` / `cli.py` / `mcp.py`：共享领域服务；Unix socket 基于文件权限和 Linux SO_PEERCRED 授权；MCP stdio 从受管启动环境取得 Sui Proxy 凭据。
 
 ## 副作用与崩溃窗口

@@ -42,10 +42,16 @@ def run_proxy(config, credentials):
     from .failures.persistence import publish
 
     service, engine = Service(config), DetectionEngine(session_id=credentials.worker_id)
+    from .transcripts import SessionRecorder
+
+    recorder = SessionRecorder(config, credentials, "synthetic-console-drill")
     protocol = SuiProxyProtocol(service)
     task = protocol.claim_task(credentials)
+    recorder.write("text", "user", task["objective"], message_id="initial-input")
+    recorder.write("text", "assistant", "[合成故障演示] 第一代代理将连接独立 Job，然后产生重复文本以触发 GEN-001。")
     job = protocol.launch_job(credentials, "primary-trial", task["spec"])
     protocol.attach_job(credentials, job["id"])
+    recorder.write("tool_result", "tool", encode({"job_id": job["id"], "status": job["status"]}), tool_name="launch_job")
     protocol.report_progress(
         credentials,
         phase="WAITING_JOB",
@@ -58,6 +64,7 @@ def run_proxy(config, credentials):
         protocol.heartbeat(credentials)
         time.sleep(0.1)
     for _ in range(8):
+        recorder.write("text", "assistant", "echo " * 8, message_id="synthetic-repetition")
         protocol.heartbeat(credentials)
         incidents = engine.feed(
             Observation(

@@ -36,6 +36,10 @@ const empty = (title, message='') => `<div class='empty'>${icon('overview')}<p>$
 const details = (name, value, key=name) => `<details class='json-details' data-preserve='${esc(key)}'><summary>${esc(name)}</summary><pre>${esc(JSON.stringify(value,null,2))}</pre></details>`;
 const panel = (title, body, subtitle='', action='') => `<section class='panel'><div class='panel-head'><h2>${title}${subtitle ? `<span>${subtitle}</span>` : ''}</h2>${action}</div>${body}</section>`;
 const state={snapshot:null,transport:null,readMono:0,offset:0,limit:20,search:'',filter:'',task:null,incident:null,events:[],jobId:null,jobData:null,receipts:[],workspaceId:null,paused:false,interval:5000,loading:false,pending:false,error:null,failures:0,modal:null,submitting:false};
+Object.assign(state,{transcript:null,transcriptItems:[],transcriptAfter:0,transcriptError:null,transcriptDiscarded:0,transcriptFilter:'all',followTranscript:true});
+try {const size=localStorage.getItem('yan-console-text-size');if(['normal','large','xlarge'].includes(size)) document.documentElement.dataset.textSize=size;}catch(_){}
+$('reading-size').value=document.documentElement.dataset.textSize || 'normal';
+$('reading-size').addEventListener('change',e=>{document.documentElement.dataset.textSize=e.target.value;try{localStorage.setItem('yan-console-text-size',e.target.value);}catch(_){}});
 let timer, toastTimer;
 function selectWorkspace(id){
   if(state.workspaceId===id) return;
@@ -85,7 +89,19 @@ async function refresh(){
         const rows=await rpc('get_incidents',{task_id:r[1],after:Number(r[2])-1,limit:1});
         if(rows[0]?.sequence!==Number(r[2])) throw new Error('此 Incident 不存在。');state.incident=rows[0];
       }
-      state.task=await rpc('get_task',{task_id:r[1]});
+      const task=await rpc('get_task',{task_id:r[1]});if(key!==location.hash) return;state.task=task;
+      if(r[0]==='sessions' && r[2]){
+        try {
+          const transcript=await rpc('get_proxy_transcript',{task_id:r[1],proxy_id:r[2],after:state.transcriptAfter,limit:40});
+          if(key!==location.hash) return;
+          state.transcript=transcript;state.transcriptError=null;
+          const known=new Set(state.transcriptItems.map(item=>item.id));
+          state.transcriptItems.push(...transcript.items.filter(item=>!known.has(item.id)));
+          const excess=Math.max(0,state.transcriptItems.length-400);state.transcriptDiscarded+=excess;
+          if(excess) state.transcriptItems.splice(0,excess);
+          state.transcriptAfter=transcript.next_after;
+        }catch(e){if(key!==location.hash) return;state.transcriptError=e.message;}
+      }
       if(r[0]==='tasks' || r[0]==='sessions'){
         const after=state.events.length ? state.events[state.events.length-1].id:0;
         const events=await rpc('get_events',{task_id:r[1],after,limit:50});
@@ -120,6 +136,7 @@ function updateHealth(){
   $('side-state').textContent=healthy ? 'Candleholder 正常':label;$('side-dot').className='dot '+(healthy ? 'green':color==='red' ? 'red':'');
   const banner=$('connection-banner');banner.hidden=!message;banner.textContent=message+(state.error ? ' '+state.error:'');
   $('updated-at').textContent=state.snapshot ? '最后读取 '+fmt(state.snapshot.queried_at)+(healthy ? ' · 自动同步':' · 快照'):'尚未读取账本';
+  const evidenceState=document.querySelector('[data-evidence-fresh]');if(evidenceState) evidenceState.textContent=healthy ? '查询时核验':'历史快照 · 待重新核验';
   document.querySelectorAll('[data-requires-live]').forEach(el=>el.disabled=!canControl() || el.dataset.eligible==='false');
 }
 function pager(){const s=state.snapshot;return `<div class='pagination'><span>${s.total ? `${s.offset+1}–${Math.min(s.offset+s.limit,s.total)}`:'0'} / 共 ${s.total} 条 · 新记录优先</span><div class='actions'><button class='button secondary' data-page='prev' ${s.offset===0 ? 'disabled':''}>上一页</button><button class='button secondary' data-page='next' ${s.offset+s.limit>=s.total ? 'disabled':''}>下一页</button></div></div>`;}
@@ -141,7 +158,7 @@ function listView(section){
   let headers,rows;
   if(section==='sessions'){
     headers=['Sui Proxy / Session','关联 Task','Generation','运行状态','最近心跳','运行时长',''];
-    rows=items.map(p=>`<tr><td><a class='row-title mono' href='${proxyLink(p)}'>${esc(short(p.id))}</a><span class='sub'>${esc(short(p.session_id))} · ${esc(p.adapter)}</span></td><td>${taskLink(p.task_id,p.task_title)}<span class='sub'>${p.incident_count} Incident</span></td><td class='mono'>G${p.generation}${p.is_current ? '<span class="sub">CURRENT</span>':''}</td><td>${badge(p.health==='HISTORICAL' ? p.status:p.health,p.health==='HEALTHY')}</td><td class='nowrap'>${clock(p.heartbeat_at)}<span class='sub'>${duration(p.heartbeat_age_seconds)}前</span></td><td class='nowrap'>${duration(p.runtime_seconds)}</td><td><a class='table-link' href='${proxyLink(p)}'>详情 ${icon('arrow')}</a></td></tr>`).join('');
+    rows=items.map(p=>`<tr><td><a class='row-title mono' href='${proxyLink(p)}'>${esc(short(p.id))}</a><span class='sub'>${esc(short(p.session_id))} · ${esc(p.adapter)}</span></td><td>${taskLink(p.task_id,p.task_title)}<span class='sub'>${p.incident_count} Incident</span></td><td class='mono'>G${p.generation}${p.is_current ? '<span class="sub">CURRENT</span>':''}</td><td>${badge(p.health==='HISTORICAL' ? p.status:p.health,p.health==='HEALTHY')}</td><td class='nowrap'>${clock(p.heartbeat_at)}<span class='sub'>${duration(p.heartbeat_age_seconds)}前</span></td><td class='nowrap'>${duration(p.runtime_seconds)}</td><td><a class='table-link' href='${proxyLink(p)}'>查看对话 ${icon('arrow')}</a></td></tr>`).join('');
   }else if(section==='tasks') {headers=['Task','执行视图','代理代际','Job / execution','Desired',''];rows=taskRows(items);}
   else {headers=['Incident / 规则','关联 Task','Generation','检测建议','最终动作','应用结果',''];rows=items.map(i=>`<tr><td><a class='row-title mono' href='${incidentLink(i)}'>${esc(i.rule_id)} / v${i.payload.rule_version}</a><span class='sub'>${clock(i.created_at)} · ${esc(i.payload.category)}</span></td><td>${taskLink(i.task_id,i.task_title)}</td><td class='mono'>G${i.generation}</td><td>${esc(actionNames[i.payload.action] || i.payload.action)}</td><td>${esc(actionNames[i.action] || i.action)}</td><td>${badge(i.status)}</td><td><a class='table-link' href='${incidentLink(i)}'>证据 ${icon('arrow')}</a></td></tr>`).join('');}
   const options=section==='sessions' ? ['HEALTHY','LOST','FROZEN','DELAYED','HISTORICAL']:section==='tasks' ? ['RUNNING','HOLD','WAITING','QUARANTINED','COMPLETED']:['PENDING','APPLIED','OBSERVED','STALE','IGNORED'];
@@ -167,7 +184,37 @@ function proxyDetail(task,id){
   const p=(task.proxies || task.workers).find(p=>p.id===id);if(!p) return empty('此 Sui Proxy 不存在');
   const entries=[['Proxy ID',p.id],['Session UUID',p.session_id],['Generation','G'+p.generation],['运行时',p.adapter],['PID',p.pid],['心跳',fmt(p.heartbeat_at)],['最后活动',fmt(p.activity_at)],['运行时长',duration(p.runtime_seconds)],['创建',fmt(p.created_at)],['退出',fmt(p.ended_at)],['Stream',p.stream_observation],['关联 Task',task.title]];
   const incidents=task.incidents.filter(i=>(i.proxy_id || i.worker_id)===p.id);
-  return `<a class='back-link' href='#/sessions'>${icon('back')}返回代理会话</a><div class='page-heading detail-heading'><div><div class='eyebrow'>SUI PROXY · 岁兽代理人</div><h1>Generation ${p.generation} ${badge(p.health==='HISTORICAL' ? p.status:p.health,p.health==='HEALTHY')}</h1><span class='sub'>${esc(p.id)}</span></div><a class='button secondary' href='#/tasks/${encodeURIComponent(task.id)}'>管理关联 Task ${icon('arrow')}</a></div><div class='detail-columns'><div>${panel('代理身份与活动',`<div class='panel-body'><dl class='kv'>${entries.map(([k,v])=>`<dt>${k}</dt><dd class='mono'>${esc(v)}</dd>`).join('')}</dl><div class='mini-divider'></div><p class='note'>最后活动由 Wrapper / 协议采集，不能单独证明科研进展。进程健康依据登记身份与 lease；离线时仅显示最后快照。</p>${details('登记的进程身份',{proxy:p.identity,runtime:p.child_identity},'identity')}</div>`,'Identity & heartbeat')}${panel('最近故障与处理',incidents.length ? incidents.map(incidentPreview).join(''):empty('此代际暂无故障'))}${p.handoff ? panel('Handoff',`<div class='panel-body'>${details('查看交接内容',p.handoff,'proxy-handoff')}</div>`):''}</div><div>${panel('同一 Task 的代际历史',generationList(task))}${panel('关联 Job',jobsView(task),'Persistent jobs')}</div></div>`;
+  return `<a class='back-link' href='#/sessions'>${icon('back')}返回代理会话</a><div class='page-heading detail-heading'><div><div class='eyebrow'>SUI PROXY · 岁兽代理人</div><h1>Generation ${p.generation} ${badge(p.health==='HISTORICAL' ? p.status:p.health,p.health==='HEALTHY')}</h1><span class='sub'>${esc(p.id)}</span></div><a class='button secondary' href='#/tasks/${encodeURIComponent(task.id)}'>管理关联 Task ${icon('arrow')}</a></div>${executionEvidence(task,p)}${transcriptView(p)}<div class='detail-columns'><div>${panel('代理身份与活动',`<div class='panel-body'><dl class='kv'>${entries.map(([k,v])=>`<dt>${k}</dt><dd class='mono'>${esc(v)}</dd>`).join('')}</dl><div class='mini-divider'></div><p class='note'>最后活动由 Wrapper / 协议采集，不能单独证明科研进展。进程健康依据登记身份与 lease；离线时仅显示最后快照。</p>${details('登记的进程身份',{proxy:p.identity,runtime:p.child_identity},'identity')}</div>`,'Identity & heartbeat')}${panel('最近故障与处理',incidents.length ? incidents.map(incidentPreview).join(''):empty('此代际暂无故障'))}${p.handoff ? panel('Handoff',`<div class='panel-body'>${details('查看交接内容',p.handoff,'proxy-handoff')}</div>`):''}</div><div>${panel('同一 Task 的代际历史',generationList(task))}${panel('关联 Job',jobsView(task),'Persistent jobs')}</div></div>`;
+}
+function executionEvidence(task,p){
+  const verified=live(), processLabel=(exists,osState)=>!verified ? '快照 · 待重新核验':['T','t'].includes(osState) ? '进程冻结':exists===true ? '进程身份匹配':exists===false ? '进程已退出':'没有进程观测';
+  const job=task.jobs.find(j=>j.status==='RUNNING') || task.jobs[0], runtime=p.child_identity;
+  return `<section class='panel execution-evidence' data-execution-evidence><div class='panel-head'><h2>实际运行证据</h2><span><b data-evidence-fresh>${verified ? '查询时核验':'历史快照'}</b> · ${fmt(task.queried_at)}</span></div><div class='evidence-grid'>
+    <article><h3>代理包装进程</h3><strong>${processLabel(p.process_alive,p.process_state)}</strong><p>PID ${esc(p.pid)} · OS ${esc(p.process_state)}</p><span>来源：boot ID / PID / start ticks</span></article>
+    <article><h3>模型运行时</h3><strong>${p.adapter==='mock' ? 'Mock · 未调用真实模型':processLabel(p.runtime_process_alive,p.runtime_process_state)}</strong><p>${p.adapter==='mock' ? '此会话只执行合成演示':'CLI PID '+esc(runtime?.pid)+' · OS '+esc(p.runtime_process_state)}</p><span>Stream：${esc(p.stream_observation)}</span></article>
+    <article><h3>独立 Job</h3><strong>${job ? esc(statusNames[job.status] || job.status):'尚未登记 Job'}</strong><p>${job ? 'PID '+esc(job.pid)+' · '+processLabel(job.process_alive):'巡检 Task 可只调用工具，请核对下方实际返回'}</p><span>Task 共 ${task.execution_count} 条 execution</span></article>
+    <article><h3>Runner 最近观测</h3><strong>${job?.metric?.step!=null ? 'step '+esc(job.metric.step):'尚无指标'}</strong><p>${job ? 'loss '+esc(job.metric?.loss)+' · '+fmt(job.observed_at):'请核对工具返回与实际运行结果'}</p><span>来源：独立 Runner；AI 自述单独记录</span></article>
+    </div><p class='source-note'>进程存在、收到文本、工具返回与 Job 完成是不同事实。以下对话按实际采集内容展示，助手声称“完成”不会改写 Runner 的观测。暂停或离线时所有证据仅为快照。</p></section>`;
+}
+function transcriptView(proxy){
+  const t=state.transcript, roles={user:'任务输入',assistant:'助手',tool:'工具返回',system:'运行时'};
+  const groups=[];
+  for(const item of state.transcriptItems){
+    const previous=groups[groups.length-1];
+    if(item.kind==='text' && item.message_id && previous?.kind==='text' && previous.message_id===item.message_id && previous.role===item.role){previous.text+=item.text;previous.truncated ||= item.truncated;}
+    else groups.push({...item});
+  }
+  const filtered=groups.filter(item=>state.transcriptFilter==='all' || (state.transcriptFilter==='dialogue' ? item.kind==='text':['tool_call','tool_result'].includes(item.kind)));
+  let content=filtered.map(item=>{
+    const title=item.kind==='tool_call' ? '调用 '+(item.tool_name || '工具'):item.kind==='tool_result' ? (item.is_error ? '工具返回 · 失败':'工具返回')+(item.tool_name ? ' · '+item.tool_name:''):roles[item.role] || item.role;
+    const body=['tool_call','tool_result','exit','runtime'].includes(item.kind) ? `<details class='message-tool' data-preserve='message-${item.id}'><summary>${item.kind==='tool_call' ? '查看调用参数':item.kind==='tool_result' ? '查看实际返回':'查看运行时记录'}</summary><pre>${esc(item.text)}</pre>${item.model ? `<p>CLI 报告模型：${esc(item.model)}</p>`:''}</details>`:`<div class='message-text'>${esc(item.text)}</div>`;
+    return `<article class='session-message role-${esc(item.role)}' data-message-role='${esc(item.role)}'><header><strong>${esc(title)}</strong><time>${fmt(item.time)}</time></header>${body}${item.truncated ? '<p class="message-limit">本条内容已截断。</p>':''}<footer>${esc(item.source)}${item.call_id ? ' · call '+esc(item.call_id):''}</footer></article>`;
+  }).join('');
+  if(!content){const missing=t?.availability==='not_recorded';content=empty(missing ? '此会话没有留存对话':t?.availability==='unreadable' ? '会话记录无法读取':state.transcriptFilter!=='all' ? '当前筛选下没有记录':'等待会话输出',missing ? '记录功能只采集升级后启动的新代理。历史元数据仍可查看，不会根据事件编造对话。':'新记录会随自动刷新读取；仅在代理有实际输出时出现。');}
+  const latest=state.transcriptItems.at(-1);
+  return `<section class='panel session-transcript' data-session-transcript><div class='panel-head'><h2>会话对话与工具轨迹</h2><span>${proxy.adapter==='mock' ? '合成演示 · 非真实模型':'Claude CLI 可见输出 · 只读'}</span></div><div class='transcript-toolbar'><label>查看 <select id='transcript-filter'><option value='all' ${state.transcriptFilter==='all' ? 'selected':''}>全部记录</option><option value='dialogue' ${state.transcriptFilter==='dialogue' ? 'selected':''}>任务输入与对话</option><option value='tools' ${state.transcriptFilter==='tools' ? 'selected':''}>工具调用与返回</option></select></label><label><input id='transcript-follow' type='checkbox' ${state.followTranscript ? 'checked':''}> 跟随新消息</label><button class='button secondary small' data-action='transcript'>${t?.has_more ? '继续加载后续记录':'刷新会话记录'}</button></div>
+    ${state.transcriptError ? `<p class='notice warning'>会话记录未刷新：${esc(state.transcriptError)}</p>`:''}${t?.limited ? '<p class="notice warning">本代际记录已达 4 MiB 上限，后续内容未保存。</p>':''}
+    <div class='transcript-list' data-transcript-list tabindex='0' aria-label='会话记录阅读区'>${content}</div><div class='source-note'>最近采集 ${latest ? fmt(latest.time):'—'} · 已加载 ${state.transcriptItems.length} 条${state.transcriptDiscarded ? '（本页已释放更早 '+state.transcriptDiscarded+' 条，可重新进入从头加载）':''}。对话是会话记录，不是 Job 成功证明；工具内容可展开核验。记录为空不代表代理未启动。</div></section>`;
 }
 function incidentDetail(i){const p=i.payload;return `<a class='back-link' href='#/incidents'>${icon('back')}返回故障事件</a><div class='page-heading detail-heading'><div><div class='eyebrow'>INCIDENT DETAIL</div><h1>${esc(i.rule_id)} <span class='muted'>/ v${p.rule_version}</span></h1><span class='sub'>${esc(i.id)} · ${fmt(i.created_at)}</span></div>${badge(i.status)}</div>${panel('从检出到处理',`<div class='incident-flow'><div class='flow-step'><small>01 · Detection Engine 建议</small><h3>${esc(actionNames[p.action] || p.action)}</h3><p>规则建议，尚不代表已执行</p></div><div class='flow-step'><small>02 · Candleholder 最终动作</small><h3>${esc(actionNames[i.action] || i.action)}</h3><p>${i.applied_at ? fmt(i.applied_at):'等待处理'}</p></div><div class='flow-step'><small>03 · 应用结果</small><h3>${esc(i.status)}</h3><p>${esc(statusNames[i.status])} · ${i.status==='APPLIED' ? '控制状态已落盘':'以持久处理回执为准'}</p></div></div>`)}<div class='detail-columns'><div>${panel('检测证据',`<div class='panel-body'><p class='summary'>${esc(p.symptom)}</p><div class='mini-divider'></div><pre class='evidence'>${esc(JSON.stringify(p.evidence,null,2))}</pre><p class='note'>证据保存计数与摘要。confidence 为确定性启发式分数，不是经校准的概率。</p></div>`,'Evidence')}${panel('应用回执',`<div class='panel-body'><pre class='evidence'>${esc(JSON.stringify(i.outcome,null,2))}</pre>${details('完整检测建议',p,'incident-payload')}</div>`,'Outcome')}</div><div>${panel('关联与保护',`<div class='panel-body'><dl class='kv compact'><dt>Task</dt><dd>${taskLink(i.task_id,state.task?.title)}</dd><dt>Sui Proxy</dt><dd><a class='mono' href='#/sessions/${encodeURIComponent(i.task_id)}/${encodeURIComponent(i.proxy_id || i.worker_id)}'>${esc(short(i.proxy_id || i.worker_id))}</a></dd><dt>Generation</dt><dd>G${i.generation}</dd><dt>类别 / 严重度</dt><dd>${esc(p.category)} / ${esc(p.severity)}</dd><dt>推测来源</dt><dd>${esc(p.suspected_origin)}</dd><dt>根因已确认</dt><dd>${p.cause_confirmed ? '是':'否'}</dd><dt>保留 Task / Job</dt><dd>${p.preserve_task && p.preserve_running_jobs ? '是':'见规则'}</dd><dt>恢复预算</dt><dd>${p.max_attempts} 次 / 规则窗口</dd></dl></div>`)}<div class='notice info'>检测建议与最终动作可能不同：预算耗尽、结果未决或用户意图会阻止自动接管。</div></div></div>`;}
 function render(){
@@ -177,12 +224,14 @@ function render(){
   if(state.snapshot){const c=state.snapshot.counts;$('nav-sessions').textContent=sum(c.workers);$('nav-tasks').textContent=sum(c.tasks);$('nav-incidents').textContent=sum(c.incidents);}
   const focused=document.activeElement,focusId=focused?.id,selection=focused?.selectionStart;
   const open=[...document.querySelectorAll('details[open][data-preserve]')].map(el=>el.dataset.preserve);
+  const transcriptScroll=document.querySelector('[data-transcript-list]')?.scrollTop || 0;
   let html;
   if(!state.snapshot) html=empty(state.error ? '无法读取账本':'等待 Controller 连接',state.error || '启动同一状态目录的 Controller 后，点击立即刷新。');
   else if(r.length>1) html=state.task ? (r[0]==='tasks' ? taskDetail(state.task):r[0]==='sessions' ? proxyDetail(state.task,r[2]):state.incident ? incidentDetail(state.incident):empty('正在读取故障详情…')):empty('正在读取详情…',state.error || '');
   else html=r[0]==='overview' ? overview():listView(r[0]);
   $('main').innerHTML=(state.error && state.snapshot ? `<div class='notice warning'>${esc(state.error)}</div>`:'')+html;
   document.querySelectorAll('[data-preserve]').forEach(el=>{if(open.includes(el.dataset.preserve)) el.open=true;});
+  const reader=document.querySelector('[data-transcript-list]');if(reader) reader.scrollTop=state.followTranscript ? reader.scrollHeight:transcriptScroll;
   if(focusId && $(focusId) && ['list-search','list-filter'].includes(focusId)){ $(focusId).focus({preventScroll:true});if(selection!=null && $(focusId).setSelectionRange) $(focusId).setSelectionRange(selection,selection);}
   updateHealth();renderReceipts();
 }
@@ -221,14 +270,17 @@ document.addEventListener('click',e=>{
   const page=e.target.closest('[data-page]');if(page && !page.disabled){state.offset=Math.max(0,state.offset+(page.dataset.page==='next' ? state.limit:-state.limit));refresh();}
   const job=e.target.closest('[data-job]');if(job){state.jobId=job.dataset.job;state.jobData=null;refresh();}
   if(e.target.closest('[data-action="events"]')) refresh();
+  if(e.target.closest('[data-action="transcript"]')) refresh();
 });
 document.addEventListener('input',e=>{if(e.target.id==='list-search'){state.search=e.target.value;render();}});
 document.addEventListener('change',e=>{if(e.target.id==='list-filter'){state.filter=e.target.value;render();}});
+document.addEventListener('change',e=>{if(e.target.id==='transcript-filter'){state.transcriptFilter=e.target.value;render();}if(e.target.id==='transcript-follow'){state.followTranscript=e.target.checked;render();}});
+document.addEventListener('scroll',e=>{const el=e.target;if(el.matches?.('[data-transcript-list]') && el.scrollTop+el.clientHeight<el.scrollHeight-40){state.followTranscript=false;if($('transcript-follow')) $('transcript-follow').checked=false;}},true);
 $('refresh-now').addEventListener('click',refresh);
 $('pause-refresh').addEventListener('click',()=>{state.paused=!state.paused;$('pause-refresh').innerHTML=icon(state.paused ? 'play':'pause')+`<span>${state.paused ? '恢复':'暂停'}</span>`;if(state.paused) clearTimeout(timer);else refresh();updateHealth();});
 $('refresh-interval').addEventListener('change',e=>{state.interval=Number(e.target.value);schedule();updateHealth();});
 $('receipt-toggle').addEventListener('click',()=>$('receipts').hidden=!$('receipts').hidden);$('receipt-close').addEventListener('click',()=>$('receipts').hidden=true);
 const closeDialog=()=>{if(!state.submitting) $('command-dialog').close();};$('dialog-close').addEventListener('click',closeDialog);$('dialog-cancel').addEventListener('click',closeDialog);$('command-dialog').addEventListener('cancel',e=>{if(state.submitting)e.preventDefault();});$('command-form').addEventListener('submit',submitCommand);
-window.addEventListener('hashchange',()=>{state.offset=0;state.search='';state.filter='';state.task=null;state.incident=null;state.events=[];state.jobId=null;state.jobData=null;state.error=null;$('main').innerHTML='<div class="loading"><span class="loading-dot"></span>正在读取账本…</div>';refresh();});
+window.addEventListener('hashchange',()=>{state.offset=0;state.search='';state.filter='';state.task=null;state.incident=null;state.events=[];state.jobId=null;state.jobData=null;state.error=null;state.transcript=null;state.transcriptItems=[];state.transcriptAfter=0;state.transcriptError=null;state.transcriptDiscarded=0;state.transcriptFilter='all';state.followTranscript=true;$('main').innerHTML='<div class="loading"><span class="loading-dot"></span>正在读取账本…</div>';refresh();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);updateHealth();}else if(!state.paused) refresh();});
 setInterval(updateHealth,1000);renderReceipts();refresh();

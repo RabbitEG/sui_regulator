@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "checks": {
+    "session_link_opens_recorded_dialogue_and_actual_process_evidence": true,
+    "default_body_and_conversation_font_at_least_17px": true,
+    "reading_size_persists_across_reload": true,
+    "tool_result_contains_the_actual_persistent_job_id": true,
+    "new_records_append_without_overwriting_manual_read_position": true,
+    "assistant_claim_and_html_do_not_change_job_truth_or_execute_script": true,
+    "conversation_and_tool_filters_are_read_only": true,
+    "bounded_cursor_pagination_loads_later_records": true,
+    "pausing_stops_transcript_requests_and_downgrades_evidence_freshness": true,
+    "retired_generation_retains_its_own_record_and_same_job": true,
+    "uncaptured_history_is_explicit_and_never_fabricated": true,
+    "mobile_normal_and_extra_large_text_have_no_page_overflow": true,
+    "os_frozen_proxy_is_shown_separately_from_running_job": true,
+    "controller_offline_keeps_recorded_dialogue_but_no_live_proof": true,
+    "no_javascript_errors_or_external_page_requests": true
+  },
+  "javascript_errors": [],
+  "external_page_requests": [],
+  "real_glm_tested": false,
+  "scope": "actual browser/HTTP/Unix RPC, private synthetic processes; no API response stubs"
+}

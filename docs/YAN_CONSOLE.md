@@ -46,11 +46,27 @@ PYTHONPATH=src python3.11 -m sui_regulator console-demo --port 8765 --state-dir 
 | 页面 | 内容 |
 |---|---|
 | Overview / 总览 | 全局真实计数、最近 Incident、控制事件、Candleholder 最近完成 tick 与进程信息 |
-| Sui Proxies / 代理会话 | 包含历史代际的分页列表、身份、Task、Generation、lease/心跳、进程冻结/失联、运行时长；详情含最后活动、Handoff、最近故障和换代历史 |
+| Sui Proxies / 代理会话 | 点击代理 ID 或“查看对话”，阅读本代际的任务输入、助手输出、工具调用/返回；详情另有进程证据、Task、Generation、心跳、Handoff、故障和换代历史 |
 | Tasks / 持久任务 | Desired、Declared（未核验 AI 声明）、Observed（Runner 观测）分别呈现；Job/PID、execution 数、指标、事件及人工干预 |
 | Incidents / 故障事件 | 规则版本、证据与来源；检测建议、最终动作、应用结果/outcome 分开显示 |
 
 列表按新记录优先分页，每页 20 条，搜索和状态筛选明确作用于本页。历史事件按 Event ID 增量读取，界面最多保留已加载的最近 500 条，可继续加载后续事件；Incident 历史通过已有游标接口查询。底层 get_task 的完整关联记录仍受既有 RPC 响应大小上限约束，过大时显示查询错误，不会静默省略或伪造记录。
+
+## 阅读字号与会话内容
+
+默认正文和对话约 18px；顶部“字号”支持舒适、大字、特大，选择保存在本浏览器。表格、标签和元数据一同缩放，手机上的证据和身份信息纵向排列。
+
+从“代理会话”点击代理 ID 或“查看对话”，也可从 Task 的代际历史进入任一旧代理。上方“实际运行证据”分别展示包装进程身份、模型 CLI 进程、独立 Job 与 Runner 指标及查询时间；下面是该代际独立的对话与工具轨迹。Mock 明确标记为合成演示；Claude 记录来自实际 CLI 的主会话可见输出，忽略 thinking 块。
+
+工具参数和实际返回可展开；可筛选对话或工具、关闭“跟随新消息”后向上阅读。自动刷新保留手动阅读位置，暂停全局刷新也停止会话轮询；Controller 离线时保留已读取内容并标为历史快照。记录按字节游标分页，页面最多保留 400 条，释放更早内容时有提示，可重新进入从头读取。
+
+**记录只从升级后启动的新 Sui Proxy 开始。** 未采集的旧会话显示“此会话没有留存对话”；不会根据事件拼出对话。每代记录最多 4 MiB，单条最多 8000 字符，达到上限或截断会明确提示。原始记录在私有状态目录 `transcripts/`；Console 经只读 Yan RPC 查询，不直接读文件或 SQLite。
+
+核验时请分别看：进程身份是否匹配、CLI 是否存在或被冻结、工具返回的实际内容，以及 Job 的 Runner 状态/指标。仅有心跳或助手宣称“完成”不能证明任务已经完成。巡检 Task 可以只执行受管工具而没有独立 Job，此时应查看具体调用与返回；缺少 Job 记录本身不代表模型没有运行。
+
+升级 Controller 和 Console 后，已有代理仍运行原 release，需等待正常换代，或在核对 Job 后通过明确确认的 Hold → Resume 让 Task 生成新代理，才会开始采集。只读阅读器不向 Session 直接发送聊天消息；人工追加要求仍走 Task 的 Instruct 与 Command Receipt。
+
+截图：[会话与工具返回](screenshots/session-reader/conversation.png) · [上一代会话](screenshots/session-reader/previous-generation.png) · [手机大字](screenshots/session-reader/mobile-large.png) · [进程冻结](screenshots/session-reader/frozen-process.png) · [离线快照](screenshots/session-reader/offline-snapshot.png)。本轮验收见 [交付记录](SESSION_READER_DELIVERY.md)。
 
 ## 人工干预与回执
 

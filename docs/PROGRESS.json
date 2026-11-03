@@ -282,5 +282,25 @@
       "demo_port": "private free loopback port",
       "runtime_code_changes": false
     }
+  },
+  "console_readability_and_transcripts": {
+    "status": "complete",
+    "evidence": [
+      "docs/SESSION_READER_DELIVERY.md",
+      "docs/session-reader-test-output.txt",
+      "docs/session-reader-browser-report.json",
+      "docs/screenshots/session-reader",
+      "tests/test_transcripts.py",
+      "scripts/verify_session_reader.py",
+      "docs/session-reader-verification.json"
+    ],
+    "verification": {
+      "python311_passed": 107,
+      "native_cli_loopback_tests": 4,
+      "browser_checks": 30,
+      "default_font_px": 18.02,
+      "real_glm_tested": false,
+      "schema_migrations": 0
+    }
   }
 }
