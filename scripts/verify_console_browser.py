@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--browser", default="/usr/bin/chromium-browser")
     parser.add_argument("--output", type=Path, default=ROOT / "docs/screenshots")
+    parser.add_argument("--report", type=Path, default=ROOT / "docs/console-browser-report.json")
     args = parser.parse_args()
     from playwright.sync_api import expect, sync_playwright
 
@@ -89,6 +90,7 @@ def main():
         visit(f"tasks/{recovery['id']}", recovery["title"])
         for label in ("DESIRED STATE", "DECLARED STATE", "OBSERVED STATE"):
             expect(page.locator("main")).to_contain_text(label)
+        page.get_by_role("tab", name="执行核验").click()
         page.locator("[data-job]").first.click()
         expect(page.locator(".metric-chart")).to_be_visible(timeout=10000)
         screenshot("task-detail.png")
@@ -105,6 +107,12 @@ def main():
         demo.wait(lambda: demo.service.get_task(recovery["id"])["desired"] == "HOLD")
         expect(page.locator("#receipt-list")).to_contain_text("已应用", timeout=15000)
         assert alive(original_job["identity"])
+        page.locator("#receipt-list details").first.locator("summary").click()
+        with page.expect_response(lambda r: "/api/snapshot" in r.url, timeout=15000):
+            pass  # The normal polling interval must not close the result being read.
+        expect(page.locator("main")).to_have_attribute("aria-busy", "false")
+        expect(page.locator("#receipt-list details").first).to_have_attribute("open", "")
+        checks["automatic_refresh_preserves_expanded_command_result"] = True
         page.locator("#receipt-close").click()
         page.locator("[data-command='resume_task']").click()
         page.get_by_role("button", name="确认 Resume", exact=True).click()
@@ -148,6 +156,7 @@ def main():
         expect(page.locator("#controller-badge")).to_contain_text("在线", timeout=10000)
         checks["refresh_pause_stops_requests_and_resume_restores_reads"] = True
         visit(f"tasks/{demo.tasks['unknown']}", "未知作业结果核验")
+        page.get_by_role("tab", name="执行核验").click()
         expect(page.locator("main")).to_contain_text("结果未知")
         expect(page.locator("main")).to_contain_text("禁止自动重启")
         checks["unknown_job_is_not_success_or_live_training"] = True
@@ -186,7 +195,8 @@ def main():
             "synthetic": True,
             "real_model_api": False,
         }
-        (ROOT / "docs/console-browser-report.json").write_text(
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(
             json.dumps(report, ensure_ascii=False, indent=2) + "\n"
         )
         print(json.dumps(report, ensure_ascii=False))

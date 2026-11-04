@@ -17,9 +17,11 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--browser", default="/usr/bin/chromium-browser")
+    parser.add_argument("--output", type=Path, default=ROOT / "docs/screenshots/task-brief")
+    parser.add_argument("--report", type=Path, default=ROOT / "docs/task-brief-browser-report.json")
     args = parser.parse_args()
 
-    output = ROOT / 'docs/screenshots/task-brief'
+    output = args.output
     output.mkdir(parents=True, exist_ok=True)
     errors = []
     with ConsoleDemo(port=0) as demo, sync_playwright() as p:
@@ -63,7 +65,8 @@ def main():
     report = {'passed': True, 'checks': ['real_submit_receipt', 'full_multiline_brief_persisted',
               'criteria_displayed', 'real_recovery_policy_receipt', 'policy_does_not_resume_hold', 'hold_preserves_created_task', 'no_browser_errors'],
               'scope': 'Mock UI and real local control plane; no real model or training'}
-    (ROOT / 'docs/task-brief-browser-report.json').write_text(json.dumps(report, indent=2) + '\n')
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
 
 

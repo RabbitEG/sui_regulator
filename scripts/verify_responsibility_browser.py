@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--browser", default="/usr/bin/chromium-browser")
     parser.add_argument("--output", type=Path, default=ROOT / "docs/screenshots/responsibility")
+    parser.add_argument("--report", type=Path, default=ROOT / "docs/responsibility-browser-report.json")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     errors, checks = [], []
@@ -42,8 +43,10 @@ def main():
         demo.wait(lambda: demo.service.get_task(tid)["history_refs"]["instructions"]["total"] == 15)
         page.goto(demo.url + "#/tasks/" + tid)
         expect(page.locator("#controller-badge")).to_contain_text("在线")
+        page.get_by_role("tab", name="敕令回执").click()
         expect(page.locator("main")).to_contain_text("入账成功不代表已交付")
         expect(page.locator("main")).to_contain_text("未确认")
+        page.get_by_role("tab", name="历史案卷").click()
         page.locator('[data-history="instructions"]').click()
         expect(page.locator("[data-history-panel]")).to_contain_text("当前 10 条")
         page.locator("[data-after]").click()
@@ -66,6 +69,7 @@ def main():
         )
         page.locator("#receipt-close").click()
         page.locator("#refresh-now").click()
+        page.get_by_role("tab", name="敕令回执").click()
         expect(page.locator("main")).to_contain_text("已读 ACK 是代理声明")
         assert all(r["acknowledged_at"] for r in demo.service.get_task(tid)["instruction_delivery"])
         checks.append("mock_proxy_explicit_ack_on_same_api_execution_unknown")
@@ -126,7 +130,8 @@ def main():
         "checks": checks,
         "scope": "Real local control plane and Chromium; synthetic Proxy read declarations; no real GLM",
     }
-    (ROOT / "docs/responsibility-browser-report.json").write_text(json.dumps(report, indent=2) + "\n")
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report))
 
 

@@ -1,4 +1,4 @@
-# README 的《明日方舟》素材
+# README 与 Yan Console 的《明日方舟》素材
 
 [项目首页](../../../README.md) · [典故与命名参考](../../LORE_AND_REFERENCES.md)
 
@@ -11,6 +11,8 @@
 | 左乐模组「秉烛人的记录」· SBL-Y | [zuo-le-module-y.png](zuo-le-module-y.png) | [PRTS 左乐模组](https://prts.wiki/w/左乐#模组) | [原始 PNG](https://torappu.prts.wiki/assets/uniequip_img/uniequip_003_zuole.png) |
 
 首页将长匣放在题辞旁，将左乐头像放在“秉烛人”一节，将卷册放在“案卷”一节。图像仅点缀项目叙述；软件角色的含义以 [命名体系](../../NAMING.md) 为准。
+
+Yan Console 的值守总览使用卷册的小幅点缀，对应文件为 [`src/sui_regulator/static/zuo-le-records.png`](../../../src/sui_regulator/static/zuo-le-records.png)，与此处的 `zuo-le-module-y.png` 字节完全一致。它随 Python 包安装、由 localhost 静态路由提供；页面无需请求外部素材站。Console 页脚保留来源与权利说明；印章式 SVG 图标为项目自绘。
 
 ## 权利归属
 
