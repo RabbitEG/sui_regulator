@@ -88,6 +88,40 @@ class TranscriptTests(ProcessTestCase):
         self.recorder.flush()
         self.assertEqual("".join(r["text"] for r in self.read()["items"]), "live-observation " * 60)
 
+    def test_thinking_records_measured_duration_without_private_content(self):
+        def event(**value):
+            self.feed({"type": "stream_event", "event": value})
+
+        event(type="message_start", message={"id": "timed"})
+        with patch("sui_regulator.transcripts.time.monotonic", return_value=100):
+            event(type="content_block_start", index=0,
+                  content_block={"type": "thinking", "thinking": "private initial thought"})
+        event(type="content_block_delta", index=0,
+              delta={"type": "thinking_delta", "thinking": "private streamed thought"})
+        with patch("sui_regulator.transcripts.time.monotonic", return_value=115.25):
+            event(type="content_block_stop", index=0)
+        event(type="message_stop")
+        self.recorder.close()
+        rows = self.read()["items"]
+        self.assertEqual([r["phase"] for r in rows], ["started", "completed"])
+        self.assertEqual(float(rows[1]["duration_ms"]), 15250)
+        self.assertEqual(rows[0]["activity_id"], rows[1]["activity_id"])
+        self.assertNotIn("private", json.dumps(rows))
+        self.assertTrue(all(r["text"] == "" for r in rows))
+
+    def test_stream_close_marks_unfinished_thinking_interrupted_once(self):
+        self.feed({"type": "stream_event", "event": {
+            "type": "content_block_start", "index": 1,
+            "content_block": {"type": "redacted_thinking", "data": "private signature"},
+        }})
+        self.recorder.flush(final=False)
+        self.assertEqual(len(self.read()["items"]), 1)
+        self.recorder.close()
+        self.recorder.close()
+        rows = self.read()["items"]
+        self.assertEqual([r["phase"] for r in rows], ["started", "interrupted"])
+        self.assertNotIn("signature", json.dumps(rows))
+
     def test_history_absence_and_capture_failure_do_not_change_task(self):
         before = self.service.get_task(self.task_id)["status"]
         self.assertEqual(self.read()["availability"], "not_recorded")

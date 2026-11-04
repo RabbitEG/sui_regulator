@@ -21,7 +21,7 @@ QUERY_FIELDS = {
     "get_task_records": {"task_id", "collection", "after", "limit", "record_id"},
     "get_proxy_transcript": {"task_id", "proxy_id", "after", "limit"},
     "get_console_snapshot": {"section", "offset", "limit"},
-    "get_incidents": {"task_id", "after", "limit"},
+    "get_incidents": {"task_id", "proxy_id", "after", "limit"},
     "get_overview": set(),
     "list_tasks": set(),
     "get_task": {"task_id"},
@@ -144,6 +144,8 @@ def request_schema() -> dict:
                 if name == "get_events"
                 else ["task_id", "collection"]
                 if name == "get_task_records"
+                else ["task_id"]
+                if name == "get_incidents"
                 else sorted(field for field in properties if field.endswith("_id"))
             )
         variants.append(
@@ -217,6 +219,8 @@ class Dispatcher:
                 )
                 if kind == "get_task_records":
                     required = {"task_id", "collection"}
+                if kind == "get_incidents":
+                    required = {"task_id"}
                 if not required <= params.keys():
                     raise DomainError("INVALID_ARGUMENT", "missing query identifier")
                 for key, value in params.items():

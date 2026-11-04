@@ -31,7 +31,7 @@ python3.11 -m sui_regulator schema
 | yan.get_experiment | experiment_id |
 | yan.get_command_status | command_id |
 | yan.get_events | 可选 task_id、after（Event ID）、limit（1–1000） |
-| yan.get_incidents | task_id、可选 after（sequence 游标，默认 0）、limit（1–1000，默认 100） |
+| yan.get_incidents | task_id、可选 proxy_id（只查本任务指定代理）、after（sequence 游标，默认 0）、limit（1–1000，默认 100） |
 | yan.get_console_snapshot | 可选 section（overview/sessions/tasks/incidents）、offset、limit（1–100，默认 50） |
 | yan.get_proxy_health | task_id；规范角色名为 Sui Proxy，get_worker_health 是兼容别名 |
 | yan.get_proxy_transcript | task_id、proxy_id；可选 after（文件字节游标，默认 0）、limit（1–50，默认 40） |

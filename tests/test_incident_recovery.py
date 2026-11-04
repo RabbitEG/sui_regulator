@@ -175,6 +175,18 @@ class IncidentPolicyTests(ProcessTestCase):
             "tester",
         )
         self.assertEqual(response["result"][0]["id"], records[1]["id"])
+        response = Dispatcher(self.service).dispatch(
+            {"protocol_version": "0.1", "method": "yan.get_incidents",
+             "params": {"task_id": tid, "proxy_id": records[0]["worker_id"], "limit": 1}}, "tester",
+        )
+        self.assertEqual([r["id"] for r in response["result"]], [records[0]["id"]])
+        self.assertEqual(list_incidents(self.service, tid, after=records[0]["sequence"],
+                                        proxy_id=records[0]["worker_id"]), [])
+        response = Dispatcher(self.service).dispatch(
+            {"protocol_version": "0.1", "method": "yan.get_incidents",
+             "params": {"task_id": self.submit(), "proxy_id": records[0]["worker_id"]}}, "tester",
+        )
+        self.assertEqual(response["error"]["code"], "NOT_FOUND")
 
     def test_unresolved_job_outcome_blocks_automatic_fresh_session(self):
         tid = self.submit(adapter="unavailable")

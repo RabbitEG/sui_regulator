@@ -45,16 +45,24 @@ def publish(service: Service, credentials: Credentials, incidents: list[Incident
                 )
 
 
-def list_incidents(service: Service, task_id: str, after: int = 0, limit: int = 100) -> list[dict]:
+def list_incidents(service: Service, task_id: str, after: int = 0, limit: int = 100,
+                   proxy_id: str | None = None) -> list[dict]:
     if type(after) is not int or after < 0 or type(limit) is not int or not 1 <= limit <= 1000:
         raise ValueError("invalid incident pagination")
     if not service.store.rows("SELECT 1 FROM tasks WHERE id=?", (task_id,)):
         raise DomainError("NOT_FOUND", "tasks: entity not found")
+    if proxy_id is not None:
+        if not isinstance(proxy_id, str):
+            raise DomainError("INVALID_ARGUMENT", "invalid Sui Proxy identity")
+        if not service.store.rows("SELECT 1 FROM workers WHERE id=? AND task_id=?", (proxy_id, task_id)):
+            raise DomainError("NOT_FOUND", "Sui Proxy does not belong to this Task")
+    clause = " AND worker_id=?" if proxy_id is not None else ""
+    values = (task_id, after, proxy_id, limit) if proxy_id is not None else (task_id, after, limit)
     return [
         unpack(row)
         for row in service.store.rows(
-            "SELECT rowid AS sequence,* FROM incidents WHERE task_id=? AND rowid>? ORDER BY rowid LIMIT ?",
-            (task_id, after, limit),
+            "SELECT rowid AS sequence,* FROM incidents WHERE task_id=? AND rowid>?" + clause + " ORDER BY rowid LIMIT ?",
+            values,
         )
     ]
 

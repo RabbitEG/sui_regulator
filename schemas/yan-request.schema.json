@@ -196,6 +196,11 @@
               "minimum": 1,
               "type": "integer"
             },
+            "proxy_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
             "task_id": {
               "maxLength": 128,
               "minLength": 1,

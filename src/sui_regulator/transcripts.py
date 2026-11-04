@@ -61,7 +61,7 @@ class SessionRecorder:
             value for key, value in os.environ.items() if SECRET_FIELD.search(key)
         ]
         self.disabled = False
-        self.message_id, self.buffers, self.tools = "", {}, {}
+        self.message_id, self.buffers, self.tools, self.activities = "", {}, {}, {}
         self.seen, self.streamed = deque(maxlen=512), deque(maxlen=128)
         self.last_flush = time.monotonic()
         self.serial = 0
@@ -123,6 +123,19 @@ class SessionRecorder:
         except (ValueError, TypeError, AttributeError, KeyError, RecursionError):
             return
 
+    def _finish_activity(self, index, phase="completed"):
+        activity = self.activities.pop(index, None)
+        if activity:
+            self.write("activity", "system", "", activity="thinking", phase=phase,
+                       activity_id=activity["id"], started_at=activity["time"],
+                       duration_ms=round(max(0, time.monotonic() - activity["mono"]) * 1000))
+
+    def close(self):
+        """Finish capture without treating an interrupted stream as completed thinking."""
+        self.flush()
+        for index in list(self.activities):
+            self._finish_activity(index, "interrupted")
+
     def _feed(self, value):
         self.serial += 1
         kind = value.get("type")
@@ -134,7 +147,7 @@ class SessionRecorder:
         elif kind == "stream_event":
             event = value.get("event", {})
             if event.get("type") == "message_start":
-                self.flush()
+                self.close()
                 self.message_id = str(event.get("message", {}).get("id", "stream"))
                 self.tools.clear()
             index = event.get("index", 0)
@@ -142,6 +155,15 @@ class SessionRecorder:
                 block = event.get("content_block", {})
                 if block.get("type") == "tool_use" and len(self.tools) < 32:
                     self.tools[index] = {**block, "partial": ""}
+                elif block.get("type") in {"thinking", "redacted_thinking"} and len(self.activities) < 32:
+                    self.flush()
+                    self._finish_activity(index, "interrupted")
+                    activity = {"id": f"{self.message_id}:{index}:{self.serial}",
+                                "time": time.time(), "mono": time.monotonic()}
+                    self.activities[index] = activity
+                    # Only timing metadata is retained. Never persist thought text or signatures.
+                    self.write("activity", "system", "", activity="thinking", phase="started",
+                               activity_id=activity["id"], started_at=activity["time"])
             elif event.get("type") == "content_block_delta":
                 delta = event.get("delta", {})
                 if delta.get("type") == "text_delta" and isinstance(delta.get("text"), str):
@@ -157,12 +179,13 @@ class SessionRecorder:
                     tool["partial"] = (tool["partial"] + delta.get("partial_json", ""))[:65536]
             elif event.get("type") == "content_block_stop":
                 self.flush()
+                self._finish_activity(index)
                 block = self.tools.pop(index, None)
                 if block:
                     block["input"] = json.loads(block["partial"]) if block["partial"] else block.get("input", {})
                     self._tool(block)
             elif event.get("type") == "message_stop":
-                self.flush()
+                self.close()
         elif kind in {"assistant", "user"}:
             self.flush()
             message = value.get("message", {})
@@ -179,7 +202,7 @@ class SessionRecorder:
                     self.write("tool_result", "tool", encode(block.get("content", "")),
                                call_id=block.get("tool_use_id", ""), is_error=bool(block.get("is_error")))
         elif kind in {"result", "error"}:
-            self.flush()
+            self.close()
             self.write("exit", "system", encode({key: value[key] for key in
                        ("subtype", "is_error", "errors", "error", "num_turns", "duration_ms") if key in value}))
         if time.monotonic() - self.last_flush >= 1:

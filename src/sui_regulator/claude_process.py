@@ -84,7 +84,7 @@ def run(config: Config, credentials: Credentials) -> None:
     stream_capability_recorded = False
 
     def record_exit(reason: str, return_code=None, turn_limit=False, incidents=()):
-        recorder.flush()
+        recorder.close()
         recorder.write("exit", "system", reason, exit_code=return_code)
         # Keep a bounded excerpt of the CLI stderr tail in the durable ledger;
         # the raw buffer dies with the wrapper and this is the only post-mortem.
@@ -288,7 +288,7 @@ def run(config: Config, credentials: Credentials) -> None:
         # complete_task, hold, cancel and takeover revoke the lease. No replay follows.
         return
     finally:
-        recorder.flush()
+        recorder.close()
         selector.close()
         if process.poll() is None:
             process.terminate()
