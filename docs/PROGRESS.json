@@ -340,5 +340,26 @@
     },
     "baseline": "30f0242ba4675d5261adf8cf0e744196543b7ae8",
     "implementation_commit": "ffee13d9fed2b770142209d7c20f7d83e42397b7"
+  },
+  "console_visual_redesign": {
+    "status": "complete",
+    "implementation_commit": "5e0b74c7c945bdcc3770aea0b5c701937d359fbd",
+    "scope": "Ink and paper Yan watch office, accessible task dossier tabs, conversation-first Proxy details",
+    "evidence": [
+      "docs/YAN_CONSOLE_REDESIGN.md",
+      "docs/verification/yan-redesign/summary.json",
+      "docs/screenshots/yan-redesign",
+      "scripts/verify_console_design.py"
+    ],
+    "verification": {
+      "targeted_unit_tests": 13,
+      "browser_checks_passed": 56,
+      "responsive_layout_cases": 132,
+      "minimum_sampled_text_contrast": 5.22,
+      "non_editable_wheel_static_routes": 6,
+      "new_schema_migrations": 0,
+      "new_rpc_methods": 0,
+      "real_glm_verified": false
+    }
   }
 }

@@ -15,6 +15,7 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 | 理解提示词结构、合作式换代与自动完成标记 | [长期 Agent 设计与参考](PROMPT_AND_LIFECYCLE_DESIGN.md) |
 | 定义完整任务、启用代码调试、配置完成前核验 | [任务书与执行能力](TASK_BRIEFS.md) |
 | 使用四个 Console 页面、人工干预、SSH 转发 | [Yan Console 使用与演示](YAN_CONSOLE.md) |
+| 查看新版案卷分区、视觉设计、字号与界面截图 | [Yan Console 设计与验收](YAN_CONSOLE_REDESIGN.md) |
 | 调整阅读字号、查看代理对话、核对进程与工具返回 | [会话阅读器交付与验收](SESSION_READER_DELIVERY.md) |
 | 理解世界观角色与兼容字段 | [命名体系](NAMING.md) |
 | 查《明日方舟》典故和 README 风格出处 | [资料与风格参考](LORE_AND_REFERENCES.md) |
@@ -34,6 +35,8 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 | 本地可信边界与未开放能力 | [安全边界](SECURITY.md) |
 
 ## 验收与进度
+
+- Console 界面改版：[设计与交付](YAN_CONSOLE_REDESIGN.md)、[本轮验证汇总](verification/yan-redesign/summary.json)、[当前截图](screenshots/yan-redesign/)。
 
 - 最新自主任务：[交付报告](AUTONOMY_DELIVERY.md)、[验证摘要](autonomy-verification.json)、[原始测试输出](autonomy-test-output.txt)、[安装包验收](autonomy-wheel-verification.json)。
 

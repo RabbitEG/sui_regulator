@@ -278,3 +278,9 @@ PYTHONPATH=src "$SUI_ROOT/current/venv/bin/python" scripts/export_schemas.py --c
 真实 CLI 测试采用本地假 API，只验证协议、Hook、工具与恢复链路，不能代替 GLM 质量验收。使用另一个已安装 Playwright 的 QA venv 可运行 `scripts/verify_responsibility_browser.py`（另有 `--browser` 参数）；它会生成本地合成截图与报告，不连接生产状态。
 
 正式试用建议先用低成本任务检查：长 Session 中追加要求、完整原文与已读 ACK；实验失败后由模型自行决定继续；主动等待后到期接续；Hold / Cancel 优先；没有未决工作时的完成标记。真实 GLM、远端提交、普通 stopped / worker_restart 的目标平台通知和 systemd/cgroup 重启行为仍需在目标服务器验收。资源切换仍由 Session 内模型在已有授权下处理，框架没有新增迁移接口。
+
+## Yan Console 界面更新
+
+`5e0b74c` 的改版基于已经完成职责迭代的 `672322e`，只更新 Console 页面与本地静态素材，没有新增 RPC 或数据库迁移。若当前运行的是该基线版本，仍先为新 commit 创建独立 release 并完成演示检查；切换 Console 使用的 release 后，重启 `yan-console.service` 并刷新浏览器即可。现有 Controller、Proxy 和 Job 可继续运行，不必为了换界面主动 Hold 或轮换。
+
+如果当前服务版本早于该基线，按前文执行完整升级检查。仅在源码目录 `git pull` 不会更新已经安装的 release。新版页面位置、截图和本轮测试见 [Console 设计与验收](YAN_CONSOLE_REDESIGN.md)。

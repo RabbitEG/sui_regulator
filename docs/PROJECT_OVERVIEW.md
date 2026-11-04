@@ -37,21 +37,21 @@ PYTHONPATH=src python3.11 -m sui_regulator console-demo --port 8765
 
 | 页面 | 可查看与操作 |
 |---|---|
-| Overview / 总览 | 全局计数、最近故障、控制事件、Candleholder tick 和最后数据时间 |
-| Sui Proxies / 代理会话 | 所有代际分页，身份、Generation、心跳、最后活动、时长、冻结/失联、Task、故障和 Handoff |
-| Tasks / 持久任务 | Desired、Declared（未核验 AI 声明）、Observed（Runner 观测）分别显示；Job、指标、执行记录和人工干预 |
-| Incidents / 故障事件 | 规则版本、证据、检测建议、Candleholder 最终动作、应用状态及回执 |
+| 值守总览 / Overview | 全局计数、最近故障、控制事件、Candleholder tick 和最后数据时间 |
+| 代理名册 / Sui Proxies | 所有代际分页与会话实录，另有身份、Generation、心跳、最后活动、冻结/失联、Task、故障和 Handoff |
+| 任务案卷 / Tasks & Dossiers | Desired、Declared（未核验 AI 声明）、Observed（Runner 观测）分别显示；Job、指标、执行记录和人工干预 |
+| 故障案录 / Incidents | 规则版本、证据、检测建议、Candleholder 最终动作、应用状态及回执 |
 
 自动刷新可限频、暂停和手动触发，隐藏标签页停止轮询，错误时退避。Controller 离线或 tick 过期时显示最后快照及原时间戳，不维持绿色实时状态，停用人工操作。Console 通过已有 Unix RPC 工作，不打开 SQLite，不直接杀进程。没有聊天、任意 Shell、公网控制端口或新的身份体系。
 
 <details>
 <summary>查看真实浏览器截图</summary>
 
-![Yan Console 总览](screenshots/overview.png)
+![Yan Console 总览](screenshots/yan-redesign/overview-desktop.png)
 
-![GEN-001 检测建议、最终动作与回执](screenshots/incident-detail.png)
+![GEN-001 检测建议、最终动作与回执](screenshots/yan-redesign/incident-detail.png)
 
-更多：[代理详情](screenshots/proxy-detail.png) · [Task 与指标](screenshots/task-detail.png) · [命令回执](screenshots/command-receipts.png) · [Controller 离线](screenshots/controller-offline.png) · [移动视口](screenshots/mobile.png)
+更多：[会话实录](screenshots/yan-redesign/session-reader.png) · [Task 与指标](screenshots/yan-redesign/task-execution.png) · [命令回执](screenshots/yan-redesign/command-receipts.png) · [Controller 离线](screenshots/yan-redesign/controller-offline.png) · [移动视口](screenshots/yan-redesign/overview-mobile.png) · [设计与验收](YAN_CONSOLE_REDESIGN.md)
 
 </details>
 

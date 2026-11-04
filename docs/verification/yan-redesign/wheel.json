@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "non_editable_install": true,
+  "asset_routes": {
+    "index.html": {
+      "bytes": 9083,
+      "sha256": "2c2343cb72c000465981d2e35912087676ca4742158d061a69cd6bd7c57a8851"
+    },
+    "console.css": {
+      "bytes": 29410,
+      "sha256": "fc5f0750eaa2f4629f00e6f8b1ef1da0d943551425a87701c1ec279647b8e346"
+    },
+    "reading.css": {
+      "bytes": 4204,
+      "sha256": "ce7697204883a1e953a053f4e455b488f606e754504e4de8522bcb62811017c3"
+    },
+    "console.js": {
+      "bytes": 63043,
+      "sha256": "b27193050598803c0e0a6aca83ba634624e2d5d41da49c487fbb4fbb749e3472"
+    },
+    "zuo-le-records.png": {
+      "bytes": 306303,
+      "sha256": "f4bb6bf50eb73cd36e56f0e2e5a3da66fb21be0a0dc75c4e35c339b0233d4485"
+    },
+    "favicon.svg": {
+      "bytes": 288,
+      "sha256": "7ff002c59c51470b414992b9f9a9663e453649c0c73490e99c2d156e71738024"
+    }
+  },
+  "offline_no_ledger_creation": true,
+  "loopback_only": true,
+  "wheel_sha256": "702494cc12ea111df62f2e7ca78b1f231f30daddd4c2442044fe418ff9827d34",
+  "bundled_artwork_notice": true
+}

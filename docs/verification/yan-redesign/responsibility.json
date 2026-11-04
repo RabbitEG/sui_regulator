@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "checks": [
+    "stored_not_delivered_or_acknowledged",
+    "real_history_cursor_two_pages",
+    "lossless_instruction_body",
+    "mock_proxy_explicit_ack_on_same_api_execution_unknown",
+    "durable_wait_reason_owner_next_check_without_proxy_churn",
+    "new_wait_panel_mobile_no_page_overflow",
+    "old_proxy_beyond_preview_opens_by_exact_record_lookup",
+    "no_browser_errors"
+  ],
+  "scope": "Real local control plane and Chromium; synthetic Proxy read declarations; no real GLM"
+}

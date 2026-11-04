@@ -1,0 +1,61 @@
+{
+  "implementation_commit": "5e0b74c7c945bdcc3770aea0b5c701937d359fbd",
+  "baseline_commit": "672322e",
+  "verified_at": "2026-11-04T02:42:18.548091+00:00",
+  "author": "GPT-6 Astra",
+  "scope": "Yan Console presentation, reading navigation and existing local control effects",
+  "python": "3.11.13",
+  "passed": true,
+  "unit_tests": {
+    "passed": 13,
+    "modules": [
+      "tests.test_console",
+      "tests.test_proxy_compat"
+    ],
+    "output": "unit-tests.txt"
+  },
+  "browser_checks": {
+    "console": 16,
+    "reader": 15,
+    "brief": 7,
+    "responsibility": 8,
+    "design": 10
+  },
+  "total_browser_checks": 56,
+  "layout_cases": 132,
+  "minimum_sampled_text_contrast": 5.22,
+  "screenshots": [
+    "command-receipts.png",
+    "controller-offline.png",
+    "incident-detail.png",
+    "instruction-ack.png",
+    "instructions-history.png",
+    "overview-desktop.png",
+    "overview-mobile.png",
+    "session-mobile-large.png",
+    "session-reader.png",
+    "task-execution.png",
+    "task-summary.png"
+  ],
+  "wheel_verification": "wheel.json",
+  "ruff": "ruff check src tests scripts: passed",
+  "git_diff_check": "passed",
+  "schema_migrations": 0,
+  "new_rpc_methods": 0,
+  "new_static_routes": 1,
+  "full_core_suite_rerun": false,
+  "real_model_api_tested": false,
+  "source_sha256": {
+    "src/sui_regulator/static/console.css": "fc5f0750eaa2f4629f00e6f8b1ef1da0d943551425a87701c1ec279647b8e346",
+    "src/sui_regulator/static/console.js": "b27193050598803c0e0a6aca83ba634624e2d5d41da49c487fbb4fbb749e3472",
+    "src/sui_regulator/static/favicon.svg": "7ff002c59c51470b414992b9f9a9663e453649c0c73490e99c2d156e71738024",
+    "src/sui_regulator/static/index.html": "2c2343cb72c000465981d2e35912087676ca4742158d061a69cd6bd7c57a8851",
+    "src/sui_regulator/static/reading.css": "ce7697204883a1e953a053f4e455b488f606e754504e4de8522bcb62811017c3",
+    "src/sui_regulator/static/zuo-le-records.png": "f4bb6bf50eb73cd36e56f0e2e5a3da66fb21be0a0dc75c4e35c339b0233d4485"
+  },
+  "documentation_checks": {
+    "markdown_files": 8,
+    "local_links_and_anchors": 138,
+    "bash_blocks_syntax_checked": 26
+  }
+}

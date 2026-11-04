@@ -45,18 +45,29 @@ PYTHONPATH=src python3.11 -m sui_regulator console-demo --port 8765 --state-dir 
 
 | 页面 | 内容 |
 |---|---|
-| Overview / 总览 | 全局真实计数、最近 Incident、控制事件、Candleholder 最近完成 tick 与进程信息 |
-| Sui Proxies / 代理会话 | 点击代理 ID 或“查看对话”，阅读本代际的任务输入、助手输出、工具调用/返回；详情另有进程证据、Task、Generation、心跳、Handoff、故障和换代历史 |
-| Tasks / 持久任务 | Desired、Declared（未核验 AI 声明）、Observed（Runner 观测）分别呈现；Job/PID、execution 数、指标、事件及人工干预 |
-| Incidents / 故障事件 | 规则版本、证据与来源；检测建议、最终动作、应用结果/outcome 分开显示 |
+| 值守总览 / Overview | 全局真实计数、近日故障案录、值守纪事、秉烛人最近完成 tick 与进程信息 |
+| 代理名册 / Sui Proxies | 点击代理 ID 或“查看对话”，首先阅读会话实录；通过“运行核验”“身份档案”定位进程证据、Task、Generation、心跳、Handoff、故障和换代历史 |
+| 任务案卷 / Tasks & Dossiers | Desired、Declared（未核验代理声明）、Observed（Runner 观测）始终分别呈现；详情按四个分区阅读，见下表 |
+| 故障案录 / Incidents | 规则版本、证据与来源；检测建议、最终动作、应用结果/outcome 分开显示 |
+
+Task 详情顶部保留人工操作和“查看当前代理的会话实录”入口；其下的分区不会改变任务状态：
+
+| 分区 | 阅读内容 |
+|---|---|
+| 任务总览 | 完整任务书、验收条件、完成标记、等待与唤醒、持续恢复配置 |
+| 执行核验 | Job/PID、实际指标、命令执行回执、最近故障 |
+| 敕令回执 | 追加要求的入账、投递准备与本代已读声明；右上角可打开本浏览器提交的操作回执 |
+| 历史案卷 | 完整账本索引、历史事件、代理换代与 Handoff |
+
+分区支持方向键、Home / End；自动刷新保留所选分区、键盘焦点、展开内容与事件阅读位置。切换到另一 Task 或重新加载整页时回到任务总览。手机使用带文字的底部导航。世界观名称的工程含义见 [命名体系](NAMING.md#console-展示名称)。
 
 列表按新记录优先分页，每页 20 条，搜索和状态筛选明确作用于本页。历史事件按 Event ID 增量读取，界面最多保留已加载的最近 500 条，可继续加载后续事件；Incident 历史通过已有游标接口查询。底层 get_task 的完整关联记录仍受既有 RPC 响应大小上限约束，过大时显示查询错误，不会静默省略或伪造记录。
 
 ## 阅读字号与会话内容
 
-默认正文和对话约 18px；顶部“字号”支持舒适、大字、特大，选择保存在本浏览器。表格、标签和元数据一同缩放，手机上的证据和身份信息纵向排列。
+默认正文 18px、对话约 19px；顶部“字号”支持舒适（18px）、大字（20px）、特大（22px），选择保存在本浏览器，对话按比例放大。纸色内容区使用深色文字；宋体用于标题，正文与工具内容分别使用无衬线字体和等宽字体。表格、标签和元数据一同缩放，宽表格在自身区域横向滚动。
 
-从“代理会话”点击代理 ID 或“查看对话”，也可从 Task 的代际历史进入任一旧代理。上方“实际运行证据”分别展示包装进程身份、模型 CLI 进程、独立 Job 与 Runner 指标及查询时间；下面是该代际独立的对话与工具轨迹。Mock 明确标记为合成演示；Claude 记录来自实际 CLI 的主会话可见输出，忽略 thinking 块。
+从“代理名册”点击代理 ID 或“查看对话”，也可从 Task 顶部进入当前代理，或从历史案卷的代际历史进入旧代理。详情首先展示该代际的“会话实录”；其后的“实际运行证据”分别展示包装进程身份、模型 CLI 进程、独立 Job 与 Runner 指标及查询时间。顶部的分区链接可直接定位。Mock 明确标记为合成演示；Claude 记录来自实际 CLI 的主会话可见输出，忽略 thinking 块。
 
 工具参数和实际返回可展开；可筛选对话或工具、关闭“跟随新消息”后向上阅读。自动刷新保留手动阅读位置，暂停全局刷新也停止会话轮询；Controller 离线时保留已读取内容并标为历史快照。记录按字节游标分页，页面最多保留 400 条，释放更早内容时有提示，可重新进入从头读取。
 
@@ -66,7 +77,7 @@ PYTHONPATH=src python3.11 -m sui_regulator console-demo --port 8765 --state-dir 
 
 升级 Controller 和 Console 后，已有代理仍运行原 release，需等待正常换代，或在核对 Job 后通过明确确认的 Hold → Resume 让 Task 生成新代理，才会开始采集。只读阅读器不向 Session 直接发送聊天消息；人工追加要求仍走 Task 的 Instruct 与 Command Receipt。
 
-截图：[会话与工具返回](screenshots/session-reader/conversation.png) · [上一代会话](screenshots/session-reader/previous-generation.png) · [手机大字](screenshots/session-reader/mobile-large.png) · [进程冻结](screenshots/session-reader/frozen-process.png) · [离线快照](screenshots/session-reader/offline-snapshot.png)。本轮验收见 [交付记录](SESSION_READER_DELIVERY.md)。
+当前截图：[值守总览](screenshots/yan-redesign/overview-desktop.png) · [会话实录](screenshots/yan-redesign/session-reader.png) · [任务总览](screenshots/yan-redesign/task-summary.png) · [执行核验](screenshots/yan-redesign/task-execution.png) · [手机大字](screenshots/yan-redesign/session-mobile-large.png)。本次改版与验收见 [界面设计记录](YAN_CONSOLE_REDESIGN.md)；阅读器初次交付的历史证据保留于 [阅读器报告](SESSION_READER_DELIVERY.md)。
 
 ## 人工干预与回执
 
@@ -99,6 +110,8 @@ PYTHONPATH=src python3.11 -m unittest tests.test_console tests.test_proxy_compat
 # 可选浏览器开发依赖，仅用于验收；运行 Console 不需要它：
 .venv/bin/python -m pip install playwright
 PYTHONPATH=src .venv/bin/python scripts/verify_console_browser.py --browser /usr/bin/chromium-browser
+# 新版分区、字号、键盘导航、对比度与响应式布局：
+PYTHONPATH=src .venv/bin/python scripts/verify_console_design.py --browser /usr/bin/chromium-browser
 ```
 
 浏览器测试使用实际 Chromium、真实 HTTP/RPC、独立合成进程和实际故障注入；不拦截 API 返回假状态。它检查控制回执、相同 Job/PID 与单次执行、刷新暂停、冻结代理、UNKNOWN、Controller 离线、移动视口、文本转义和无外部页面请求。报告见 console-browser-report.json；截图位于 screenshots/。
@@ -107,4 +120,4 @@ PYTHONPATH=src .venv/bin/python scripts/verify_console_browser.py --browser /usr
 
 ## 指令交付、等待与历史
 
-Task 页面区分入账、投递准备、本代已读声明；相关操作是否执行始终需要回执与产物证明。等待面板展示原因、对象、责任方和下次检查，不能把 WAITING 当作 Session 故障。完整账本索引可翻页读取历史要求、操作、Jobs、代理、产物和事件；代理历史可打开该代实际对话。恢复区的“最近运行证据更新”仅反映配置范围内运行观察，不证明科研进展。离线时保留最后快照和更新时间，操作停用。新界面截图与验收见 [职责迭代报告](RESPONSIBILITY_ITERATION.md)。
+Task 的“敕令回执”区分入账、投递准备、本代已读声明；相关操作是否执行始终需要回执与产物证明。“任务总览”的等待面板展示原因、对象、责任方和下次检查，不能把 WAITING 当作 Session 故障。“历史案卷”的完整账本索引可翻页读取历史要求、操作、Jobs、代理、产物和事件；代理历史可打开该代实际对话。恢复区的“最近运行证据”仅反映配置范围内运行观察，不证明科研进展。离线时保留最后快照和更新时间，操作停用。语义与后端验收见 [职责迭代报告](RESPONSIBILITY_ITERATION.md)。
