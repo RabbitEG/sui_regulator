@@ -6,7 +6,7 @@ Yan Console 是大炎入口的本地 Web 管理界面，用来观察 Sui Proxy�
 
 ## 启动
 
-Python 3.11+ / Linux，运行时只有标准库，前端是随包安装的原生 HTML/CSS/JavaScript，无 CDN、npm 或构建步骤。
+Python 3.11+ / Linux，运行时只有标准库，前端使用随包安装的 HTML/CSS/JavaScript，以及本地 Markdown 组件和字体。部署者不需要 npm、前端构建或 CDN。
 
 ```bash
 export PYTHONPATH="$PWD/src"
@@ -47,7 +47,7 @@ PYTHONPATH=src python3.11 -m sui_regulator console-demo --port 8765 --state-dir 
 |---|---|
 | 值守总览 / Overview | 全局真实计数、近日故障案录、值守纪事、秉烛人最近完成 tick 与进程信息 |
 | 代理名册 / Sui Proxies | 点击代理 ID 或“查看对话”，首先阅读会话实录；通过“运行核验”“身份档案”定位进程证据、Task、Generation、心跳、Handoff、故障和换代历史 |
-| 任务案卷 / Tasks & Dossiers | Desired、Declared（未核验代理声明）、Observed（Runner 观测）始终分别呈现；详情按四个分区阅读，见下表 |
+| 任务案卷 / Tasks | Desired、Declared（未核验代理声明）、Observed（Runner 观测）始终分别呈现；详情按四个分区阅读，见下表 |
 | 故障案录 / Incidents | 规则版本、证据与来源；检测建议、最终动作、应用结果/outcome 分开显示 |
 
 Task 详情顶部保留人工操作和“查看当前代理的会话实录”入口；其下的分区不会改变任务状态：
@@ -65,19 +65,25 @@ Task 详情顶部保留人工操作和“查看当前代理的会话实录”入
 
 ## 阅读字号与会话内容
 
-默认正文 18px、对话约 19px；顶部“字号”支持舒适（18px）、大字（20px）、特大（22px），选择保存在本浏览器，对话按比例放大。纸色内容区使用深色文字；宋体用于标题，正文与工具内容分别使用无衬线字体和等宽字体。表格、标签和元数据一同缩放，宽表格在自身区域横向滚动。
+默认正文 18px、对话约 19px；顶部“字号”支持舒适（18px）、大字（20px）、特大（22px），选择保存在本浏览器，对话按比例放大。标题和正文统一使用无衬线字体：中文为思源黑体，英文为 Inter；代码与标识符使用 JetBrains Mono，中文仍用思源黑体。标题采用更高字重和深绿色。字体随安装包本地提供，无外部字体请求。表格、标签和元数据一同缩放，宽表格在自身区域横向滚动。
 
-从“代理名册”点击代理 ID 或“查看对话”，也可从 Task 顶部进入当前代理，或从历史案卷的代际历史进入旧代理。详情首先展示该代际的“会话实录”；其后的“实际运行证据”分别展示包装进程身份、模型 CLI 进程、独立 Job 与 Runner 指标及查询时间。顶部的分区链接可直接定位。Mock 明确标记为合成演示；Claude 记录来自实际 CLI 的主会话可见输出，忽略 thinking 块。
+从“代理名册”点击代理 ID 或“查看对话”，也可从 Task 顶部进入当前代理，或从历史案卷的代际历史进入旧代理。详情首先展示该代际的“会话实录”；其后的“实际运行证据”分别展示包装进程身份、模型 CLI 进程、独立 Job 与 Runner 指标及查询时间。顶部的分区链接可直接定位。Mock 明确标记为合成演示；Claude 记录来自实际 CLI 的主会话可见输出。控制台不复刻原生 CC，不新增思考计时，不推算工具耗时，不采集 thinking 正文。
 
-工具参数和实际返回可展开；可筛选对话或工具、关闭“跟随新消息”后向上阅读。自动刷新保留手动阅读位置，暂停全局刷新也停止会话轮询；Controller 离线时保留已读取内容并标为历史快照。记录按字节游标分页，页面最多保留 400 条，释放更早内容时有提示，可重新进入从头读取。
+默认阅读模式将用户输入、代理回复、工具活动、运行时记录分别显示为蓝色、浅纸色、浅棕色、灰蓝色卡片，同时保留角色文字。运行协议和工具细节默认折叠；具有相同 call_id 的调用与返回合并为一条，缺少关联编号时保留独立记录，不猜测配对。可筛选对话或工具、搜索已加载记录、跳到开头或最新；手机上的查找和定位按钮放在“阅读选项”中。关闭“跟随新消息”后可向上阅读。自动刷新保留手动阅读位置，暂停全局刷新也停止会话轮询；Controller 离线时保留已读取内容并标为历史快照。记录按字节游标分页，页面最多保留 400 条，释放更早内容时有提示，可重新进入从头读取。
 
-**记录只从升级后启动的新 Sui Proxy 开始。** 未采集的旧会话显示“此会话没有留存对话”；不会根据事件拼出对话。每代记录最多 4 MiB，单条最多 8000 字符，达到上限或截断会明确提示。原始记录在私有状态目录 `transcripts/`；Console 经只读 Yan RPC 查询，不直接读文件或 SQLite。
+**记录只从升级后启动的新 Sui Proxy 开始。** 未采集的旧会话显示“此会话没有留存对话”；不会根据事件拼出对话。每代记录最多 4 MiB，单条最多 8000 字符，达到上限或截断会明确提示。新版本把实际注入的用户目标和验收条件分别完整记录，长字段分段保存、在阅读器合并，仍受每代总上限约束；运行协议另作折叠记录。旧版整段输入 JSON 在可解析时提取其中的用户要求；已经截断的历史记录不能补齐。原始记录在私有状态目录 `transcripts/`；Console 经只读 Yan RPC 查询，不直接读文件或 SQLite。
 
 核验时请分别看：进程身份是否匹配、CLI 是否存在或被冻结、工具返回的实际内容，以及 Job 的 Runner 状态/指标。仅有心跳或助手宣称“完成”不能证明任务已经完成。巡检 Task 可以只执行受管工具而没有独立 Job，此时应查看具体调用与返回；缺少 Job 记录本身不代表模型没有运行。
 
 升级 Controller 和 Console 后，已有代理仍运行原 release，需等待正常换代，或在核对 Job 后通过明确确认的 Hold → Resume 让 Task 生成新代理，才会开始采集。只读阅读器不向 Session 直接发送聊天消息；人工追加要求仍走 Task 的 Instruct 与 Command Receipt。
 
-当前截图：[值守总览](screenshots/yan-redesign/overview-desktop.png) · [会话实录](screenshots/yan-redesign/session-reader.png) · [任务总览](screenshots/yan-redesign/task-summary.png) · [执行核验](screenshots/yan-redesign/task-execution.png) · [手机大字](screenshots/yan-redesign/session-mobile-large.png)。本次改版与验收见 [界面设计记录](YAN_CONSOLE_REDESIGN.md)；阅读器初次交付的历史证据保留于 [阅读器报告](SESSION_READER_DELIVERY.md)。
+顶部“语言”可切换中文和 English，选择保存在本浏览器。页面每次只使用一种界面语言；原始任务、对话、工具输出、错误证据和标识符不做机器翻译。切换语言保留表单草稿、所选分区、展开状态和阅读位置。
+
+任务书、验收条件、用户与代理正文，以及交接摘要支持 Markdown 标题、粗体、列表、引用、表格和代码块。原文可展开与复制；代码块可直接复制。原始 HTML 作为文字显示，链接只允许 http/https，图片转换为显式链接，不自动加载远程图片。
+
+会话中的故障标记只来自该代际的 Incident 账本。GEN-001 的检测时间窗口标注为“退化检测窗口”，不代表每一句被框住的话都已经证明有问题。点击标记可查看检测建议、最终动作与恢复结果。普通工具返回错误不会被页面自行判定为会话故障。每次最多读取 20 个标记，浏览器保留最近加载的 100 个；未读完或发生释放时都有提示。
+
+当前截图：[中文总览](screenshots/yan-reader/overview-zh.png) · [英文总览](screenshots/yan-reader/overview-en.png) · [角色区分与工具折叠](screenshots/yan-reader/conversation-roles-zh.png) · [Markdown 任务书](screenshots/yan-reader/task-markdown-zh.png) · [故障位置](screenshots/yan-reader/incident-in-conversation.png) · [手机阅读](screenshots/yan-reader/conversation-mobile.png)。本轮验收见 [阅读体验更新](YAN_CONSOLE_READING.md)。此前 [界面设计记录](YAN_CONSOLE_REDESIGN.md) 与 [初版阅读器报告](SESSION_READER_DELIVERY.md) 保留为历史证据。
 
 ## 人工干预与回执
 
@@ -93,7 +99,7 @@ Controller 健康来自**最近完成的主循环 tick + 已登记进程身份**
 
 ## 本地与 SSH 访问边界
 
-服务固定绑定 127.0.0.1，没有公网 Host 参数。仅接受 localhost/127.0.0.1 Host；RPC POST 要求同源 Origin、JSON 与专用请求头，不开放 CORS，禁止页面嵌入，限制请求大小和并发。数据按文本转义，不执行指令、日志、Handoff 中的 HTML。
+服务固定绑定 127.0.0.1，没有公网 Host 参数。仅接受 localhost/127.0.0.1 Host；RPC POST 要求同源 Origin、JSON 与专用请求头，不开放 CORS，禁止页面嵌入，限制请求大小和并发。用户与代理正文经本地 markdown-it 解析、DOMPurify 清洗；原始 HTML 不启用，日志和工具数据仍以转义原文显示。CSP 不允许 inline/eval、第三方脚本或外部图片。静态资源使用 ETag 重验证，账本响应保持 no-store。
 
 经授权的 SSH 转发示例，在自己的电脑执行：
 
@@ -110,8 +116,10 @@ PYTHONPATH=src python3.11 -m unittest tests.test_console tests.test_proxy_compat
 # 可选浏览器开发依赖，仅用于验收；运行 Console 不需要它：
 .venv/bin/python -m pip install playwright
 PYTHONPATH=src .venv/bin/python scripts/verify_console_browser.py --browser /usr/bin/chromium-browser
-# 新版分区、字号、键盘导航、对比度与响应式布局：
+# 分区、字号、键盘导航、对比度与响应式布局：
 PYTHONPATH=src .venv/bin/python scripts/verify_console_design.py --browser /usr/bin/chromium-browser
+# 双语、Markdown、角色区分、故障定位与手机阅读：
+PYTHONPATH=src .venv/bin/python scripts/verify_console_reading.py --browser /usr/bin/chromium-browser
 ```
 
 浏览器测试使用实际 Chromium、真实 HTTP/RPC、独立合成进程和实际故障注入；不拦截 API 返回假状态。它检查控制回执、相同 Job/PID 与单次执行、刷新暂停、冻结代理、UNKNOWN、Controller 离线、移动视口、文本转义和无外部页面请求。报告见 console-browser-report.json；截图位于 screenshots/。

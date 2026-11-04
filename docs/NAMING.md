@@ -28,7 +28,7 @@
 | 敕令回执 | Command Receipt 与追加要求的投递记录；已读声明不代表执行完成 |
 | 故障案录、值守纪事 | Incident 和审计 Event；展示名称不改规则 ID 或事件类型 |
 
-中文栏目承接 README 的官署、案卷与值守意象，英文仍使用既有 Sui Proxy、Task、Command、Incident、Handoff 等术语。Desired / Declared / Observed、UNKNOWN、离线与确认操作保留明确含义。界面配色、素材和阅读安排见 [Console 设计记录](YAN_CONSOLE_REDESIGN.md)。
+中文栏目承接 README 的官署、案卷与值守意象，英文仍使用既有 Sui Proxy、Task、Command、Incident、Handoff 等术语。Desired / Declared / Observed、UNKNOWN、离线与确认操作保留明确含义。中文界面以中文名称为主，英文界面沿用 Sui Proxy、Task、Incident 等定义；不把两套标签并排堆放。Desired / Declared / Observed 在中文界面分别为“用户意图 / 代理声明 / 运行观测”，英文界面保留对应英文名称。原始数据和规则编号不翻译。界面配色、字体和阅读安排见 [阅读体验更新](YAN_CONSOLE_READING.md)。
 
 ## 代码与协议兼容
 
@@ -40,6 +40,6 @@
 - 现有 RPC 的 workers 数组、worker_id 凭据和 `get_worker_health` 仍有效；新健康查询返回相同代理身份，Task 另提供 current_proxy，代理详情提供 proxy_id。
 - 旧 Adapter/WorkerRegistry/Credentials 导入是规范实现的别名；worker_process 是调用 proxy_process 的兼容入口。
 - 既有私有 worker-registry 目录、SUI_WORKER_CREDENTIALS 环境变量与内部 bootstrap 字段保留，以免破坏运行中代理的恢复关系。
-- 控制台 Sessions 的兼容路由和分页 section 仍为 sessions，导航为“代理名册 / Sui Proxies”，列表标题为“代理会话 · 名册”。
+- 控制台 Sessions 的兼容路由和分页 section 仍为 sessions，中文导航为“代理名册”、列表标题为“代理会话”；切换英文后为“Sui Proxies”。
 
 原始需求、历史交付报告、测试原始输出和故障轨迹保留当时术语作为历史证据；新的项目介绍、界面与操作文档遵循本约定。命名更新不改变 lease、generation fencing、幂等键、Runner 授权或恢复状态机。

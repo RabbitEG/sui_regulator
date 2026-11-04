@@ -279,8 +279,28 @@ PYTHONPATH=src "$SUI_ROOT/current/venv/bin/python" scripts/export_schemas.py --c
 
 正式试用建议先用低成本任务检查：长 Session 中追加要求、完整原文与已读 ACK；实验失败后由模型自行决定继续；主动等待后到期接续；Hold / Cancel 优先；没有未决工作时的完成标记。真实 GLM、远端提交、普通 stopped / worker_restart 的目标平台通知和 systemd/cgroup 重启行为仍需在目标服务器验收。资源切换仍由 Session 内模型在已有授权下处理，框架没有新增迁移接口。
 
-## Yan Console 界面更新
+## 早期 Yan Console 界面改版（5e0b74c）
 
 `5e0b74c` 的改版基于已经完成职责迭代的 `672322e`，只更新 Console 页面与本地静态素材，没有新增 RPC 或数据库迁移。若当前运行的是该基线版本，仍先为新 commit 创建独立 release 并完成演示检查；切换 Console 使用的 release 后，重启 `yan-console.service` 并刷新浏览器即可。现有 Controller、Proxy 和 Job 可继续运行，不必为了换界面主动 Hold 或轮换。
 
 如果当前服务版本早于该基线，按前文执行完整升级检查。仅在源码目录 `git pull` 不会更新已经安装的 release。新版页面位置、截图和本轮测试见 [Console 设计与验收](YAN_CONSOLE_REDESIGN.md)。
+
+
+## 当前阅读体验版本的升级
+
+本轮增加本地字体、双语界面、Markdown 和已有故障记录的会话定位。没有数据库迁移，也没有新控制命令；现有 `yan.get_incidents` 增加可选的 `proxy_id` 筛选。因此应按第 9 节安装新 release，并让 **Controller 与 Console 使用同一新版本**。旧 Controller 不支持此参数时，页面会明确提示故障标记查询失败，不会伪造标记。
+
+完成备份、维护窗口和 `current` release 链接切换后，使用本仓库 unit 的部署可执行：
+
+```bash
+systemctl --user restart sui-regulator-controller.service yan-console.service
+systemctl --user status sui-regulator-controller.service yan-console.service
+```
+
+随后刷新浏览器，核对右上角在线状态、最后读取时间、语言选项和原 Task / Job。这不是直接从源码 `git pull` 的替代命令：非 editable 安装必须先按前文重新安装 release。恢复任务仍由操作员按维护流程处理。
+
+字体与 Markdown 库已经打包，不需要 Node、npm 或运行时互联网连接。首次字体传输约 8.2 MB，后续以 ETag 重验证；账本数据不使用浏览器持久缓存。需要通过 SSH 访问时沿用第 6 节的 loopback 转发方式，不扩大监听地址。
+
+已有会话记录可立即使用新的字体、角色区分、Markdown 和故障位置视图。完整用户输入分段采集仅适用于新版本启动的代理；已经截断或未采集的旧内容无法补齐。不要为了页面外观强制轮换仍在工作的代理，等待自然接续即可。没有新增思考计时或工具耗时推算。
+
+目标机先运行 `yan console-demo --port 8765`，按 [阅读体验验收](YAN_CONSOLE_READING.md) 检查中英文、Markdown 与 GEN-001。实际任务继续参考 [任务书指南](TASK_BRIEFS.md)；真实 GLM 与目标机的 systemd / cgroup 行为仍需要现场测试。

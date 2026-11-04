@@ -1,0 +1,91 @@
+{
+  "passed": true,
+  "python": "3.11.13",
+  "non_editable_import": "/tmp/yan-reader-wheel-env/lib64/python3.11/site-packages/sui_regulator/__init__.py",
+  "wheel_sha256": "9e427b4e31b175b3c65c5da0c98566a204e620e6266bbe724f67a5aa9f4c1d63",
+  "static_routes": [
+    {
+      "route": "/",
+      "bytes": 12843,
+      "sha256": "d031e4a063430b52f21cc8f40f8d7de79b25378c4432f63b44cd9fa932371fdc",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/console.css",
+      "bytes": 29854,
+      "sha256": "fc1385bf5ac5e1b2c21aced6de7b8ad6aacf697d537c8cb09f6d55fc24d0233b",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/reading.css",
+      "bytes": 12603,
+      "sha256": "d6c607d6f40907e814f4a7a2e21ecf4de115f34a96ce58a9353296f88c311bb3",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/console.js",
+      "bytes": 85516,
+      "sha256": "e4f893b77617ffd4093a85a1440d03b6451484d5ddce457f733c112e02693eea",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/zuo-le-records.png",
+      "bytes": 306303,
+      "sha256": "f4bb6bf50eb73cd36e56f0e2e5a3da66fb21be0a0dc75c4e35c339b0233d4485",
+      "revalidation": 304
+    },
+    {
+      "route": "/favicon.svg",
+      "bytes": 288,
+      "sha256": "7ff002c59c51470b414992b9f9a9663e453649c0c73490e99c2d156e71738024",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/console-i18n.js",
+      "bytes": 1317,
+      "sha256": "a0a9b6e0c6546b0e1ed38da83312fe4887366fd993b140186f105052e1b95313",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/console-markdown.js",
+      "bytes": 2832,
+      "sha256": "18fa96dd8c0fbb5b2510873bda5c770cb8829a13890026fa58e68294964a2828",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/vendor-markdown-it.min.js",
+      "bytes": 100786,
+      "sha256": "391f2aa638e75e6c7859d0a5c5650ef0956722a45998f17e05b83bc655778e1e",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/vendor-dompurify.min.js",
+      "bytes": 29828,
+      "sha256": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/font-inter-variable.woff2",
+      "bytes": 352240,
+      "sha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/font-source-han-sans-cn-variable.woff2",
+      "bytes": 7711988,
+      "sha256": "f971e3bff46f76b49e1d5510556c2297c618ec4b491a295a4e741cdd38257799",
+      "revalidation": 304
+    },
+    {
+      "route": "/assets/font-jetbrains-mono-variable.woff2",
+      "bytes": 113672,
+      "sha256": "31ec365b93e4bad6f202ce23352a56d01ca4462b2afc782ed2cf6fa42ca9ac0e",
+      "revalidation": 304
+    }
+  ],
+  "vendor_checksums_match": true,
+  "all_license_texts_packaged": true,
+  "asset_etag_revalidation": true,
+  "csp_no_unsafe_eval_or_inline": true,
+  "offline_asset_reads_create_no_ledger": true
+}

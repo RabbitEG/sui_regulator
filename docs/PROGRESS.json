@@ -361,5 +361,24 @@
       "new_rpc_methods": 0,
       "real_glm_verified": false
     }
+  },
+  "console_readability": {
+    "status": "complete",
+    "implementation_commit": "2d98d623d95960e18669a18579dfab7e5694b638",
+    "scope": "Single-language UI, local sans fonts, safe Markdown, distinct message roles, collapsed tool records and existing Incident markers; no extra thinking telemetry",
+    "evidence": [
+      "docs/YAN_CONSOLE_READING.md",
+      "docs/verification/yan-reader/summary.json",
+      "docs/screenshots/yan-reader",
+      "scripts/verify_console_reading.py"
+    ],
+    "verification": {
+      "python_tests_passed": 159,
+      "python_tests_skipped": 0,
+      "browser_checks_passed": 72,
+      "responsive_layout_cases": 276,
+      "non_editable_wheel_static_routes": 13,
+      "real_glm_verified": false
+    }
   }
 }

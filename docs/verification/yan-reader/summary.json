@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-04",
+  "implementation_commit": "2d98d623d95960e18669a18579dfab7e5694b638",
+  "passed": true,
+  "python": {
+    "command": "SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -q",
+    "tests_passed": 159,
+    "skipped": 0,
+    "installed_claude_version": "2.1.316",
+    "real_provider_api_used": false,
+    "output": "python-tests.txt"
+  },
+  "browser_checks_passed": 72,
+  "responsive_layout_cases": 276,
+  "wheel_static_routes": 13,
+  "reports": [
+    "reading",
+    "layout",
+    "controls",
+    "session",
+    "task-brief",
+    "responsibility",
+    "wheel"
+  ],
+  "no_derived_thinking_or_tool_duration": true,
+  "new_rpc_methods": 0,
+  "extended_read_query": "yan.get_incidents optional proxy_id",
+  "schema_migrations": 0,
+  "source_sha256": {
+    "src/sui_regulator/static/console.js": "e4f893b77617ffd4093a85a1440d03b6451484d5ddce457f733c112e02693eea",
+    "src/sui_regulator/static/console-markdown.js": "18fa96dd8c0fbb5b2510873bda5c770cb8829a13890026fa58e68294964a2828",
+    "src/sui_regulator/static/font-source-han-sans-cn-variable.woff2": "f971e3bff46f76b49e1d5510556c2297c618ec4b491a295a4e741cdd38257799",
+    "src/sui_regulator/static/console.css": "fc1385bf5ac5e1b2c21aced6de7b8ad6aacf697d537c8cb09f6d55fc24d0233b",
+    "src/sui_regulator/static/font-jetbrains-mono-variable.woff2": "31ec365b93e4bad6f202ce23352a56d01ca4462b2afc782ed2cf6fa42ca9ac0e",
+    "src/sui_regulator/static/index.html": "d031e4a063430b52f21cc8f40f8d7de79b25378c4432f63b44cd9fa932371fdc",
+    "src/sui_regulator/static/console-i18n.js": "a0a9b6e0c6546b0e1ed38da83312fe4887366fd993b140186f105052e1b95313",
+    "src/sui_regulator/static/vendor-dompurify.min.js": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31",
+    "src/sui_regulator/static/reading.css": "d6c607d6f40907e814f4a7a2e21ecf4de115f34a96ce58a9353296f88c311bb3",
+    "src/sui_regulator/static/zuo-le-records.png": "f4bb6bf50eb73cd36e56f0e2e5a3da66fb21be0a0dc75c4e35c339b0233d4485",
+    "src/sui_regulator/static/favicon.svg": "7ff002c59c51470b414992b9f9a9663e453649c0c73490e99c2d156e71738024",
+    "src/sui_regulator/static/font-inter-variable.woff2": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3",
+    "src/sui_regulator/static/vendor-markdown-it.min.js": "391f2aa638e75e6c7859d0a5c5650ef0956722a45998f17e05b83bc655778e1e",
+    "src/sui_regulator/console.py": "575ac22185d3444ffd59f5332ebe82e19ef8eae4724ce852b1304d7539c4b397",
+    "src/sui_regulator/transcripts.py": "2bceac1b3a873bcdd7b05d85dee1b7666a80cfe55b1175e5bc0082fdc1e0bd51",
+    "src/sui_regulator/claude_process.py": "1b6591381be6e8e691347c76db827f006c1584ce96ce2546008fd04e13393ff0",
+    "src/sui_regulator/gateway.py": "4276aa01307d8f0c8b6e5c11d1f7d88c698f7542bafd92a54dd7f3601560684f",
+    "src/sui_regulator/failures/persistence.py": "583b9c7dde11e35ecbcd87a91683a08f086c2bd26b4179f1198cfe005cf5a988"
+  },
+  "unverified": [
+    "real GLM",
+    "real training",
+    "production SSH/browser performance",
+    "target systemd/cgroup lifecycle"
+  ]
+}
