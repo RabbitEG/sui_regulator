@@ -1,8 +1,8 @@
 # 文档目录
 
-[返回项目首页](../README.md)
+[返回中文首页](../README.zh-CN.md) · [English](../README.md)
 
-README 提供项目介绍、架构和快速开始；这里收录完整的安装、部署、状态语义、接口和验收证据。项目世界观与中英文叙事独立收录于 [LORE.md](LORE.md)。当前版本为 v0.4，统一会话角色名称为 **Sui Proxy（岁兽代理人）**。
+项目首页分为英文 `README.md` 与中文 `README.zh-CN.md`，两版分别提供项目介绍、架构和快速开始；这里收录完整的安装、部署、状态语义、接口和验收证据。项目世界观与中英文叙事独立收录于 [LORE.md](LORE.md)。当前版本为 v0.4，统一会话角色名称为 **Sui Proxy（岁兽代理人）**。
 
 当前规范以 [职责基线](RESPONSIBILITY_BASELINE.md) 为准；本轮实现与验收状态见 [迭代映射](RESPONSIBILITY_ITERATION.md)。历史交付报告不替代规范。
 

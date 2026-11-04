@@ -1,6 +1,6 @@
 # Lore · 项目世界观
 
-[项目首页](../README.md) · [命名与工程职责](NAMING.md) · [灵感与文档命名参考](LORE_AND_REFERENCES.md)
+[中文首页](../README.zh-CN.md) · [English](../README.md) · [命名与工程职责](NAMING.md) · [灵感与文档命名参考](LORE_AND_REFERENCES.md)
 
 本文收录司岁台的项目世界观，保留原首页的中文叙事与英文译文。它为 Sui Regulator、Yan、Sui Proxy、Candleholder 和案卷等名称提供叙事背景；实际能力、权限与状态语义以[工程文档](README.md)为准。命名灵感的来源见参考文档。
 

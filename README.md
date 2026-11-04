@@ -1,56 +1,58 @@
-# Sui Regulator · 司岁台
+# Sui Regulator
 
-面向长期任务的本地 AI Agent 运行与接续框架。
+**English** · [简体中文](README.zh-CN.md)
 
-Sui Regulator 将持久任务、可替换的 AI 会话和独立作业分开管理。用户定义完整目标与授权，**Sui Proxy** 负责分析、编程、调试和选择下一步，**Candleholder** 负责运行故障检测、会话接续、执行记录与人工控制。会话退出或换代后，任务要求、历史指令和交接资料仍然保留。
+A local runtime and recovery framework for long-running AI tasks.
 
-[部署指南](docs/DEPLOYMENT.md) · [如何写任务书](docs/TASK_BRIEFS.md) · [Console 使用](docs/YAN_CONSOLE.md) · [文档目录](docs/README.md) · [项目世界观](docs/LORE.md)
+Sui Regulator manages durable tasks, replaceable AI sessions, and independent jobs as separate lifecycles. You define the goals and permissions. The **Sui Proxy** analyzes, writes code, debugs, and decides what to do next. **Candleholder** handles runtime failure detection, session recovery, execution records, and operator controls. Task requirements, instructions, and handoffs remain available after a session exits or is replaced.
 
-## 当前能力
+[Deployment](docs/DEPLOYMENT.md) · [Writing task briefs](docs/TASK_BRIEFS.md) · [Console guide](docs/YAN_CONSOLE.md) · [Documentation](docs/README.md) · [Project lore](docs/LORE.md#sui-regulator)
 
-- **持久任务**：保存完整 Markdown 任务书、验收条件、执行能力、追加指令、代际历史与 Handoff；支持代理登记等待、到期接续和提交完成标记。
-- **会话恢复**：根据进程、连接、所有权与生成异常等运行证据处理故障，支持 Persistent 和 Bounded 恢复模式。实验失败、正常调试和单纯缺少新观测不会被当作会话失败。
-- **可核验的控制**：Hold、Resume、Instruct 等人工指令有持久回执；用户意图（Desired）、代理声明（Declared）和运行观测（Observed）分别记录。
-- **Yan Console**：独立运行的本地管理台，提供总览、代理会话、任务和故障四个页面；支持中英文切换、Markdown 阅读、角色区分、工具折叠、故障定位和离线快照。
-- **无需模型的演示**：用 Mock 代理和合成 Job 演示 GEN-001 检测、代理换代、同一 Task 接续、Job 不重复启动及真实人工操作回执。
+## Capabilities
 
-当前版本 **v0.4**，面向 Linux、Python 3.11+、单用户和单 Controller 部署。Python 运行时使用标准库；前端为原生 HTML/CSS/JavaScript，字体和 Markdown 依赖随包提供，无需 npm 或 CDN。
+- **Durable tasks**: preserve complete Markdown briefs, acceptance criteria, execution profiles, additional instructions, generation history, and Handoffs. Proxies can register a wait, resume when it expires, and submit a completion marker.
+- **Session recovery**: respond to runtime evidence such as process failures, broken connections, lost ownership, and anomalies in generated output. Persistent and Bounded recovery modes are available. Failed experiments, normal debugging, and a lack of new observations alone are not treated as session failures.
+- **Auditable controls**: Hold, Resume, and Instruct produce persistent Command Receipts. Desired, Declared, and Observed State remain separate, distinguishing operator intent, proxy claims, and runtime observations.
+- **Yan Console**: an independent local management process with Overview, Sui Proxies, Tasks, and Incidents pages. It supports English and Chinese, Markdown, distinct conversation roles, collapsible tool records, incident markers, and offline snapshots.
+- **A demo without a model API**: Mock proxies and synthetic Jobs demonstrate GEN-001 detection, session replacement, continuity of the same Task, prevention of duplicate Job starts, and real operator command receipts.
+
+Version **v0.4** targets Linux, Python 3.11+, and deployment under one OS user with one Controller. The Python runtime uses the standard library. The frontend uses HTML, CSS, and JavaScript, with bundled fonts and Markdown dependencies; no npm build or CDN is required.
 
 <details>
-<summary>Yan Console 界面</summary>
+<summary>Yan Console preview</summary>
 
-![Yan Console 中文总览](docs/screenshots/yan-console/overview-zh.png)
+![Yan Console overview](docs/screenshots/yan-console/overview-en.png)
 
-[英文总览](docs/screenshots/yan-console/overview-en.png) · [会话角色与工具折叠](docs/screenshots/yan-reader/conversation-roles-zh.png) · [Markdown 任务书](docs/screenshots/yan-reader/task-markdown-zh.png)
+[Conversation roles and collapsed tools](docs/screenshots/yan-reader/conversation-roles-en.png)
 
 </details>
 
-## 架构与职责
+## Architecture and responsibilities
 
 ```mermaid
 flowchart TD
-    User[用户或授权客户端] --> CLI[Yan CLI]
-    User --> Web[Yan Console · 独立进程]
+    User[User or authorized client] --> CLI[Yan CLI]
+    User --> Web[Yan Console · independent process]
     CLI -->|Unix RPC| API
     Web -->|Unix RPC| API
-    subgraph Control[Controller 进程]
-        API[Yan RPC] --> C[Candleholder · 控制与恢复]
-        C <--> DB[(SQLite 账本)]
+    subgraph Control[Controller process]
+        API[Yan RPC] --> C[Candleholder · control and recovery]
+        C <--> DB[(SQLite ledger)]
     end
-    C -->|分配与接续| Proxy[Sui Proxy · AI 会话]
-    Proxy -->|受管协议与工具| API
-    C -->|启动与核验| Job[独立 Runner / Job]
-    Job -->|状态与指标| DB
-    Proxy -.->|授权的原生工具| External[外部命令与实验]
+    C -->|Assign and resume| Proxy[Sui Proxy · AI session]
+    Proxy -->|Managed protocol and tools| API
+    C -->|Start and reconcile| Job[Independent Runner / Job]
+    Job -->|Status and metrics| DB
+    Proxy -.->|Authorized native tools| External[External commands and experiments]
 ```
 
-Task 的生命周期独立于 Session；受管 Job 也可以跨代理代际运行。Console 通过 Yan 查询和提交指令，停止 Console 不会停止 Controller 或 Job。Candleholder 是 Controller 中的监控与恢复职责，不是另一个判断任务内容的模型。
+A Task outlives its sessions; managed Jobs can also survive proxy replacement. Console queries and commands go through Yan. Stopping Console does not stop the Controller or its Jobs. Candleholder implements control and recovery within the Controller; it does not judge the substance of a task.
 
-**当前托管 Runner 只实现合成 Job。** 启用 `claude_code` 后，代理可以用原生工具修改代码、运行命令和实验；通过 Bash、SSH 或外部脚本启动的工作不会自动变成托管 Job。它们的去重、存活与远端状态必须按实际执行接口核验。具体边界见[整体架构](docs/ARCHITECTURE.md)与[任务书指南](docs/TASK_BRIEFS.md)。
+**The managed Runner currently supports synthetic Jobs only.** With the `claude_code` execution profile, a proxy can use native tools to edit code, run commands, and conduct experiments. Work launched through Bash, SSH, or external scripts does not automatically become a managed Job. Duplicate prevention, process survival, and remote status must be verified through the actual execution interface. See the [architecture](docs/ARCHITECTURE.md) and [task brief guide](docs/TASK_BRIEFS.md) for these boundaries.
 
-## 快速开始
+## Quick start
 
-准备 Git、Python 3.11+ 和 venv，在 Linux 上执行：
+On Linux, with Git, Python 3.11+, and venv available:
 
 ```bash
 git clone https://github.com/RabbitEG/sui_regulator.git
@@ -60,53 +62,55 @@ python3.11 -m venv .venv
 .venv/bin/yan console-demo --port 8765
 ```
 
-打开 **http://127.0.0.1:8765**。演示会创建隔离的临时状态、Controller、Console 和合成进程，不需要模型 API。进入“跨代际连续性验证”任务，可以检查 GEN-001、旧代理与新代理、保留的 Job/PID，并尝试 Hold、Resume 和追加指令。Ctrl+C 清理该演示创建的进程。
+Open **http://127.0.0.1:8765** and select English in the language menu. The demo creates isolated temporary state, a Controller, a Console, and synthetic processes. No model API is needed. Open the task demonstrating recovery across generations to inspect GEN-001, the old and new proxies, and the retained Job/PID. Try Hold, Resume, and additional instructions. Ctrl+C cleans up processes created by this demo.
 
-`console-demo` 用于演示；持久部署请按[部署指南](docs/DEPLOYMENT.md)安装固定版本、配置状态目录并启动 Controller 与 Console 两个服务。默认只监听 localhost，远程访问使用经授权的 SSH 端口转发：
+Use `console-demo` for demonstrations. For persistent deployment, follow the [deployment guide](docs/DEPLOYMENT.md) to install a pinned revision, configure a state directory, and run the Controller and Console as separate services. Console binds to localhost by default. Remote access uses authorized SSH port forwarding:
 
 ```bash
 ssh -N -L 127.0.0.1:8765:127.0.0.1:8765 YOUR_AUTHORIZED_HOST
 ```
 
-## 定义自己的任务
+## Define your task
 
-部署并配置好 Claude Code 及其模型服务后，在 Console 中创建任务，或通过 CLI 提交完整 Markdown 文件：
+Once Claude Code and its model service are configured, create a task in Console or submit a complete Markdown brief through the CLI:
 
 ```bash
-.venv/bin/yan --home /absolute/private/state submit '核验当前实验并继续调试' \
+.venv/bin/yan --home /absolute/private/state submit 'Verify the current experiment and continue debugging' \
   --adapter claude --execution-profile claude_code \
   --workspace /absolute/project \
   --objective-file /absolute/task-brief.md \
-  --completion-criteria '保存核验结果、修改说明和产物路径'
+  --completion-criteria 'Save verification results, a change summary, and artifact paths'
 ```
 
-任务书应写清目标、已有工作、允许使用的环境与工具、完成条件和停止边界。例如“等待现有实验结束 → 核验结果 → 分析并修复问题 → 复测 → 继续下一轮实验”可以完整写入，由代理自主执行。框架不会把它改写为固定巡检流程。
+Describe the goal, existing work, permitted environments and tools, completion criteria, and stop conditions. A brief can specify an entire sequence: wait for the current experiment, verify its results, diagnose and fix problems, rerun checks, and continue with the next experiment. The proxy decides how to carry out that work; the framework does not replace it with a fixed watchdog routine.
 
-`managed` 是默认执行能力；代码修改与原生命令需要明确选择 `claude_code`，其权限来自服务账户，`--workspace` 不是文件系统沙箱。Mock 用于演示控制行为，不会理解和完成真实任务书。提示词结构、示例、完成标记和可选验收脚本见[任务书与执行能力](docs/TASK_BRIEFS.md)及[提示词与生命周期设计](docs/PROMPT_AND_LIFECYCLE_DESIGN.md)。
+The default execution profile is `managed`. Code changes and native commands require an explicit choice of `claude_code`, which uses the service account's permissions; `--workspace` is not a filesystem sandbox. Mock proxies demonstrate control behavior and do not interpret or execute real task briefs. Prompt structure, examples, completion markers, and optional acceptance scripts are documented in [task briefs and execution profiles](docs/TASK_BRIEFS.md) and [prompt and lifecycle design](docs/PROMPT_AND_LIFECYCLE_DESIGN.md).
 
-## 文档与验证
+## Documentation and validation
 
-| 内容 | 入口 |
+The detailed engineering guides below are currently written in Chinese.
+
+| Topic | Guide |
 |---|---|
-| 新服务器部署、升级、备份与回滚 | [部署与验收](docs/DEPLOYMENT.md) |
-| 本地演示、安装与开发验证 | [项目概览](docs/PROJECT_OVERVIEW.md) |
-| 四个页面、人工干预与会话阅读 | [Yan Console](docs/YAN_CONSOLE.md) |
-| 职责边界、持久化与状态来源 | [职责基线](docs/RESPONSIBILITY_BASELINE.md) · [数据模型](docs/DATA_MODEL.md) |
-| 查询、指令、回执与代理接续 | [Yan API](docs/YAN_API.md) · [Sui Proxy Protocol](docs/SUI_PROTOCOL.md) |
-| 故障证据与恢复策略 | [Persistent 恢复](docs/PERSISTENT_RECOVERY.md) · [检测架构](docs/FAILURE_ARCHITECTURE.md) |
-| 全部文档、测试与历史交付记录 | [文档目录](docs/README.md) |
+| Server deployment, upgrades, backups, and rollback | [Deployment and acceptance](docs/DEPLOYMENT.md) |
+| Local demos, installation, and development checks | [Project overview](docs/PROJECT_OVERVIEW.md) |
+| Console pages, operator controls, and conversation reading | [Yan Console](docs/YAN_CONSOLE.md) |
+| Responsibilities, persistence, and state sources | [Responsibility baseline](docs/RESPONSIBILITY_BASELINE.md) · [Data model](docs/DATA_MODEL.md) |
+| Queries, commands, receipts, and proxy continuity | [Yan API](docs/YAN_API.md) · [Sui Proxy Protocol](docs/SUI_PROTOCOL.md) |
+| Failure evidence and recovery policies | [Persistent recovery](docs/PERSISTENT_RECOVERY.md) · [Failure detection](docs/FAILURE_ARCHITECTURE.md) |
+| All documentation, tests, and delivery records | [Documentation index](docs/README.md) |
 
-在源码目录运行不依赖真实模型的测试和故障语料回放：
+Run tests and replay the failure corpus from the source checkout without a real model API:
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 PYTHONPATH=src .venv/bin/python -m sui_regulator failures evaluate tests/failure_corpus --summary
 ```
 
-已验证本地控制链路、合成故障、浏览器交互，以及真实 Claude Code CLI 对接本地模拟 API 的执行链路。真实 GLM 的长期行为、目标服务器部署和真实实验生命周期仍需在实际环境验收；模拟结果不代表模型的研究或诊断能力。
+Validation covers local control behavior, synthetic failures, browser interactions, and the real Claude Code CLI connected to a local mock API. Long-running behavior with real GLM, deployment on the target server, and real experiment lifecycles still require testing in that environment. Simulations do not establish a model's research or diagnostic ability.
 
-## 项目世界观与许可
+## Project lore and license
 
-司岁台、岁兽代理人、秉烛人与案卷构成项目的命名和叙事世界观，全文及英文译文收录于 [LORE.md](docs/LORE.md)，与工程职责的对应关系见[命名体系](docs/NAMING.md)。
+Sui Regulator, Yan, Sui Proxy, Candleholder, and Dossier belong to the project's narrative setting. The story and its English translation live in [LORE.md](docs/LORE.md#sui-regulator); [project terminology](docs/NAMING.md) maps these names to engineering responsibilities.
 
-项目代码使用 [MIT License](LICENSE)。随包提供的开源字体、Markdown 渲染器及其他第三方代码保留各自许可，见 [Third-party notices](THIRD_PARTY_NOTICES.md)。
+Project code is licensed under the [MIT License](LICENSE). Bundled fonts, Markdown libraries, and other third-party code retain their own licenses; see [Third-party notices](THIRD_PARTY_NOTICES.md).
