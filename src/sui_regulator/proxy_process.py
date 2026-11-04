@@ -24,7 +24,8 @@ def run(config: Config, credentials: Credentials) -> None:
         "assistant",
         "[合成演示] 我是 Mock Sui Proxy，正在查询持久 Task 并连接已有 Job。无需模型 API。",
     )
-    recorder.write("tool_call", "assistant", '{"logical_key":"primary-trial"}', tool_name="launch_job")
+    recorder.write("tool_call", "assistant", '{"logical_key":"primary-trial"}', tool_name="launch_job",
+                   call_id="mock-launch-job")
     job = protocol.launch_job(credentials, "primary-trial", context["spec"])
     protocol.attach_job(credentials, job["id"])
     recorder.write(
@@ -32,6 +33,7 @@ def run(config: Config, credentials: Credentials) -> None:
         "tool",
         json.dumps({"job_id": job["id"], "status": job["status"]}),
         tool_name="launch_job",
+        call_id="mock-launch-job",
     )
     recorder.write(
         "text",

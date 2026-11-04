@@ -44,7 +44,7 @@ def run(config: Config, credentials: Credentials) -> None:
     prompt = task_prompt(context)
     recorder = SessionRecorder(config, credentials)
     recorder.write("text", "system", SUPERVISOR_PROMPT, message_id="supervisor-protocol")
-    recorder.write("text", "user", prompt, message_id="initial-input")
+    recorder.record_input(prompt, context)
     process = subprocess.Popen(
         build_command(config, worker["session_id"], execution_profile=context["execution_profile"]),
         stdin=subprocess.PIPE,
@@ -84,7 +84,7 @@ def run(config: Config, credentials: Credentials) -> None:
     stream_capability_recorded = False
 
     def record_exit(reason: str, return_code=None, turn_limit=False, incidents=()):
-        recorder.close()
+        recorder.flush()
         recorder.write("exit", "system", reason, exit_code=return_code)
         # Keep a bounded excerpt of the CLI stderr tail in the durable ledger;
         # the raw buffer dies with the wrapper and this is the only post-mortem.
@@ -288,7 +288,7 @@ def run(config: Config, credentials: Credentials) -> None:
         # complete_task, hold, cancel and takeover revoke the lease. No replay follows.
         return
     finally:
-        recorder.close()
+        recorder.flush()
         selector.close()
         if process.poll() is None:
             process.terminate()
