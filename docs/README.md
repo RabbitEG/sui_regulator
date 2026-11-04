@@ -2,7 +2,7 @@
 
 [返回项目首页](../README.md)
 
-README 是项目门面；安装、部署、状态语义、接口和验收证据以这里的工程文档为准。当前版本为 v0.4，统一会话角色名称为 **Sui Proxy（岁兽代理人）**。
+README 提供项目介绍、架构和快速开始；这里收录完整的安装、部署、状态语义、接口和验收证据。项目世界观与中英文叙事独立收录于 [LORE.md](LORE.md)。当前版本为 v0.4，统一会话角色名称为 **Sui Proxy（岁兽代理人）**。
 
 当前规范以 [职责基线](RESPONSIBILITY_BASELINE.md) 为准；本轮实现与验收状态见 [迭代映射](RESPONSIBILITY_ITERATION.md)。历史交付报告不替代规范。
 
@@ -18,7 +18,8 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 | 查看双语切换、Markdown、角色区分和故障位置 | [Yan Console 阅读体验更新与验收](YAN_CONSOLE_READING.md) |
 | 调整阅读字号、查看代理对话、核对进程与工具返回 | [会话阅读器交付与验收](SESSION_READER_DELIVERY.md) |
 | 理解世界观角色与兼容字段 | [命名体系](NAMING.md) |
-| 查《明日方舟》典故和 README 风格出处 | [资料与风格参考](LORE_AND_REFERENCES.md) |
+| 阅读项目世界观与英文译文 | [Lore](LORE.md) |
+| 查命名灵感、叙事与文档组织参考 | [资料与风格参考](LORE_AND_REFERENCES.md) |
 
 ## 接口与实现
 
@@ -36,7 +37,9 @@ README 是项目门面；安装、部署、状态语义、接口和验收证据�
 
 ## 验收与进度
 
-- Console 阅读体验：[本轮交付](YAN_CONSOLE_READING.md)、[验证汇总](verification/yan-reader/summary.json)、[当前截图](screenshots/yan-reader/)。前一轮 [界面改版记录](YAN_CONSOLE_REDESIGN.md) 保留为历史。
+- README 与界面素材整理：[验证记录](verification/console-cleanup/README.md)、[当前总览截图](screenshots/yan-console/)。世界观叙事收录于 [LORE.md](LORE.md)。
+
+- Console 阅读体验：[阅读器交付](YAN_CONSOLE_READING.md)、[验证汇总](verification/yan-reader/summary.json)、[会话阅读截图](screenshots/yan-reader/)。前一轮 [界面改版记录](YAN_CONSOLE_REDESIGN.md) 保留为历史。
 
 - 最新自主任务：[交付报告](AUTONOMY_DELIVERY.md)、[验证摘要](autonomy-verification.json)、[原始测试输出](autonomy-test-output.txt)、[安装包验收](autonomy-wheel-verification.json)。
 

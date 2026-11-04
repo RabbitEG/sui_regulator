@@ -83,7 +83,9 @@ Task 详情顶部保留人工操作和“查看当前代理的会话实录”入
 
 会话中的故障标记只来自该代际的 Incident 账本。GEN-001 的检测时间窗口标注为“退化检测窗口”，不代表每一句被框住的话都已经证明有问题。点击标记可查看检测建议、最终动作与恢复结果。普通工具返回错误不会被页面自行判定为会话故障。每次最多读取 20 个标记，浏览器保留最近加载的 100 个；未读完或发生释放时都有提示。
 
-当前截图：[中文总览](screenshots/yan-reader/overview-zh.png) · [英文总览](screenshots/yan-reader/overview-en.png) · [角色区分与工具折叠](screenshots/yan-reader/conversation-roles-zh.png) · [Markdown 任务书](screenshots/yan-reader/task-markdown-zh.png) · [故障位置](screenshots/yan-reader/incident-in-conversation.png) · [手机阅读](screenshots/yan-reader/conversation-mobile.png)。本轮验收见 [阅读体验更新](YAN_CONSOLE_READING.md)。此前 [界面设计记录](YAN_CONSOLE_REDESIGN.md) 与 [初版阅读器报告](SESSION_READER_DELIVERY.md) 保留为历史证据。
+当前截图：[中文总览](screenshots/yan-console/overview-zh.png) · [英文总览](screenshots/yan-console/overview-en.png) · [角色区分与工具折叠](screenshots/yan-reader/conversation-roles-zh.png) · [Markdown 任务书](screenshots/yan-reader/task-markdown-zh.png) · [故障位置](screenshots/yan-reader/incident-in-conversation.png) · [手机阅读](screenshots/yan-reader/conversation-mobile.png)。本轮验收见 [阅读体验更新](YAN_CONSOLE_READING.md)。此前 [界面设计记录](YAN_CONSOLE_REDESIGN.md) 与 [初版阅读器报告](SESSION_READER_DELIVERY.md) 保留为历史证据。
+
+当前界面已移除游戏美术图片，保留项目自绘标记与本地开源字体；重新拍摄的总览及操作回归见[素材整理验证](verification/console-cleanup/README.md)。
 
 ## 人工干预与回执
 

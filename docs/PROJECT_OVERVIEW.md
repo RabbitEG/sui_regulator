@@ -2,13 +2,13 @@
 
 [文档目录](README.md) · [项目首页](../README.md)
 
-本文保留首页迁出的工程介绍、运行与验证命令。以下源码命令均在仓库根目录执行；跨服务器的持久部署使用独立的部署指南。
+本文提供详细的工程介绍、运行与验证命令。以下源码命令均在仓库根目录执行；跨服务器的持久部署使用独立的部署指南。
 
 **持久 Task、可替换的 Sui Proxy、独立运行的 Job。**
 
 司岁台是独立于 AI 会话的本地任务控制平面。它把用户意图、AI 声明和 Runner 的真实观测分别记录，让秉烛人在代理失效时按证据与预算恢复任务，让大炎入口随时可查询、可干预。
 
-v0.4 提供 **Yan Console**：四个本地 Web 页面，用来观察代理身份与换代、Task/Job、故障证据、自动恢复及人工指令回执。Python 3.11+ / Linux，运行时仅用标准库；前端为原生 HTML/CSS/JavaScript，无框架、CDN 或 npm 构建依赖。当前执行端只运行合成 Job，真实 GLM、GPU/NPU 与远程 Runner 尚未验证。
+v0.4 提供 **Yan Console**：四个本地 Web 页面，用来观察代理身份与换代、Task/Job、故障证据、自动恢复及人工指令回执。Python 3.11+ / Linux，运行时仅用标准库；前端为原生 HTML/CSS/JavaScript，无框架、CDN 或 npm 构建依赖。当前托管 Runner 只实现合成 Job；`claude_code` 执行能力允许代理使用原生工具运行真实命令，但外部工作不会自动成为托管 Job。真实 GLM、GPU/NPU 与远程执行仍需在目标环境验收，详见 [任务书与执行能力](TASK_BRIEFS.md)。
 
 **另一台服务器从克隆到部署：** 见 [部署与验收指南](DEPLOYMENT.md)，包括固定版本安装、持久状态、systemd 用户服务、SSH 访问、Mock/GLM 验收、备份与升级回滚；[服务模板](../deploy/systemd/user/sui-regulator-controller.service) 随仓库提供。
 
@@ -47,11 +47,11 @@ PYTHONPATH=src python3.11 -m sui_regulator console-demo --port 8765
 <details>
 <summary>查看真实浏览器截图</summary>
 
-![Yan Console 总览](screenshots/yan-reader/overview-zh.png)
+![Yan Console 总览](screenshots/yan-console/overview-zh.png)
 
 ![GEN-001 在会话实录中的位置](screenshots/yan-reader/incident-in-conversation.png)
 
-更多：[角色区分与工具折叠](screenshots/yan-reader/conversation-roles-zh.png) · [英文界面](screenshots/yan-reader/overview-en.png) · [Markdown 任务书](screenshots/yan-reader/task-markdown-zh.png) · [手机阅读](screenshots/yan-reader/conversation-mobile.png) · [本轮验收](YAN_CONSOLE_READING.md)
+更多：[角色区分与工具折叠](screenshots/yan-reader/conversation-roles-zh.png) · [英文界面](screenshots/yan-console/overview-en.png) · [Markdown 任务书](screenshots/yan-reader/task-markdown-zh.png) · [手机阅读](screenshots/yan-reader/conversation-mobile.png) · [本轮验收](YAN_CONSOLE_READING.md)
 
 </details>
 
@@ -99,7 +99,7 @@ PYTHONPATH=src .venv/bin/python scripts/verify_console_browser.py --browser /usr
 python3.11 scripts/export_schemas.py --check
 ```
 
-Claude 安装器校验官方原生包 integrity，不需要 Node、npm 或 root；已验证版本 2.1.316。真实平台的端点、鉴权、GLM dialect、长时间行为、训练生命周期、持久卷和远程授权仍需接续验证。默认仅开放受管 MCP 和合成 Job，不提供任意真实训练执行或终止。
+Claude 安装器校验官方原生包 integrity，不需要 Node、npm 或 root；已验证版本 2.1.316。真实平台的端点、鉴权、GLM dialect、长时间行为、训练生命周期、持久卷和远程授权仍需接续验证。默认 `managed` 能力使用受管 MCP、读取工具与经配置的固定命令；真实代码修改和命令执行需明确选择 `claude_code`。
 
 ## 当前边界
 

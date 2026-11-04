@@ -72,13 +72,11 @@ def main():
 
         visit("overview")
         expect(page.locator(".watch-heading")).to_contain_text("诸相可散，案卷长存")
-        art = page.locator(".watch-art img")
-        assert art.evaluate("n=>n.complete && n.naturalWidth===511")
         assert page.locator("body").evaluate("n=>parseFloat(getComputedStyle(n).fontSize)") == 18
         contrast("body", ".watch-caption", ".watch-motto", ".stat-foot", ".incident-body p",
                  ".sidebar nav small", ".side-health", ".button.primary", ".button.secondary", ".badge")
         shot("overview-desktop.png")
-        checks.append("local_artwork_and_18px_readable_overview")
+        checks.append("18px_readable_overview")
 
         task = demo.service.get_task(demo.tasks["recovery"])
         task_route = "tasks/" + task["id"]

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sui-regulator"
 version = "0.4.0"
-description = "Durable task control, replaceable AI workers, independent experiment jobs"
+description = "Durable tasks, replaceable Sui Proxies, independent jobs"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}

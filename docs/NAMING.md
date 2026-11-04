@@ -1,6 +1,6 @@
 # 司岁台的命名体系
 
-当前约定采用《明日方舟》大炎、司岁台与岁兽的意象，同时保留 Task、Command、Job 等明确的工程语义。
+项目世界观以司岁台、岁兽代理人、秉烛人与案卷组织命名，同时保留 Task、Command、Job 等明确的工程语义。完整叙事与英文译文见 [LORE.md](LORE.md)。
 
 名称的资料出处与工程改编边界见 [资料与风格参考](LORE_AND_REFERENCES.md)。下表描述本项目的职责分工；运行入口、完整架构和部署文档见 [文档目录](README.md)。
 
@@ -28,7 +28,7 @@
 | 敕令回执 | Command Receipt 与追加要求的投递记录；已读声明不代表执行完成 |
 | 故障案录、值守纪事 | Incident 和审计 Event；展示名称不改规则 ID 或事件类型 |
 
-中文栏目承接 README 的官署、案卷与值守意象，英文仍使用既有 Sui Proxy、Task、Command、Incident、Handoff 等术语。Desired / Declared / Observed、UNKNOWN、离线与确认操作保留明确含义。中文界面以中文名称为主，英文界面沿用 Sui Proxy、Task、Incident 等定义；不把两套标签并排堆放。Desired / Declared / Observed 在中文界面分别为“用户意图 / 代理声明 / 运行观测”，英文界面保留对应英文名称。原始数据和规则编号不翻译。界面配色、字体和阅读安排见 [阅读体验更新](YAN_CONSOLE_READING.md)。
+中文栏目承接项目世界观的官署、案卷与值守意象，英文仍使用既有 Sui Proxy、Task、Command、Incident、Handoff 等术语。Desired / Declared / Observed、UNKNOWN、离线与确认操作保留明确含义。中文界面以中文名称为主，英文界面沿用 Sui Proxy、Task、Incident 等定义；不把两套标签并排堆放。Desired / Declared / Observed 在中文界面分别为“用户意图 / 代理声明 / 运行观测”，英文界面保留对应英文名称。原始数据和规则编号不翻译。界面配色、字体和阅读安排见 [阅读体验更新](YAN_CONSOLE_READING.md)。
 
 ## 代码与协议兼容
 

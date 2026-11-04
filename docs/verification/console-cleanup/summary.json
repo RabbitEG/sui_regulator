@@ -1,0 +1,31 @@
+{
+  "verified_at_utc": "2026-11-04T09:34:24.992285+00:00",
+  "base_commit": "1911ec133aa90c98c26eadde7adc0e8dd9ddfd1e",
+  "source_sha256": {
+    "pyproject.toml": "b26414b721183b882a1b1b4efff1e65231d2406dbe8b4a1591bd80ef1155000a",
+    "scripts/verify_console_design.py": "c5f047f14ea5e748b5e64b6e9c2a1d9ffcb3f4b50e651e4f512311fca7056d47",
+    "src/sui_regulator/console.py": "c64c25f7ec4d48132450c6ac14aec849a8d35646122aa5fe228edfd11f2f68b1",
+    "src/sui_regulator/static/console.css": "a052574b1255037c16bdfbea09abe5e1add15717cabe646a25befcac221301a3",
+    "src/sui_regulator/static/console.js": "19c456d0e2a110d5455fe5c8d17c4e65e1e2517db58fde8c7da8916205e5f2c4",
+    "src/sui_regulator/static/index.html": "2546ddf2323c54933487c882a90b3a67b62f61d6baf447ae3fd9e3b10473c94b",
+    "README.md": "2e13a98d8869843f4417a162465bea6b4ada919721bc42f3d12f19f833c04fe8",
+    "docs/LORE.md": "b79d179cfad18f4fdca7f1f277e19d07e12c951135627a9146d0e30bd59c458b",
+    "THIRD_PARTY_NOTICES.md": "d513adfe216a8b116da0619eafe919b09b1a5eaf0bb694de7d79daa6d40407f9"
+  },
+  "scope": "README/lore reorganization and removal of bundled game artwork; local synthetic Console tests",
+  "unit_tests": 14,
+  "browser_checks": 42,
+  "responsive_layout_cases": 276,
+  "static_routes": 12,
+  "removed_asset_http_status": 404,
+  "no_game_images_in_wheel": true,
+  "screenshots_sha256": {
+    "docs/screenshots/yan-console/overview-en.png": "2729c3fc037ca5ec32bfadbf98afabeaf0cff71ae0fdec51ce4f1cba4b17330e",
+    "docs/screenshots/yan-console/overview-mobile.png": "8d1b19691780d1ba927feb895b87ba174e9a101a072a1ab0f901fc07f4d411a0",
+    "docs/screenshots/yan-console/overview-zh.png": "b45b29ac372f69ad246f7383b686d2f5b72305f473570e834d8c1c5b912f68a0"
+  },
+  "limits": [
+    "No real model API or remote server testing in this change",
+    "Historical validation reports retain the original resource names and hashes"
+  ]
+}

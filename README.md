@@ -1,157 +1,112 @@
-# 司岁台
+# Sui Regulator · 司岁台
 
-<img align="right" src="docs/assets/arknights/zuo-le-module-x.png" width="132" height="132" alt="左乐模组「岂苦夜长」的长匣" title="岂苦夜长 · 左乐模组 SBL-X">
+面向长期任务的本地 AI Agent 运行与接续框架。
 
-**诸相可散，案卷长存。**
+Sui Regulator 将持久任务、可替换的 AI 会话和独立作业分开管理。用户定义完整目标与授权，**Sui Proxy** 负责分析、编程、调试和选择下一步，**Candleholder** 负责运行故障检测、会话接续、执行记录与人工控制。会话退出或换代后，任务要求、历史指令和交接资料仍然保留。
 
-> 秉明烛者，岂苦夜长。
+[部署指南](docs/DEPLOYMENT.md) · [如何写任务书](docs/TASK_BRIEFS.md) · [Console 使用](docs/YAN_CONSOLE.md) · [文档目录](docs/README.md) · [项目世界观](docs/LORE.md)
 
-<br clear="right">
+## 当前能力
 
----
+- **持久任务**：保存完整 Markdown 任务书、验收条件、执行能力、追加指令、代际历史与 Handoff；支持代理登记等待、到期接续和提交完成标记。
+- **会话恢复**：根据进程、连接、所有权与生成异常等运行证据处理故障，支持 Persistent 和 Bounded 恢复模式。实验失败、正常调试和单纯缺少新观测不会被当作会话失败。
+- **可核验的控制**：Hold、Resume、Instruct 等人工指令有持久回执；用户意图（Desired）、代理声明（Declared）和运行观测（Observed）分别记录。
+- **Yan Console**：独立运行的本地管理台，提供总览、代理会话、任务和故障四个页面；支持中英文切换、Markdown 阅读、角色区分、工具折叠、故障定位和离线快照。
+- **无需模型的演示**：用 Mock 代理和合成 Job 演示 GEN-001 检测、代理换代、同一 Task 接续、Job 不重复启动及真实人工操作回执。
 
-## 关于司岁台
+当前版本 **v0.4**，面向 Linux、Python 3.11+、单用户和单 Controller 部署。Python 运行时使用标准库；前端为原生 HTML/CSS/JavaScript，字体和 Markdown 依赖随包提供，无需 npm 或 CDN。
 
-大炎与岁兽打了很久的交道。
+<details>
+<summary>Yan Console 界面</summary>
 
-岁兽代理人各有神通，也各有自己的性情。他们能做许多常人做不到的事，却未必会事事遵从朝廷的安排。有时一切顺利，有时又会闹出些意想不到的乱子。
+![Yan Console 中文总览](docs/screenshots/yan-console/overview-zh.png)
 
-总不能因为他们本领高强，就把所有事情都交给他们，之后便不闻不问。
+[英文总览](docs/screenshots/yan-console/overview-en.png) · [会话角色与工具折叠](docs/screenshots/yan-reader/conversation-roles-zh.png) · [Markdown 任务书](docs/screenshots/yan-reader/task-markdown-zh.png)
 
-司岁台便是为此而设。
+</details>
 
-朝廷的命令由此传达，岁兽代理人的动向由此记录。至于他们究竟如何行事，司岁台未必事事干预，但至少要知道事情进行到了哪一步，又是否出了什么岔子。
+## 架构与职责
 
-## 秉烛人
+```mermaid
+flowchart TD
+    User[用户或授权客户端] --> CLI[Yan CLI]
+    User --> Web[Yan Console · 独立进程]
+    CLI -->|Unix RPC| API
+    Web -->|Unix RPC| API
+    subgraph Control[Controller 进程]
+        API[Yan RPC] --> C[Candleholder · 控制与恢复]
+        C <--> DB[(SQLite 账本)]
+    end
+    C -->|分配与接续| Proxy[Sui Proxy · AI 会话]
+    Proxy -->|受管协议与工具| API
+    C -->|启动与核验| Job[独立 Runner / Job]
+    Job -->|状态与指标| DB
+    Proxy -.->|授权的原生工具| External[外部命令与实验]
+```
 
-<img align="right" src="docs/assets/arknights/zuo-le-avatar.png" width="100" height="100" alt="明日方舟干员左乐头像" title="左乐 · 司岁台秉烛人">
+Task 的生命周期独立于 Session；受管 Job 也可以跨代理代际运行。Console 通过 Yan 查询和提交指令，停止 Console 不会停止 Controller 或 Job。Candleholder 是 Controller 中的监控与恢复职责，不是另一个判断任务内容的模型。
 
-司岁台的秉烛人，负责监察岁兽代理人的行动。
+**当前托管 Runner 只实现合成 Job。** 启用 `claude_code` 后，代理可以用原生工具修改代码、运行命令和实验；通过 Bash、SSH 或外部脚本启动的工作不会自动变成托管 Job。它们的去重、存活与远端状态必须按实际执行接口核验。具体边界见[整体架构](docs/ARCHITECTURE.md)与[任务书指南](docs/TASK_BRIEFS.md)。
 
-这可不是件轻松差事。
+## 快速开始
 
-有的代理人行踪不定，有的许久不见回音，还有的说得头头是道，做出来却未必是那么回事。
+准备 Git、Python 3.11+ 和 venv，在 Linux 上执行：
 
-所以秉烛人不能只听他们自己怎么说。
+```bash
+git clone https://github.com/RabbitEG/sui_regulator.git
+cd sui_regulator
+python3.11 -m venv .venv
+.venv/bin/python -m pip install .
+.venv/bin/yan console-demo --port 8765
+```
 
-人在哪里，事情办得如何，有没有留下什么线索，都得一一查明。若是情况不明，宁可先记上一笔，留待查证，也不能随意下结论。
+打开 **http://127.0.0.1:8765**。演示会创建隔离的临时状态、Controller、Console 和合成进程，不需要模型 API。进入“跨代际连续性验证”任务，可以检查 GEN-001、旧代理与新代理、保留的 Job/PID，并尝试 Hold、Resume 和追加指令。Ctrl+C 清理该演示创建的进程。
 
-毕竟，代理人失去音讯，不代表交代给他的事情就一定出了问题。
+`console-demo` 用于演示；持久部署请按[部署指南](docs/DEPLOYMENT.md)安装固定版本、配置状态目录并启动 Controller 与 Console 两个服务。默认只监听 localhost，远程访问使用经授权的 SSH 端口转发：
 
-## 案卷
+```bash
+ssh -N -L 127.0.0.1:8765:127.0.0.1:8765 YOUR_AUTHORIZED_HOST
+```
 
-<img align="right" src="docs/assets/arknights/zuo-le-module-y.png" width="132" height="132" alt="左乐模组「秉烛人的记录」中的卷册" title="秉烛人的记录 · 左乐模组 SBL-Y">
+## 定义自己的任务
 
-司岁台有个规矩：事情可以交给不同的人办，但记录不能随着人一同消失。
+部署并配置好 Claude Code 及其模型服务后，在 Console 中创建任务，或通过 CLI 提交完整 Markdown 文件：
 
-谁领了命，做过什么，留下哪些成果，还有什么没有完成，都应当记在案卷里。
+```bash
+.venv/bin/yan --home /absolute/private/state submit '核验当前实验并继续调试' \
+  --adapter claude --execution-profile claude_code \
+  --workspace /absolute/project \
+  --objective-file /absolute/task-brief.md \
+  --completion-criteria '保存核验结果、修改说明和产物路径'
+```
 
-倘若某位代理人突然离开，或是出了什么状况，后来接手的人便可以翻阅旧卷，弄清前因后果。
+任务书应写清目标、已有工作、允许使用的环境与工具、完成条件和停止边界。例如“等待现有实验结束 → 核验结果 → 分析并修复问题 → 复测 → 继续下一轮实验”可以完整写入，由代理自主执行。框架不会把它改写为固定巡检流程。
 
-已经办妥的事，不必再办一遍；仍在进行的事，也不必因为换了个人便从头开始。
+`managed` 是默认执行能力；代码修改与原生命令需要明确选择 `claude_code`，其权限来自服务账户，`--workspace` 不是文件系统沙箱。Mock 用于演示控制行为，不会理解和完成真实任务书。提示词结构、示例、完成标记和可选验收脚本见[任务书与执行能力](docs/TASK_BRIEFS.md)及[提示词与生命周期设计](docs/PROMPT_AND_LIFECYCLE_DESIGN.md)。
 
-若是前任连一句交代都没留下，那就只能辛苦秉烛人多查一查了。
+## 文档与验证
 
-## 长夜
+| 内容 | 入口 |
+|---|---|
+| 新服务器部署、升级、备份与回滚 | [部署与验收](docs/DEPLOYMENT.md) |
+| 本地演示、安装与开发验证 | [项目概览](docs/PROJECT_OVERVIEW.md) |
+| 四个页面、人工干预与会话阅读 | [Yan Console](docs/YAN_CONSOLE.md) |
+| 职责边界、持久化与状态来源 | [职责基线](docs/RESPONSIBILITY_BASELINE.md) · [数据模型](docs/DATA_MODEL.md) |
+| 查询、指令、回执与代理接续 | [Yan API](docs/YAN_API.md) · [Sui Proxy Protocol](docs/SUI_PROTOCOL.md) |
+| 故障证据与恢复策略 | [Persistent 恢复](docs/PERSISTENT_RECOVERY.md) · [检测架构](docs/FAILURE_ARCHITECTURE.md) |
+| 全部文档、测试与历史交付记录 | [文档目录](docs/README.md) |
 
-岁兽代理人并不总是安分的。
+在源码目录运行不依赖真实模型的测试和故障语料回放：
 
-偶尔有人失联，偶尔有人陷入困境，也难免有人接连犯下同样的错误。遇到这些情况，司岁台总得想办法让事情继续办下去。
+```bash
+PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+PYTHONPATH=src .venv/bin/python -m sui_regulator failures evaluate tests/failure_corpus --summary
+```
 
-但也不是出了问题就急着换人。
+已验证本地控制链路、合成故障、浏览器交互，以及真实 Claude Code CLI 对接本地模拟 API 的执行链路。真实 GLM 的长期行为、目标服务器部署和真实实验生命周期仍需在实际环境验收；模拟结果不代表模型的研究或诊断能力。
 
-先查明情况，再决定是否干预；若确实需要另派人手，也要先确认原先的事情是否还在进行，以免两边同时动手，反倒惹出更大的麻烦。
+## 项目世界观与许可
 
-倘若朝廷已经下令暂缓，秉烛人自然也不能擅作主张。
+司岁台、岁兽代理人、秉烛人与案卷构成项目的命名和叙事世界观，全文及英文译文收录于 [LORE.md](docs/LORE.md)，与工程职责的对应关系见[命名体系](docs/NAMING.md)。
 
-司岁台要做的，从来不是让每一位岁兽代理人都乖乖听话。
-
-只是无论他们去了哪里，事情总得有人照看。
-
----
-
-*岁兽各行其道，秉烛人自守长夜。*
-
-*大炎司岁台*
-
-<sub>《明日方舟》素材 · <a href="docs/assets/arknights/README.md">来源与权利说明</a></sub>
-
----
-
-## Sui Regulator
-
-<img align="right" src="docs/assets/arknights/zuo-le-module-x.png" width="132" height="132" alt="Zuo Le's long case, from module SBL-X" title="Zuo Le · Module SBL-X">
-
-**Forms may fade; the Dossier endures.**
-
-> With a candle in hand, why fear the long night?
-
-<br clear="right">
-
----
-
-### About the Sui Regulator
-
-Yan has dealt with the beast Sui for a very long time.
-
-Each Sui Proxy has gifts of their own, and a temperament to match. They can accomplish things ordinary people cannot, but they may not always follow the court's plans. Sometimes all goes well. Sometimes they cause trouble no one saw coming.
-
-Their abilities are no reason to entrust everything to them and then stop paying attention.
-
-That is why the Sui Regulator exists.
-
-The court's Commands are delivered through it, and the movements of Sui Proxies are recorded there. The Sui Regulator need not interfere in every detail of how they work, but it must at least know how far each Task has progressed, and whether anything has gone wrong.
-
-### Candleholders
-
-<img align="right" src="docs/assets/arknights/zuo-le-avatar.png" width="100" height="100" alt="Zuo Le's operator portrait from Arknights" title="Zuo Le · Candleholder of the Sui Regulator">
-
-The Candleholders of the Sui Regulator watch over the actions of Sui Proxies.
-
-It is no easy duty.
-
-Some Sui Proxies are hard to locate. Some fall silent for long periods. Others tell a convincing story that their actions do not always bear out.
-
-So a Candleholder cannot rely solely on what a Sui Proxy claims.
-
-Where they are, how the Task is progressing, and what evidence they have left behind must all be checked. When the facts are unclear, it is better to make a record and investigate further than to jump to a conclusion.
-
-After all, a Sui Proxy going silent does not necessarily mean the Task entrusted to them has gone wrong.
-
-### Dossiers
-
-<img align="right" src="docs/assets/arknights/zuo-le-module-y.png" width="132" height="132" alt="The scrolls and records in Zuo Le's module SBL-Y" title="Zuo Le · Module SBL-Y">
-
-The Sui Regulator has a rule: a Task may pass from one Sui Proxy to another, but its Dossier must not disappear when they leave.
-
-Who claimed the Task, what they have done, what results they have left behind, and what remains unfinished should all go into its Dossier.
-
-If a Sui Proxy suddenly leaves, or something happens to them, their successor can read the Dossier and understand what came before.
-
-Work already completed need not be repeated. A Job still running need not start over simply because a different Sui Proxy has taken over.
-
-If the predecessor left no Handoff at all, the Candleholder will simply have more to investigate.
-
-### The Long Night
-
-Sui Proxies are not always easy to keep watch over.
-
-Some lose contact. Some find themselves in difficulty. Some keep making the same mistake. When that happens, the Sui Regulator must find a way to keep the Task moving.
-
-But a problem is not, by itself, a reason to rush to replace a Sui Proxy.
-
-First establish the facts, then decide whether to intervene. If a replacement is needed, check whether the existing Job is still running, so that both sides do not start the same work at once and make matters worse.
-
-If the court has issued a Command to hold a Task, a Candleholder may not resume it on their own authority.
-
-The Sui Regulator has never set out to make every Sui Proxy obedient.
-
-Wherever they may go, someone must still keep watch over the work.
-
----
-
-*Sui Proxies walk their own paths; Candleholders keep watch through the long night.*
-
-*The Sui Regulator of Yan*
-
-<sub><a href="docs/NAMING.md">Project terminology</a> · Arknights artwork: <a href="docs/assets/arknights/README.md">sources and rights</a></sub>
+项目代码使用 [MIT License](LICENSE)。随包提供的开源字体、Markdown 渲染器及其他第三方代码保留各自许可，见 [Third-party notices](THIRD_PARTY_NOTICES.md)。

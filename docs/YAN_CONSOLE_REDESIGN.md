@@ -2,7 +2,9 @@
 
 [文档目录](README.md) · [运行与使用](YAN_CONSOLE.md) · [部署指南](DEPLOYMENT.md)
 
-本次将控制台整理为司岁台的值守界面：墨绿导航、纸色案卷、朱印提示，标题承接 README 的叙述，正文保持清楚的操作含义。实现提交为 `5e0b74c`，基于 `672322e`；Author 为 **GPT-6 Astra**。
+本文保留早期改版的设计与验证结果；字体、阅读体验以[后续更新](YAN_CONSOLE_READING.md)为准。游戏图片与含图旧总览截图已于 2026-11-04 移除，下方总览链接指向重新拍摄的当前界面，历史测试数据保持原样。
+
+当时将控制台整理为司岁台的值守界面：墨绿导航、纸色案卷、朱印提示，标题承接项目世界观的叙述，正文保持清楚的操作含义。实现提交为 `5e0b74c`，基于 `672322e`；Author 为 **GPT-6 Astra**。
 
 ## 阅读与导航
 
@@ -17,13 +19,13 @@
 
 “案卷”仍是 Task 关联记录的集合意象；“敕令”对应已有 Command，“秉烛人”对应 Candleholder。状态枚举、故障规则、数据库与恢复逻辑沿用既有实现，详见 [命名约定](NAMING.md)。新增服务端内容只有本地 PNG 静态路由，没有新 RPC、控制命令或数据迁移。
 
-卷册沿用仓库已有的《明日方舟》左乐模组「秉烛人的记录」，完整来源、原始文件校验和与权利说明见 [素材记录](assets/arknights/README.md)。素材随安装包提供，页面不请求外部站点。项目自绘印章式 SVG 用作品牌标记；没有新增游戏设定。
+早期使用的游戏卷册图及其静态路由已移除。当前 Console 保留项目自绘印章式 SVG 标记，不再附带游戏美术素材。
 
 ## 实际界面
 
 以下均为 Chromium 访问实际 localhost HTTP / Yan RPC / SQLite 生成的截图。Task、Proxy 和 Runner 场景为合成演示，没有真实模型调用。
 
-![值守总览](screenshots/yan-redesign/overview-desktop.png)
+![当前值守总览（素材清理后重新拍摄）](screenshots/yan-console/overview-zh.png)
 
 ![代理会话实录](screenshots/yan-redesign/session-reader.png)
 

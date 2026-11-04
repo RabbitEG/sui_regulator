@@ -106,16 +106,12 @@ small { font-size: .875rem; }
 .notice.danger { background: #fae9e1; border-color: #dbaf9e; color: #933927; }
 .notice.info { background: #eaf0e7; border-color: #c5d1bd; color: #3c5c44; }
 
-/* Open the dossier. Decoration belongs here, never behind operational text. */
-.watch-heading { position: relative; display: grid; grid-template-columns: minmax(0,1fr) 210px; gap: 24px; padding: 30px 32px; margin: 0 0 26px; min-height: 230px; border: 1px solid #c9cbb9; border-top: 3px solid var(--blue); background: var(--paper); }
+/* Overview: task navigation and a readable introduction. */
+.watch-heading { padding: 30px 32px; margin: 0 0 26px; border: 1px solid #c9cbb9; border-top: 3px solid var(--blue); background: var(--paper); }
 .watch-heading .eyebrow { color: var(--blue); margin-bottom: 12px; }
 .watch-heading h1 { font-size: 2rem; }
 .watch-heading .watch-motto { margin: 10px 0 12px; font: 1.17rem/1.7 var(--sans); color: #52634f; letter-spacing: .08em; }
 .watch-heading .watch-caption { color: var(--muted); font-size: .88rem; }
-.watch-art { position: relative; display: grid; place-items: center; align-self: center; }
-.watch-art::before { content: ""; width: 165px; height: 165px; border: 1px solid #d2c4a4; border-radius: 50%; position: absolute; }
-.watch-art img { width: 205px; height: 205px; object-fit: contain; position: relative; }
-.watch-art small { position: absolute; right: -15px; top: 0; writing-mode: vertical-rl; letter-spacing: .25em; font: .85rem var(--sans); color: #746647; }
 .watch-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 19px; }
 .stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin-bottom: 26px; }
 .stat { background: var(--paper); border: 1px solid var(--line); padding: 20px 22px; min-width: 0; position: relative; }
@@ -194,9 +190,6 @@ td .sub { font: .8rem/1.7 var(--mono); color: var(--muted); }
 .loading-dot { display: inline-block; width: 8px; height: 8px; background: var(--blue); border-radius: 50%; margin-right: 12px; animation: pulse 1.3s infinite; }
 .footer { padding: 12px 0 28px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: .78rem; }
 .footer .dot { margin-right: 6px; }
-.art-credits { max-width: 600px; margin-left: auto; }
-.art-credits summary { cursor: pointer; }
-.art-credits p { margin-top: 10px; line-height: 1.85; }
 
 /* A task has four reading sections; controls and the three sources stay above them. */
 .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--blue); margin-bottom: 16px; font-size: .88rem; }
@@ -317,10 +310,7 @@ textarea { width: 100%; resize: vertical; padding: 12px 14px; border: 1px solid 
 @media (max-width: 1000px) {
   .stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .state-grid { grid-template-columns: minmax(0,1fr); }
-  .watch-heading { padding: 24px; grid-template-columns: minmax(0,1fr) 150px; }
-  .watch-art img { width: 160px; height: 160px; }
-  .watch-art::before { width: 130px; height: 130px; }
-  .watch-art small { display: none; }
+  .watch-heading { padding: 24px; }
   .task-tabs button { padding: 12px 10px; font-size: .88rem; }
 }
 @media (max-width: 760px) {
@@ -343,10 +333,9 @@ textarea { width: 100%; resize: vertical; padding: 12px 14px; border: 1px solid 
   .refreshbar { padding: 16px 0; }
   .refresh-controls { gap: 8px; }
   .refresh-controls .text-button { font-size: .83rem; }
-  .watch-heading { grid-template-columns: minmax(0,1fr); padding: 22px; }
+  .watch-heading { padding: 22px; }
   .watch-heading h1 { font-size: 1.65rem; }
   .watch-heading .watch-motto { font-size: 1.05rem; }
-  .watch-art { display: none; }
   .watch-caption { max-width: 32ch; }
   .page-heading h1 { font-size: 1.65rem; }
   .stats { gap: 12px; }
@@ -374,5 +363,4 @@ textarea { width: 100%; resize: vertical; padding: 12px 14px; border: 1px solid 
   dialog { padding: 22px; }
   .toast { left: 50%; bottom: 92px; width: max-content; max-width: calc(100vw - 32px); }
   .skip-link { left: 16px; }
-  .art-credits { margin-left: 0; }
 }

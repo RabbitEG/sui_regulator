@@ -25,7 +25,9 @@
 
 ![角色区分与默认折叠的工具记录](screenshots/yan-reader/conversation-roles-zh.png)
 
-[中文总览](screenshots/yan-reader/overview-zh.png) · [英文总览](screenshots/yan-reader/overview-en.png) · [英文会话界面](screenshots/yan-reader/conversation-roles-en.png) · [Markdown 任务书](screenshots/yan-reader/task-markdown-zh.png) · [Markdown 会话](screenshots/yan-reader/conversation-zh.png) · [GEN-001 检测位置](screenshots/yan-reader/incident-in-conversation.png) · [手机阅读](screenshots/yan-reader/conversation-mobile.png)
+总览截图已在移除游戏素材后重新拍摄；本页其余截图与测试数据保留阅读器阶段记录。
+
+[中文总览](screenshots/yan-console/overview-zh.png) · [英文总览](screenshots/yan-console/overview-en.png) · [英文会话界面](screenshots/yan-reader/conversation-roles-en.png) · [Markdown 任务书](screenshots/yan-reader/task-markdown-zh.png) · [Markdown 会话](screenshots/yan-reader/conversation-zh.png) · [GEN-001 检测位置](screenshots/yan-reader/incident-in-conversation.png) · [手机阅读](screenshots/yan-reader/conversation-mobile.png)
 
 ## 运行与演示
 
