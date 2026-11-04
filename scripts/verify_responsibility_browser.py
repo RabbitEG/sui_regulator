@@ -70,7 +70,7 @@ def main():
         page.locator("#receipt-close").click()
         page.locator("#refresh-now").click()
         page.get_by_role("tab", name="敕令回执").click()
-        expect(page.locator("main")).to_contain_text("已读 ACK 是代理声明")
+        expect(page.locator("main")).to_contain_text("已读确认是代理声明")
         assert all(r["acknowledged_at"] for r in demo.service.get_task(tid)["instruction_delivery"])
         checks.append("mock_proxy_explicit_ack_on_same_api_execution_unknown")
         expect(page.locator("[data-instruction-delivery]")).not_to_contain_text("未确认", timeout=15000)
@@ -110,7 +110,7 @@ def main():
         page.goto(demo.url + "#/tasks/" + waiting_id)
         expect(page.locator("[data-wait-state]")).to_contain_text("依赖尚未就绪")
         expect(page.locator("[data-wait-state]")).to_contain_text("candleholder")
-        expect(page.locator("[data-wait-state]")).to_contain_text("Hold / Cancel 优先")
+        expect(page.locator("[data-wait-state]")).to_contain_text("暂停与取消优先")
         assert demo.service.get_task(waiting_id)["current_worker"] is None
         checks.append("durable_wait_reason_owner_next_check_without_proxy_churn")
         page.locator("[data-wait-state]").locator("..").screenshot(path=str(args.output / "durable-wait.png"))
@@ -119,7 +119,7 @@ def main():
         checks.append("new_wait_panel_mobile_no_page_overflow")
         assert first_proxy not in [w["id"] for w in demo.service.get_task(waiting_id)["workers"]]
         page.goto(demo.url + "#/sessions/" + waiting_id + "/" + first_proxy)
-        expect(page.locator("h1")).to_contain_text("Generation 1", timeout=15000)
+        expect(page.locator("h1")).to_contain_text("第 1 代代理", timeout=15000)
         expect(page.locator("main")).to_contain_text(first_proxy)
         checks.append("old_proxy_beyond_preview_opens_by_exact_record_lookup")
         assert not errors, errors

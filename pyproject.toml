@@ -19,7 +19,7 @@ sui-regulator = "sui_regulator.cli:main"
 where = ["src"]
 
 [tool.setuptools]
-license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "docs/licenses/antiloop-MIT.txt"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "docs/licenses/*.txt"]
 
 [tool.setuptools.package-data]
 "sui_regulator" = ["static/*"]

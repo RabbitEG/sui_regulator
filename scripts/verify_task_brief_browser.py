@@ -46,7 +46,7 @@ def main():
         demo.service.command('hold_task', 'browser-drill', 'hold-created-task', {}, task['id'])
         demo.wait(lambda: demo.service.get_task(task['id'])['desired'] == 'HOLD')
         page.goto(demo.url + '#/tasks/' + task['id'])
-        expect(page.locator('[data-task-brief]')).to_have_text(objective)
+        expect(page.locator('[data-task-brief] > .markdown')).to_have_text(objective)
         expect(page.locator('#receipt-list')).to_contain_text('创建任务')
         page.locator('#receipt-close').click()
         page.locator('[data-command="set_recovery_policy"]').click()

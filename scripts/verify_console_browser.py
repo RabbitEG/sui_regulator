@@ -55,7 +55,7 @@ def main():
         screenshot("overview.png")
         checks["overview_real_incident_and_tick"] = True
         visit("sessions", "代理会话")
-        expect(page.locator("main")).to_contain_text("Sui Proxy")
+        expect(page.locator("main")).to_contain_text("岁兽代理人")
         screenshot("proxies.png")
         steady = demo.service.get_task(demo.tasks["steady"])
         steady_proxy = next(p for p in steady["workers"] if p["id"] == steady["current_worker"])
@@ -71,9 +71,9 @@ def main():
         recovery = demo.service.get_task(demo.tasks["recovery"])
         original_job = recovery["jobs"][0]
         active_proxy = recovery["current_worker"]
-        visit(f"sessions/{recovery['id']}/{active_proxy}", "Generation")
+        visit(f"sessions/{recovery['id']}/{active_proxy}", "代代理")
         expect(page.locator("main")).to_contain_text("最后活动")
-        expect(page.locator("main")).to_contain_text("同一 Task 的代际历史")
+        expect(page.locator("main")).to_contain_text("同一任务的代际历史")
         screenshot("proxy-detail.png")
         checks["proxy_identity_generation_heartbeat_history"] = True
         visit("incidents", "故障事件")
@@ -82,13 +82,13 @@ def main():
             i for i in recovery["incidents"] if i["rule_id"] == "GEN-001" and i["status"] == "APPLIED"
         )
         visit(f"incidents/{recovery['id']}/{applied['sequence']}", "GEN-001")
-        expect(page.locator("main")).to_contain_text("Detection Engine 建议")
-        expect(page.locator("main")).to_contain_text("Candleholder 最终动作")
+        expect(page.locator("main")).to_contain_text("检测建议")
+        expect(page.locator("main")).to_contain_text("秉烛人最终动作")
         expect(page.locator("main")).to_contain_text("text_delta")
         screenshot("incident-detail.png")
         checks["incident_recommendation_final_action_outcome"] = True
         visit(f"tasks/{recovery['id']}", recovery["title"])
-        for label in ("DESIRED STATE", "DECLARED STATE", "OBSERVED STATE"):
+        for label in ("用户意图", "代理声明", "运行观测"):
             expect(page.locator("main")).to_contain_text(label)
         page.get_by_role("tab", name="执行核验").click()
         page.locator("[data-job]").first.click()
@@ -100,10 +100,10 @@ def main():
         page.get_by_role("button", name="取消", exact=True).click()
         assert demo.service.get_task(recovery["id"])["desired"] == "ACTIVE"
         page.locator("[data-command='hold_task']").click()
-        page.get_by_role("button", name="确认 Hold", exact=True).click()
+        page.get_by_role("button", name="确认暂停", exact=True).click()
         expect(page.locator("#dialog-error")).to_be_visible()
         page.locator("#hold-confirm").check()
-        page.get_by_role("button", name="确认 Hold", exact=True).click()
+        page.get_by_role("button", name="确认暂停", exact=True).click()
         demo.wait(lambda: demo.service.get_task(recovery["id"])["desired"] == "HOLD")
         expect(page.locator("#receipt-list")).to_contain_text("已应用", timeout=15000)
         assert alive(original_job["identity"])
@@ -115,7 +115,7 @@ def main():
         checks["automatic_refresh_preserves_expanded_command_result"] = True
         page.locator("#receipt-close").click()
         page.locator("[data-command='resume_task']").click()
-        page.get_by_role("button", name="确认 Resume", exact=True).click()
+        page.get_by_role("button", name="确认恢复", exact=True).click()
         demo.wait(lambda: demo.service.get_task(recovery["id"])["desired"] == "ACTIVE")
         expect(page.locator("#receipt-list .receipt-item").first).to_contain_text("已应用", timeout=15000)
         page.locator("#receipt-close").click()

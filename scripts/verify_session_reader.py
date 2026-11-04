@@ -52,7 +52,7 @@ def main():
 
         visit("sessions")
         page.locator(f"main a[href='#/{route}']").first.click()
-        expect(page.locator("h1")).to_contain_text("Generation")
+        expect(page.locator("h1")).to_contain_text("代代理")
         expect(page.locator("[data-session-transcript]")).to_contain_text("合成演示 · 非真实模型")
         expect(page.locator("[data-message-role='user']")).to_contain_text(task["objective"])
         expect(page.locator("[data-execution-evidence]")).to_contain_text(str(proxy["pid"]))
@@ -74,7 +74,7 @@ def main():
         page.locator("[data-transcript-list]").evaluate("n=>n.scrollTop=0")
         returned = page.locator(".role-tool details").first
         returned.locator("summary").click()
-        expect(returned.locator("pre")).to_contain_text(job["id"])
+        expect(returned.locator("pre").last).to_contain_text(job["id"])
         shot("conversation.png")
         checks["tool_result_contains_the_actual_persistent_job_id"] = True
 
@@ -100,8 +100,8 @@ def main():
         for index in range(45):
             recorder.write("text", "assistant", f"[合成分页验收] record {index}", message_id=f"page-{index}")
         page.locator("#refresh-now").click()
-        expect(page.get_by_role("button", name="继续加载后续记录")).to_be_visible(timeout=15000)
-        page.get_by_role("button", name="继续加载后续记录").click()
+        expect(page.get_by_role("button", name="继续加载记录")).to_be_visible(timeout=15000)
+        page.get_by_role("button", name="继续加载记录").click()
         expect(page.locator("[data-session-transcript]")).to_contain_text("record 44", timeout=15000)
         checks["bounded_cursor_pagination_loads_later_records"] = True
 

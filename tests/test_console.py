@@ -43,6 +43,29 @@ class ConsoleTests(ProcessTestCase):
             "/api/rpc", {"request": {"method": "yan." + method, "params": params}, "confirmed": confirmed}
         )
 
+    def test_local_reading_assets_revalidate_without_caching_ledger_responses(self):
+        for path, content_type in (("/assets/font-inter-variable.woff2", "font/woff2"),
+                                   ("/assets/console-markdown.js", "text/javascript; charset=utf-8")):
+            connection = http.client.HTTPConnection("127.0.0.1", self.console.port, timeout=4)
+            connection.request("GET", path)
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.getheader("Content-Type"), content_type)
+            self.assertTrue(response.read())
+            etag = response.getheader("ETag")
+            self.assertEqual(response.getheader("Cache-Control"), "no-cache")
+            self.assertIn("font-src 'self'", response.getheader("Content-Security-Policy"))
+            self.assertNotIn("unsafe-", response.getheader("Content-Security-Policy"))
+            connection.close()
+            connection = http.client.HTTPConnection("127.0.0.1", self.console.port, timeout=4)
+            connection.request("GET", path, headers={"If-None-Match": etag})
+            response = connection.getresponse()
+            self.assertEqual(response.status, 304)
+            self.assertEqual(response.read(), b"")
+            connection.close()
+        _, _, headers = self.request()
+        self.assertEqual(headers["Cache-Control"], "no-store")
+
     def test_full_unicode_task_brief_survives_http_and_rpc(self):
         self.controller.tick()
         objective = "完整实验要求与调试目标。" * 1200

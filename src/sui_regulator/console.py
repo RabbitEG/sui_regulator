@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import time
@@ -42,6 +43,10 @@ ASSETS = {
     "/assets/zuo-le-records.png": ("zuo-le-records.png", "image/png"),
     "/favicon.svg": ("favicon.svg", "image/svg+xml"),
 }
+for _asset in ("console-i18n.js", "console-markdown.js", "vendor-markdown-it.min.js", "vendor-dompurify.min.js"):
+    ASSETS["/assets/" + _asset] = (_asset, "text/javascript; charset=utf-8")
+for _asset in ("font-inter-variable.woff2", "font-source-han-sans-cn-variable.woff2", "font-jetbrains-mono-variable.woff2"):
+    ASSETS["/assets/" + _asset] = (_asset, "font/woff2")
 
 
 class Broker:
@@ -185,18 +190,20 @@ class Console(AbstractContextManager):
                 super().setup()
                 self.connection.settimeout(3)
 
-            def send(self, code, body, content_type="application/json; charset=utf-8"):
+            def send(self, code, body, content_type="application/json; charset=utf-8", etag=None):
                 data = body if isinstance(body, bytes) else encode(body).encode()
                 self.send_response(code)
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "no-store")
+                self.send_header("Cache-Control", "no-cache" if etag else "no-store")
+                if etag:
+                    self.send_header("ETag", etag)
                 self.send_header("X-Content-Type-Options", "nosniff")
                 self.send_header("X-Frame-Options", "DENY")
                 self.send_header("Referrer-Policy", "no-referrer")
                 self.send_header(
                     "Content-Security-Policy",
-                    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+                    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
                 )
                 self.end_headers()
                 self.wfile.write(data)
@@ -232,7 +239,12 @@ class Console(AbstractContextManager):
                     url = urlsplit(self.path)
                     if url.path in ASSETS:
                         name, mime = ASSETS[url.path]
-                        self.send(200, files("sui_regulator").joinpath("static", name).read_bytes(), mime)
+                        data = files("sui_regulator").joinpath("static", name).read_bytes()
+                        etag = '"' + hashlib.sha256(data).hexdigest() + '"'
+                        if self.headers.get("If-None-Match") == etag:
+                            self.send(304, b"", mime, etag)
+                        else:
+                            self.send(200, data, mime, etag)
                     elif url.path == "/api/snapshot":
                         query = parse_qs(url.query, keep_blank_values=True)
                         if set(query) - {"section", "offset", "limit"} or any(

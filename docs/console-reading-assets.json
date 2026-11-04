@@ -1,0 +1,416 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-11-04",
+  "purpose": "Locally served Yan Console Markdown parsing/sanitization and a consistent technical reading font stack. No CDN requests at runtime.",
+  "sources_policy": "JavaScript is copied unchanged from the version-pinned npm release after archive SHA-512 verification. Fonts and their licenses are copied unchanged from the upstream GitHub repositories at fixed commits after Git blob SHA-1 verification. All bundled files also have local SHA-256 checksums.",
+  "selection_notes": [
+    "markdown-it 15.0.3 is the actual current stable npm release verified at the registry; search results advertising 15.0.2 are stale.",
+    "DOMPurify 3.4.17 is verified both in npm package.json and the distributed JavaScript version banner.",
+    "Source Han Sans CN is the official Simplified Chinese regional subset, not a UI-character subset. Its complete upstream variable WOFF2 is bundled as one file; no font rewriting, subsetting, renaming inside the font, CDN dependency, or font build step was introduced.",
+    "Inter handles Western UI/body text; Source Han Sans CN handles Chinese. JetBrains Mono is reserved for code and identifiers. A system sans-serif fallback remains useful while local font assets load or for characters beyond bundled font coverage."
+  ],
+  "assets": [
+    {
+      "path": "src/sui_regulator/static/font-inter-variable.woff2",
+      "kind": "font",
+      "source": "https://github.com/rsms/inter/blob/353b61b9f4430d5f420d56605a6e7993e0941470/docs/font-files/InterVariable.woff2",
+      "download": "https://api.github.com/repos/rsms/inter/contents/docs/font-files/InterVariable.woff2?ref=353b61b9f4430d5f420d56605a6e7993e0941470",
+      "commit": "353b61b9f4430d5f420d56605a6e7993e0941470",
+      "git_blob_sha1": "5a8d3e72ad7ffb62af3b146e1b1f54ab5813a212",
+      "sha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3",
+      "bytes": 352240,
+      "modified": false,
+      "license": "OFL-1.1",
+      "license_file": "docs/licenses/Inter-OFL-1.1.txt",
+      "font_names": {
+        "1": [
+          "Inter Variable"
+        ],
+        "2": [
+          "Regular"
+        ],
+        "4": [
+          "Inter Variable"
+        ],
+        "5": [
+          "Version 4.001;git-9221beed3"
+        ],
+        "6": [
+          "InterVariable"
+        ],
+        "16": [],
+        "17": []
+      },
+      "font_axes": [
+        {
+          "tag": "opsz",
+          "minimum": 14.0,
+          "default": 14.0,
+          "maximum": 32.0
+        },
+        {
+          "tag": "wght",
+          "minimum": 100.0,
+          "default": 400.0,
+          "maximum": 900.0
+        }
+      ],
+      "encoded_codepoints": 2852,
+      "font_inspection": {
+        "method": "fontTools 4.68.0 + brotli 1.2.1 (temporary audit environment only; no project dependency)",
+        "woff2_signature_verified": true,
+        "name_and_axis_tables_decoded": true
+      }
+    },
+    {
+      "path": "src/sui_regulator/static/font-source-han-sans-cn-variable.woff2",
+      "kind": "font",
+      "source": "https://github.com/adobe-fonts/source-han-sans/blob/a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2/Variable/WOFF2/TTF/Subset/SourceHanSansCN-VF.ttf.woff2",
+      "download": "https://api.github.com/repos/adobe-fonts/source-han-sans/contents/Variable/WOFF2/TTF/Subset/SourceHanSansCN-VF.ttf.woff2?ref=a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2",
+      "commit": "a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2",
+      "git_blob_sha1": "052b1aa5f1479c4aadbf40a6244aaffe5ba4c7c3",
+      "sha256": "f971e3bff46f76b49e1d5510556c2297c618ec4b491a295a4e741cdd38257799",
+      "bytes": 7711988,
+      "modified": false,
+      "license": "OFL-1.1",
+      "license_file": "docs/licenses/Source-Han-Sans-OFL-1.1.txt",
+      "font_names": {
+        "1": [
+          "Source Han Sans CN VF",
+          "思源黑体 CN VF"
+        ],
+        "2": [
+          "Regular"
+        ],
+        "4": [
+          "Source Han Sans CN VF",
+          "思源黑体 CN VF"
+        ],
+        "5": [
+          "Version 2.005;addfeatures 5.0.0b21"
+        ],
+        "6": [
+          "SourceHanSansCNVF-ExtraLight"
+        ],
+        "16": [],
+        "17": [
+          "ExtraLight"
+        ]
+      },
+      "font_axes": [
+        {
+          "tag": "wght",
+          "minimum": 250.0,
+          "default": 250.0,
+          "maximum": 900.0
+        }
+      ],
+      "encoded_codepoints": 30926,
+      "font_inspection": {
+        "method": "fontTools 4.68.0 + brotli 1.2.1 (temporary audit environment only; no project dependency)",
+        "woff2_signature_verified": true,
+        "name_and_axis_tables_decoded": true,
+        "representative_chinese_text_coverage_verified": "司岁台大炎秉烛人岁兽代理人任务案卷故障恢复会话实录正在思考工具返回用户实验完成部署指南"
+      }
+    },
+    {
+      "path": "src/sui_regulator/static/font-jetbrains-mono-variable.woff2",
+      "kind": "font",
+      "source": "https://github.com/JetBrains/JetBrainsMono/blob/19371302b95d218af43299bce79ddbddd0bc364d/fonts/webfonts/JetBrainsMono%5Bwght%5D.woff2",
+      "download": "https://api.github.com/repos/JetBrains/JetBrainsMono/contents/fonts/webfonts/JetBrainsMono%5Bwght%5D.woff2?ref=19371302b95d218af43299bce79ddbddd0bc364d",
+      "commit": "19371302b95d218af43299bce79ddbddd0bc364d",
+      "git_blob_sha1": "856547f84b0365f4db7bfee3ac88f558a117410e",
+      "sha256": "31ec365b93e4bad6f202ce23352a56d01ca4462b2afc782ed2cf6fa42ca9ac0e",
+      "bytes": 113672,
+      "modified": false,
+      "license": "OFL-1.1",
+      "license_file": "docs/licenses/JetBrains-Mono-OFL-1.1.txt",
+      "font_names": {
+        "1": [
+          "JetBrains Mono"
+        ],
+        "2": [
+          "Regular"
+        ],
+        "4": [
+          "JetBrains Mono Regular"
+        ],
+        "5": [
+          "Version 2.305"
+        ],
+        "6": [
+          "JetBrainsMono-Regular"
+        ],
+        "16": [],
+        "17": []
+      },
+      "font_axes": [
+        {
+          "tag": "wght",
+          "minimum": 100.0,
+          "default": 400.0,
+          "maximum": 800.0
+        }
+      ],
+      "encoded_codepoints": 1372,
+      "font_inspection": {
+        "method": "fontTools 4.68.0 + brotli 1.2.1 (temporary audit environment only; no project dependency)",
+        "woff2_signature_verified": true,
+        "name_and_axis_tables_decoded": true
+      }
+    },
+    {
+      "path": "docs/licenses/Inter-OFL-1.1.txt",
+      "kind": "license",
+      "source": "https://github.com/rsms/inter/blob/353b61b9f4430d5f420d56605a6e7993e0941470/LICENSE.txt",
+      "download": "https://api.github.com/repos/rsms/inter/contents/LICENSE.txt?ref=353b61b9f4430d5f420d56605a6e7993e0941470",
+      "commit": "353b61b9f4430d5f420d56605a6e7993e0941470",
+      "git_blob_sha1": "9b2ca37b3ffc77391d8b2ebef4a974ef32bf46ea",
+      "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+      "bytes": 4380,
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/Source-Han-Sans-OFL-1.1.txt",
+      "kind": "license",
+      "source": "https://github.com/adobe-fonts/source-han-sans/blob/a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2/LICENSE.txt",
+      "download": "https://api.github.com/repos/adobe-fonts/source-han-sans/contents/LICENSE.txt?ref=a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2",
+      "commit": "a4f7cf94edfb9d7ffbdfc4841de276358bd7e0f2",
+      "git_blob_sha1": "3ff0ccaba06857bf292ade9a50f16a0f02b3b8d4",
+      "sha256": "fcac737e761ec63dbfbdce11030a1780161920d80315edba9c8beff1c2bac5a2",
+      "bytes": 4463,
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/JetBrains-Mono-OFL-1.1.txt",
+      "kind": "license",
+      "source": "https://github.com/JetBrains/JetBrainsMono/blob/19371302b95d218af43299bce79ddbddd0bc364d/OFL.txt",
+      "download": "https://api.github.com/repos/JetBrains/JetBrainsMono/contents/OFL.txt?ref=19371302b95d218af43299bce79ddbddd0bc364d",
+      "commit": "19371302b95d218af43299bce79ddbddd0bc364d",
+      "git_blob_sha1": "5ceee0025da23d2cd5fd14b28569708a8db4db2b",
+      "sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+      "bytes": 4399,
+      "modified": false
+    },
+    {
+      "path": "src/sui_regulator/static/vendor-markdown-it.min.js",
+      "kind": "javascript",
+      "name": "markdown-it",
+      "version": "15.0.3",
+      "source": "https://registry.npmjs.org/markdown-it/-/markdown-it-15.0.3.tgz",
+      "package_metadata": "https://registry.npmjs.org/markdown-it/15.0.3",
+      "archive_integrity": "sha512-+Az7Ojz3iRGu8KYMvJ6xVhvrxP3eE+vEtJX75Ow88XBpcQNV/0lGX5ZynIIBftREo4DC2jsveAMDaeltmm8QvQ==",
+      "archive_integrity_verified": true,
+      "archive_member": "package/dist/browser/markdown-it.umd.min.js",
+      "bytes": 100786,
+      "sha256": "391f2aa638e75e6c7859d0a5c5650ef0956722a45998f17e05b83bc655778e1e",
+      "license": "MIT",
+      "license_files": [
+        "docs/licenses/markdown-it-MIT.txt"
+      ],
+      "modified": false,
+      "source_map": "Upstream sourceMappingURL comment retained. Source maps are not bundled; they are not needed for runtime.",
+      "bundled_dependencies": [
+        {
+          "name": "entities",
+          "version": "8.1.0",
+          "license": "BSD-2-Clause",
+          "license_file": "docs/licenses/markdown-it-dependency-entities-BSD-2-Clause.txt"
+        },
+        {
+          "name": "linkify-it",
+          "version": "6.1.0",
+          "license": "MIT",
+          "license_file": "docs/licenses/markdown-it-dependency-linkify-it-MIT.txt"
+        },
+        {
+          "name": "mdurl",
+          "version": "2.1.0",
+          "license": "MIT",
+          "license_file": "docs/licenses/markdown-it-dependency-mdurl-MIT.txt"
+        },
+        {
+          "name": "punycode.js",
+          "version": "2.3.1",
+          "license": "MIT",
+          "license_file": "docs/licenses/markdown-it-dependency-punycode.js-MIT.txt"
+        },
+        {
+          "name": "uc.micro",
+          "version": "3.0.0",
+          "license": "MIT",
+          "license_file": "docs/licenses/markdown-it-dependency-uc.micro-MIT.txt"
+        }
+      ],
+      "bundled_dependency_verification": "Dependencies identified from the distributed UMD source map and pinned versions from package-lock.json at npm gitHead a8c00d474ec9b304fad9b71c16d6fa8b4909279e. Their unmodified license files were extracted from SHA-512-verified npm archives.",
+      "upstream_lockfile": "https://github.com/markdown-it/markdown-it/blob/a8c00d474ec9b304fad9b71c16d6fa8b4909279e/package-lock.json"
+    },
+    {
+      "path": "docs/licenses/markdown-it-MIT.txt",
+      "kind": "license",
+      "source": "https://registry.npmjs.org/markdown-it/-/markdown-it-15.0.3.tgz",
+      "archive_member": "package/LICENSE",
+      "bytes": 1073,
+      "sha256": "792c48c5a849a15fdf9e37e8bcf9e6d1dd13b32b46c642a748a0a46a9919d473",
+      "modified": false
+    },
+    {
+      "path": "src/sui_regulator/static/vendor-dompurify.min.js",
+      "kind": "javascript",
+      "name": "dompurify",
+      "version": "3.4.17",
+      "source": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz",
+      "package_metadata": "https://registry.npmjs.org/dompurify/3.4.17",
+      "archive_integrity": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
+      "archive_integrity_verified": true,
+      "archive_member": "package/dist/purify.min.js",
+      "bytes": 29828,
+      "sha256": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31",
+      "license": "(MPL-2.0 OR Apache-2.0)",
+      "license_files": [
+        "docs/licenses/DOMPurify-Apache-2.0.txt",
+        "docs/licenses/DOMPurify-MPL-2.0.txt"
+      ],
+      "modified": false,
+      "source_map": "Upstream sourceMappingURL comment retained. Source maps are not bundled; they are not needed for runtime."
+    },
+    {
+      "path": "docs/licenses/DOMPurify-Apache-2.0.txt",
+      "kind": "license",
+      "source": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz",
+      "archive_member": "package/LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/DOMPurify-MPL-2.0.txt",
+      "kind": "license",
+      "source": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz",
+      "archive_member": "package/LICENSE-MPL",
+      "bytes": 16726,
+      "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/markdown-it-dependency-entities-BSD-2-Clause.txt",
+      "kind": "license",
+      "name": "entities",
+      "version": "8.1.0",
+      "license": "BSD-2-Clause",
+      "source": "https://registry.npmjs.org/entities/-/entities-8.1.0.tgz",
+      "archive_integrity": "sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==",
+      "archive_integrity_verified": true,
+      "archive_member": "package/LICENSE",
+      "bytes": 1260,
+      "sha256": "cb992345949ccd6e8394b2cd6c465f7b897c864f845937dbf64e8997f389e164",
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/markdown-it-dependency-linkify-it-MIT.txt",
+      "kind": "license",
+      "name": "linkify-it",
+      "version": "6.1.0",
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/linkify-it/-/linkify-it-6.1.0.tgz",
+      "archive_integrity": "sha512-wJ/TwpSDTLepCrQoYWYIExIKg5Zchex2Nn5yk2mFnB+6PtdkHtyLx742md9csRjjOnGkKIS/RrbY7l8D6gT9Vw==",
+      "archive_integrity_verified": true,
+      "archive_member": "package/LICENSE",
+      "bytes": 1058,
+      "sha256": "95e3f7f0e81e9b4940cdfaa1956aaff5e4dfd2fb1565041e7c78eb9a606f23e3",
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/markdown-it-dependency-mdurl-MIT.txt",
+      "kind": "license",
+      "name": "mdurl",
+      "version": "2.1.0",
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/mdurl/-/mdurl-2.1.0.tgz",
+      "archive_integrity": "sha512-1+HBaOx0zi/dQWht8rNv9MYf9qqpqL/kxI0hXImU6Y547zM6Sni8BQibt7ifgMcYtQg41ao3Ivd6cnSM86inpg==",
+      "archive_integrity_verified": true,
+      "archive_member": "package/LICENSE",
+      "bytes": 2303,
+      "sha256": "6b6a356c4337e2446841f30f3cdf7e7023af8c5260b5e347c0f987b9f6aa2644",
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/markdown-it-dependency-punycode.js-MIT.txt",
+      "kind": "license",
+      "name": "punycode.js",
+      "version": "2.3.1",
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/punycode.js/-/punycode.js-2.3.1.tgz",
+      "archive_integrity": "sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA==",
+      "archive_integrity_verified": true,
+      "archive_member": "package/LICENSE-MIT.txt",
+      "bytes": 1077,
+      "sha256": "483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a",
+      "modified": false
+    },
+    {
+      "path": "docs/licenses/markdown-it-dependency-uc.micro-MIT.txt",
+      "kind": "license",
+      "name": "uc.micro",
+      "version": "3.0.0",
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/uc.micro/-/uc.micro-3.0.0.tgz",
+      "archive_integrity": "sha512-U3PppEkleoTnIfi8BozMx3yju3qc/L6SwqWo2Sw+54PX+PX0q9I+r1Um5HCmqD7n9VDX5/v3vQH/AjA6deDdtw==",
+      "archive_integrity_verified": true,
+      "archive_member": "package/LICENSE.txt",
+      "bytes": 1077,
+      "sha256": "483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a",
+      "modified": false
+    }
+  ],
+  "suggested_css": {
+    "body": "\"Inter Variable\", \"Source Han Sans CN VF\", sans-serif",
+    "code": "\"JetBrains Mono\", \"Source Han Sans CN VF\", monospace",
+    "faces": [
+      {
+        "family": "Inter Variable",
+        "asset": "font-inter-variable.woff2",
+        "style": "normal",
+        "weight": "100 900",
+        "display": "swap"
+      },
+      {
+        "family": "Source Han Sans CN VF",
+        "asset": "font-source-han-sans-cn-variable.woff2",
+        "style": "normal",
+        "weight": "250 900",
+        "display": "swap"
+      },
+      {
+        "family": "JetBrains Mono",
+        "asset": "font-jetbrains-mono-variable.woff2",
+        "style": "normal",
+        "weight": "100 800",
+        "display": "swap"
+      }
+    ]
+  },
+  "smoke_verification": {
+    "browser": "Local Chromium 133 via Playwright",
+    "runtime_libraries_loaded": true,
+    "dompurify_version": "3.4.17",
+    "markdown_heading_bold_and_code": true,
+    "raw_script_rendered_as_text": true,
+    "javascript_link_not_created": true,
+    "local_font_faces_loaded": [
+      {
+        "name": "Inter Variable",
+        "status": "loaded"
+      },
+      {
+        "name": "Source Han Sans CN VF",
+        "status": "loaded"
+      },
+      {
+        "name": "JetBrains Mono",
+        "status": "loaded"
+      }
+    ],
+    "scope": "Dependency smoke check only; Console rendering, CSP, accessibility and interaction tests belong to the integration verification."
+  }
+}
