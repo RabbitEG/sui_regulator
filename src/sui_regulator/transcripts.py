@@ -205,9 +205,20 @@ class SessionRecorder:
                    tool_name=block.get("name", ""), call_id=call_id)
 
 
-def read_transcript(service, task_id, proxy_id, after=0, limit=40):
-    if type(after) is not int or not 0 <= after <= MAX_FILE_BYTES or type(limit) is not int or not 1 <= limit <= 50:
+def read_transcript(service, task_id, proxy_id, after=0, limit=None, view="records",
+                    before=None, message_offset=None, through=None):
+    if view not in ("records", "messages", "detail"):
+        raise DomainError("INVALID_ARGUMENT", "invalid transcript view")
+    limit = (100 if view == "messages" else 40) if limit is None else limit
+    if type(after) is not int or not 0 <= after <= MAX_FILE_BYTES or type(limit) is not int or not 1 <= limit <= (100 if view == "messages" else 50):
         raise DomainError("INVALID_ARGUMENT", "invalid transcript cursor or limit")
+    for cursor in (before, message_offset, through):
+        if cursor is not None and (type(cursor) is not int or not 0 <= cursor <= MAX_FILE_BYTES):
+            raise DomainError("INVALID_ARGUMENT", "invalid transcript cursor")
+    if ((view == "records" and any(c is not None for c in (before, message_offset, through)))
+            or (view == "messages" and (after or message_offset is not None))
+            or (view == "detail" and (before is not None or message_offset is None))):
+        raise DomainError("INVALID_ARGUMENT", "cursor does not apply to this transcript view")
     with service.store.connection() as conn:
         proxy = dict(service._get(conn, "workers", proxy_id))
     if proxy["task_id"] != task_id:
@@ -216,6 +227,8 @@ def read_transcript(service, task_id, proxy_id, after=0, limit=40):
               "adapter": proxy["adapter"], "queried_at": time.time(), "items": [], "next_after": after,
               "has_more": False, "limited": False, "availability": "not_recorded",
               "source": "managed session observations; message content is untrusted, not execution proof"}
+    if view != "records":
+        result.update(view=view, snapshot_end=0, next_before=None)
     try:
         path = _path(service.config.home, proxy_id)
         with os.fdopen(_open(path, os.O_RDONLY), "rb") as source:
@@ -228,6 +241,13 @@ def read_transcript(service, task_id, proxy_id, after=0, limit=40):
                 result["limited"] = bool(tail and json.loads(tail[-1]).get("kind") == "recording_limit")
             except (ValueError, AttributeError):
                 pass
+            if view != "records":
+                from .transcript_messages import read_messages
+
+                read_messages(source, size, result, view=view, limit=limit, before=before,
+                              message_offset=message_offset, after=after, through=through)
+                result["availability"] = "recorded"
+                return result
             source.seek(after)
             if after:
                 source.seek(after - 1)

@@ -328,9 +328,19 @@
               "minimum": 0,
               "type": "integer"
             },
+            "before": {
+              "maximum": 4194304,
+              "minimum": 0,
+              "type": "integer"
+            },
             "limit": {
-              "maximum": 50,
+              "maximum": 100,
               "minimum": 1,
+              "type": "integer"
+            },
+            "message_offset": {
+              "maximum": 4194304,
+              "minimum": 0,
               "type": "integer"
             },
             "proxy_id": {
@@ -342,6 +352,18 @@
               "maxLength": 128,
               "minLength": 1,
               "type": "string"
+            },
+            "through": {
+              "maximum": 4194304,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "view": {
+              "enum": [
+                "records",
+                "messages",
+                "detail"
+              ]
             }
           },
           "required": [

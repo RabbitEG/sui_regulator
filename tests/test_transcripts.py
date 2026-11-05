@@ -148,3 +148,76 @@ class TranscriptTests(ProcessTestCase):
         path = self.config.home / "transcripts" / (self.proxy_id + ".jsonl")
         path.write_text('42\n')
         self.assertEqual(self.read()["availability"], "unreadable")
+
+    def test_latest_message_window_and_lazy_full_detail_through_gateway(self):
+        for number in range(154):
+            self.recorder.write("text", "assistant", f"Record {number:03}", message_id=f"m{number}")
+        long_text = "# Record 154\n\n" + "完整的 **Markdown** 段落。\n\n" * 9000 + "END"
+        for start in range(0, len(long_text), 6000):
+            self.recorder.write("text", "assistant", long_text[start:start + 6000], message_id="m154")
+        with Gateway(self.service):
+            page = call(self.config.home, "yan.get_proxy_transcript", {
+                "task_id": self.task_id, "proxy_id": self.proxy_id, "view": "messages", "limit": 100,
+            })["result"]
+        self.assertEqual(len(page["items"]), 100)
+        self.assertEqual(page["items"][0]["text"], "Record 055")
+        last = page["items"][-1]
+        self.assertTrue(last["text"].startswith("# Record 154"))
+        self.assertLessEqual(len(last["text"]), 320)
+        self.assertTrue(last["preview_truncated"])
+        self.assertFalse(last["truncated"])
+        self.assertEqual(last["text_chars"], len(long_text))
+        older = self.read(view="messages", before=page["next_before"], through=page["snapshot_end"])
+        self.assertEqual(len(older["items"]), 55)
+        self.assertEqual(older["items"][0]["text"], "Record 000")
+        self.assertFalse(older["has_more"])
+        # Bounded transport pages still reconstruct exactly one complete message.
+        cursor, parts, pages = 0, [], 0
+        while True:
+            detail = self.read(view="detail", message_offset=last["id"], after=cursor, through=last["revision"])
+            parts.extend(row["text"] for row in detail["items"])
+            pages += 1
+            self.assertLess(len(json.dumps(detail, ensure_ascii=False).encode()), 150000)
+            if not detail["has_more"]:
+                break
+            self.assertGreater(detail["next_after"], cursor)
+            cursor = detail["next_after"]
+        self.assertGreater(pages, 1)
+        self.assertEqual("".join(parts), long_text)
+
+    def test_message_snapshot_survives_append_and_nonadjacent_tool_result(self):
+        self.recorder.write("tool_call", "assistant", '{"command":"test"}', call_id="c1", tool_name="Bash")
+        self.recorder.write("text", "assistant", "working", message_id="m1")
+        initial = self.read(view="messages")
+        self.recorder.write("tool_result", "tool", "FAILED", call_id="c1", is_error=True)
+        page = self.read(view="messages")
+        self.assertEqual(len(page["items"]), 2)
+        tool = page["items"][-1]
+        self.assertEqual(tool["kind"], "tool_call")
+        self.assertEqual(tool["results"][0]["text"], "FAILED")
+        self.assertTrue(tool["is_error"])
+        self.assertGreater(tool["revision"], initial["items"][0]["revision"])
+        detail = self.read(view="detail", message_offset=tool["id"], through=tool["revision"])
+        self.assertEqual([r["kind"] for r in detail["items"]], ["tool_call", "tool_result"])
+        old = self.read(view="messages", through=initial["snapshot_end"])
+        self.assertEqual(old["items"], initial["items"])
+        old_detail = self.read(view="detail", message_offset=tool["id"], through=initial["items"][0]["revision"])
+        self.assertEqual(len(old_detail["items"]), 1)
+
+    def test_message_view_validates_cursors_and_ignores_partial_tail(self):
+        self.recorder.write("text", "assistant", "one", message_id="m1")
+        page = self.read(view="messages")
+        path = self.config.home / "transcripts" / (self.proxy_id + ".jsonl")
+        with path.open("ab") as out:
+            out.write(b'{"kind":"text"')
+        self.assertEqual(self.read(view="messages")["snapshot_end"], page["snapshot_end"])
+        self.assertFalse(self.read(view="messages")["has_more"])
+        for params in ({"view": "nope"}, {"view": "messages", "limit": 101},
+                       {"view": "messages", "before": -1}, {"view": "messages", "through": 1},
+                       {"view": "detail"}, {"view": "detail", "message_offset": True},
+                       {"view": "detail", "message_offset": 1},
+                       {"view": "detail", "message_offset": 0, "after": 1}):
+            with self.subTest(params=params), self.assertRaises(DomainError):
+                self.read(**params)
+        with self.assertRaises(DomainError):
+            read_transcript(self.service, self.submit(), self.proxy_id, view="messages")

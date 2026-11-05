@@ -19,7 +19,7 @@ MAX_MESSAGE_BYTES = 262144
 
 QUERY_FIELDS = {
     "get_task_records": {"task_id", "collection", "after", "limit", "record_id"},
-    "get_proxy_transcript": {"task_id", "proxy_id", "after", "limit"},
+    "get_proxy_transcript": {"task_id", "proxy_id", "after", "limit", "view", "before", "message_offset", "through"},
     "get_console_snapshot": {"section", "offset", "limit"},
     "get_incidents": {"task_id", "proxy_id", "after", "limit"},
     "get_overview": set(),
@@ -127,6 +127,10 @@ def request_schema() -> dict:
                     section={"enum": ["overview", "sessions", "tasks", "incidents"]},
                     offset={"type": "integer", "minimum": 0, "maximum": 10000000},
                 )
+            if name == "get_proxy_transcript":
+                properties["view"] = {"enum": ["records", "messages", "detail"]}
+                for field in ("before", "message_offset", "through"):
+                    properties[field] = {"type": "integer", "minimum": 0, "maximum": 4 * 1024 * 1024}
             if "after" in QUERY_FIELDS[name]:
                 properties["after"] = {"type": "integer", "minimum": 0}
             if "limit" in QUERY_FIELDS[name]:
@@ -134,9 +138,9 @@ def request_schema() -> dict:
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 50
-                    if name in {"get_proxy_transcript", "get_task_records"}
+                    if name == "get_task_records"
                     else 100
-                    if name == "get_console_snapshot"
+                    if name in {"get_proxy_transcript", "get_console_snapshot"}
                     else 500
                     if name == "get_logs"
                     else 1000,

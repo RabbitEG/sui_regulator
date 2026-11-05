@@ -34,11 +34,19 @@ python3.11 -m sui_regulator schema
 | yan.get_incidents | task_id、可选 proxy_id（只查本任务指定代理）、after（sequence 游标，默认 0）、limit（1–1000，默认 100） |
 | yan.get_console_snapshot | 可选 section（overview/sessions/tasks/incidents）、offset、limit（1–100，默认 50） |
 | yan.get_proxy_health | task_id；规范角色名为 Sui Proxy，get_worker_health 是兼容别名 |
-| yan.get_proxy_transcript | task_id、proxy_id；可选 after（文件字节游标，默认 0）、limit（1–50，默认 40） |
+| yan.get_proxy_transcript | task_id、proxy_id；可选 view（records / messages / detail）、limit 及该视图的游标，见下文 |
 
 Job/指标查询返回 source、observed_at、stale；Task 包含三个状态来源。日志只是数据，不作为控制指令。没有数据时不伪造观测时间。
 
 会话查询返回 `items`、`next_after`、`has_more`、`availability`、`limited` 与原始采集时间。消息分为任务输入、助手文本、工具调用/返回和运行时事件，均为只读观测；不参与 Task 状态机或恢复上下文。`not_recorded` 表示该会话没有留存，不能回溯构造；`unreadable` 表示记录当前无法安全读取。新代理将记录保存到私有 `transcripts/<proxy_id>.jsonl`，每代最多 4 MiB，单条和单页均有限额，截断会显式标注。Mock 记录标记为合成；Claude 记录来自实际 CLI 输出，不包含思维链。Job 的 `process_alive` 和代理的 `runtime_process_alive` 是查询时按登记进程身份核验的观测，不取自模型声明。
+
+同一会话接口支持三个只读视图，未指定 `view` 的客户端保持原有行为：
+
+- `records`：原始保存分段，`after` 为向前读取的字节游标，默认 0；`limit` 默认 40、最大 50，每页最多 128 KiB。
+- `messages`：一次返回最近 100 条消息预览，`limit` 默认及最大值均为 100。相邻同消息文本分段合并，工具调用与其返回按 `call_id` 配对；按最后一个保存分段的顺序排序。每段预览最多 320 字符，`preview_truncated` 仅表示预览未显示全文。`id` 是该消息首段字节位置，`revision` 是当前最后分段的结束位置。`has_more` 表示还有更早消息；用 `before=next_before`、`through=snapshot_end` 手动向前翻页，固定快照避免实时追加导致漏读或重复。
+- `detail`：指定 `message_offset=消息.id`、`through=消息.revision`，只读取这一条消息的完整已保存分段。`after` 默认 0，后续使用 `next_after`，直到 `has_more=false`；每页最多 50 段 / 128 KiB。客户端应按原顺序直接拼接文本分段，不能在边界插入换行；工具参数和返回分别展示。`through` 固定本次详情版本，新追加内容通过重新打开最新版本读取。
+
+所有视图复用原来的任务归属和私有文件检查。预览与详情不会改变采集上限；`truncated` 仍表示实际保存不完整，详情也无法补回未保存的内容。
 
 v0.3 的 get_task 还包含最近 20 条 incidents，完整历史用 get_incidents 分页。Incident payload 保存规则建议及版本，action/status/outcome 保存 Candleholder 最终处理结果，可区分发现、只读探测、恢复、隔离及过时告警。配置缺失的 WAITING_RESOURCE、历史 WAITING 与隔离状态可通过 resume_task 明确解除；运行 Job 保留。普通工具 / 实验错误仅提供观察建议，不暂停代理。
 
