@@ -1,0 +1,20 @@
+[Unit]
+Description=Sui Git Bridge for instance %i
+After=network-online.target sui-regulator-controller.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sui-regulator/current
+ExecStart=%h/sui-regulator/current/venv/bin/yan instance serve --state %h/.local/state/sui-regulator/bridges/%i
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONNOUSERSITE=1
+Environment=PYTHONPATH=
+EnvironmentFile=-%h/.config/sui-regulator/git-bridge.env
+UMask=0077
+Restart=on-failure
+RestartSec=15s
+TimeoutStopSec=40s
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

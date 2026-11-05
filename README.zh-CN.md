@@ -97,7 +97,7 @@ ssh -N -L 127.0.0.1:8765:127.0.0.1:8765 YOUR_AUTHORIZED_HOST
 | 职责边界、持久化与状态来源 | [职责基线](docs/RESPONSIBILITY_BASELINE.md) · [数据模型](docs/DATA_MODEL.md) |
 | 查询、指令、回执与代理接续 | [大炎接口](docs/YAN_API.md) · [岁兽代理人协议](docs/SUI_PROTOCOL.md) |
 | 故障证据与恢复策略 | [持续恢复](docs/PERSISTENT_RECOVERY.md) · [检测架构](docs/FAILURE_ARCHITECTURE.md) |
-| 通过 Git 下发任务与回传报告（仅设计） | [实例仓库方案](docs/GIT_INSTANCE_DESIGN.md) |
+| 通过 Git 下发完整任务、追加指令与回传结果 | [Git Bridge 部署与操作](docs/GIT_INSTANCES.md) |
 | 全部文档、测试与历史交付记录 | [文档目录](docs/README.md) |
 
 在源码目录运行不依赖真实模型的测试和故障语料回放：

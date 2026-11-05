@@ -75,6 +75,9 @@ def parser() -> argparse.ArgumentParser:
     rpc.add_argument("method")
     rpc.add_argument("--params", default="{}")
     commands.add_parser("schema", help="emit the versioned Yan request schema")
+    from .instance_cli import add_parser
+
+    add_parser(commands)
     failures = commands.add_parser("failures", help="offline failure registry and trajectory replay")
     failure_commands = failures.add_subparsers(dest="failure_command", required=True)
     for name in ["list", "replay", "evaluate"]:
@@ -90,6 +93,11 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
     try:
+        if args.command == "instance":
+            from .instance_cli import run
+
+            run(args)
+            return
         if args.command == "console-demo":
             from .console_demo import run_console_demo
 

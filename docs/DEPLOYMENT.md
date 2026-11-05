@@ -313,6 +313,6 @@ systemctl --user status sui-regulator-controller.service yan-console.service
 
 新逻辑在新版本启动的代理中生效。已有健康会话不会仅因更新而被强杀；需要在出发前切换旧运行环境时，按维护流程安排一次明确的交接，再用新任务或接续代验证真实 GLM 工具执行、定时等待和完成标记。
 
-## Git 实例干预（仅设计）
+## Git 实例干预
 
-通过独立私有实例仓库下发任务、读取回执和报告的方案见 [Git 实例设计](GIT_INSTANCE_DESIGN.md)。目前没有 Bridge、分支轮询或对应服务可安装，单纯 push 指令文件不会触发任务。当前正式部署仍使用现有 CLI／Console／Yan RPC；Git 方案实现前不要把它作为唯一的停止或指令送达通道。
+独立 Git Bridge 已实现，支持完整任务书、追加指令、Hold/Resume、真实回执和选定报告。按 [Git Bridge 部署与操作](GIT_INSTANCES.md) 建立实例分支、绑定已有 Yan 账本并运行独立服务。Git 不可达不暂停本地任务；远程停止指令必须以实际应用回执为准。模型环境仍由 Controller 配置，不随 Git 消息自动改变。
