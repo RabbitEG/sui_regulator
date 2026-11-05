@@ -265,7 +265,10 @@ class Service:
                 (mode, budget, permission,
                  "claude_code" if permission == "trusted" and task["adapter"] == "claude" else task["execution_profile"], now, tid),
             )
-            if permission == "trusted" and not trusted(task) and task["desired"] == "ACTIVE" and task["status"] in {"WAITING_RESOURCE", "QUARANTINED"}:
+            framework_blocked = task["status"] in {"WAITING_RESOURCE", "QUARANTINED"} or (
+                task["status"] == "WAITING" and not task["wait_state"]
+            )
+            if permission == "trusted" and not trusted(task) and task["desired"] == "ACTIVE" and framework_blocked:
                 conn.execute("UPDATE tasks SET status='READY',next_start_at=? WHERE id=?", (now, tid))
             if permission == "trusted" and not trusted(task):
                 state = json.loads(task["recovery_state"])

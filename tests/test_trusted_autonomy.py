@@ -129,6 +129,7 @@ class TrustedAutonomyTests(ProcessTestCase):
     def test_permission_change_retries_framework_wait_but_preserves_hold(self):
         for desired, status, expected in [("ACTIVE", "WAITING_RESOURCE", "READY"),
                                           ("ACTIVE", "QUARANTINED", "READY"),
+                                          ("ACTIVE", "WAITING", "READY"),
                                           ("HOLD", "HOLD", "HOLD")]:
             tid = self.submit(adapter="unavailable")
             with self.service.store.transaction() as conn:
@@ -137,6 +138,18 @@ class TrustedAutonomyTests(ProcessTestCase):
             self.service.process_commands()
             self.assertEqual(self.service.get_command(receipt["id"])["status"], "SUCCEEDED")
             self.assertEqual(self.service.get_task(tid)["status"], expected)
+
+    def test_permission_change_preserves_registered_wait(self):
+        tid = self.submit(adapter="unavailable")
+        protocol = SuiProtocol(self.service)
+        credentials = protocol.register(tid)
+        protocol.wait_task(credentials, "Check external dependency later", 600)
+        receipt = self.service.command("set_recovery_policy", "tester", tid, {"permission_mode": "trusted"}, tid)
+        self.service.process_commands()
+        self.assertEqual(self.service.get_command(receipt["id"])["status"], "SUCCEEDED")
+        task = self.service.get_task(tid)
+        self.assertEqual(task["status"], "WAITING")
+        self.assertEqual(task["wait_state"]["reason"], "Check external dependency later")
 
     def test_reconciliation_is_scoped_and_does_not_hide_running_work(self):
         tid, protocol, credentials = self.owner()

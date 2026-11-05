@@ -91,9 +91,24 @@ yan --home /absolute/private/state policy TASK_ID \
 yan --home /absolute/private/state receipt COMMAND_ID
 ```
 
-该命令会把恢复方式设为 Persistent，Claude 任务的下一代使用 Claude Code 工具。已 ACTIVE 但处于框架 `WAITING_RESOURCE`／`QUARANTINED` 的旧任务会重新进入调度；明确的 HOLD 不会解除。已 Hold 的任务需要一次 `resume TASK_ID`。当前代不会因为改变配置被强杀；CLI 启动参数在下一代生效。若部署者希望立即切换一个已经无法工作的旧代，可以自行 Hold → 修改策略 → Resume，无需逐条清除历史 UNKNOWN。
+该命令会把恢复方式设为 Persistent，Claude 任务的下一代使用 Claude Code 工具。已 ACTIVE 但处于框架 `WAITING_RESOURCE`／`QUARANTINED`，或旧版本没有登记唤醒条件的 `WAITING` 的任务，会重新进入调度；已经登记的定时等待和明确的 HOLD 不会解除。已 Hold 的任务需要一次 `resume TASK_ID`。当前代不会因为改变配置被强杀；CLI 启动参数在下一代生效。若部署者希望立即切换一个已经无法工作的旧代，可以自行 Hold → 修改策略 → Resume，无需逐条清除历史 UNKNOWN。
 
 旧版与新版进程混跑只用于过渡，不是长期部署方式。Schema 升级前按部署指南备份；旧程序不能直接打开新版账本。
+
+## 哪些情况仍会停下
+
+| trusted 下的情况 | 后续行为 | 是否需要人工 Resume |
+| --- | --- | --- |
+| 用户明确 Hold | 撤销代理，保留持久 Task 与独立 Job | 需要，因为这是用户暂停指令 |
+| 用户设置的非零 `max_proxy_seconds` 到额 | Hold | 调整额度后需要；默认 0 不限 |
+| 用户 Cancel／模型提交并被接受的完整完成标记 | 任务终态 | 不可 Resume；新委托应新建 Task |
+| 代理登记定时等待 | 保留会话，到期／关联 Job 终态／新指令时唤醒 | 不需要；也可以主动提前 Resume |
+| 进程退出、流断开、十分钟模型静默、所有权异常 | 自动退避并建立下一代 | 不需要 |
+| 认证、配额、CLI 能力或其他服务故障 | 自动退避重试 | 不需要；外部依赖仍须实际恢复可用 |
+| UNKNOWN、重复文本、实验失败、核验未通过 | 保留证据，由代理调查和继续处理 | 不需要 |
+| 完成申请缺失证据、仍有已知工作、要求版本过旧 | 返回协议错误，代理补齐或继续执行 | 不需要 |
+
+CLI／操作系统自身的限制仍然存在，信任模式不承诺在服务永久不可用时完成工作。定时等待保留运行时，因此仍占用一个代理名额，并计入用户显式设置的代理墙钟额度。
 
 ## 代理核验与完成
 
