@@ -98,6 +98,7 @@ The detailed engineering guides below are currently written in Chinese.
 | Console pages, operator controls, and conversation reading | [Yan Console](docs/YAN_CONSOLE.md) |
 | Responsibilities, persistence, and state sources | [Responsibility baseline](docs/RESPONSIBILITY_BASELINE.md) · [Data model](docs/DATA_MODEL.md) |
 | Queries, commands, receipts, and proxy continuity | [Yan API](docs/YAN_API.md) · [Sui Proxy Protocol](docs/SUI_PROTOCOL.md) |
+| Git-based instance commands and reports — design only | [Instance repository proposal](docs/GIT_INSTANCE_DESIGN.md) |
 | Failure evidence and recovery policies | [Persistent recovery](docs/PERSISTENT_RECOVERY.md) · [Failure detection](docs/FAILURE_ARCHITECTURE.md) |
 | All documentation, tests, and delivery records | [Documentation index](docs/README.md) |
 

@@ -6,7 +6,8 @@
     "passed": true,
     "seconds": 56.068,
     "installed_cli_cases": 10,
-    "stream_capability_cases": 1
+    "stream_capability_cases": 1,
+    "source_commit": "7aafbcb"
   },
   "week_simulation": "169 hourly Controller ticks across seven virtual days: recovery, reconciliation, completion and stable Job identity",
   "session_lifetime": [
@@ -37,5 +38,13 @@
     ]
   },
   "schema_export_check": "passed",
-  "ruff_check": "passed"
+  "ruff_check": "passed",
+  "followup_regression": {
+    "source_commit": "596295c",
+    "command": "PYTHONPATH=src .venv/bin/python -m unittest tests.test_trusted_autonomy tests.test_trusted_session_lifetime tests.test_task_continuity -v",
+    "tests": 29,
+    "passed": true,
+    "seconds": 3.239,
+    "scope": "Legacy unregistered framework WAITING resumes on trust grant; registered waits and explicit Hold remain intact"
+  }
 }

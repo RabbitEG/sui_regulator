@@ -13,6 +13,7 @@
 | 了解能力、运行 Mock、安装和测试 | [项目概览与本地验证](PROJECT_OVERVIEW.md) |
 | 在另一台服务器部署、验收、备份或回滚 | [部署与验收指南](DEPLOYMENT.md) · [systemd 用户服务模板](../deploy/systemd/user/) |
 | 一周无人值守、同代等待与十分钟静默策略 | [信任模式](TRUSTED_AUTONOMY.md) |
+| 通过 Git 下发任务、取回状态与报告 | [实例仓库与 Git 干预设计](GIT_INSTANCE_DESIGN.md)（仅设计，未启用） |
 | 理解提示词结构、合作式换代与自动完成标记 | [长期 Agent 设计与参考](PROMPT_AND_LIFECYCLE_DESIGN.md) |
 | 定义完整任务、启用代码调试、配置完成前核验 | [任务书与执行能力](TASK_BRIEFS.md) |
 | 使用四个 Console 页面、人工干预、SSH 转发 | [Yan Console 使用与演示](YAN_CONSOLE.md) |
