@@ -224,8 +224,8 @@ function taskDetail(task){
   const observed=task.jobs.length ? task.jobs.map(j=>badge(j.status,j.status==='RUNNING')).join(' '):`<span class='muted'>${tr('尚无作业观测','No job observations')}</span>`;
   const brief=panel(tr('任务书与验收','Task brief and acceptance'),`<div class='panel-body brief-body'><div class='task-brief' data-task-brief>${markdownBlock(task.objective,'brief-source')}</div><h3>${tr('验收条件','Acceptance criteria')}</h3><div class='task-brief'>${markdownBlock(task.completion_criteria || tr('未单独定义；按任务书要求核验','Not separately defined; verify against the task brief.'),'criteria-source')}</div><dl class='kv'><dt>${tr('项目目录','Workspace')}</dt><dd class='break'>${esc(task.workspace)}</dd><dt>${tr('执行能力','Execution profile')}</dt><dd>${esc(task.execution_profile || 'managed')}</dd><dt>${tr('完成前核验','Completion verifier')}</dt><dd>${esc(task.verification_template || tr('未配置；语义完成为代理声明','Not configured; semantic completion is an agent claim'))}</dd></dl></div>`);
   const completion=panel(tr('完成标记','Completion manifest'),`<div class='panel-body'><p>${task.completion ? tr('完成标记已接受；任务语义完成由代理声明。','Completion manifest accepted. Semantic completion is declared by the proxy.'):tr('尚未接受完成标记；实验结果与会话健康分别处理。','No completion manifest accepted. Experiment outcomes and session health are handled separately.')}</p><code class='break'>${esc(task.completion_marker_path || tr('代理启动后生成专属路径','Assigned when a proxy starts'))}</code>${task.completion ? details(tr('完成证据与检查结果','Completion evidence and checks'),task.completion,'completion'):''}${(task.completion_receipts || []).map(r=>`<p>${badge(r.status)} · ${fmt(r.created_at)}<br>${esc(r.error || tr('结构、身份、要求版本及未决操作检查通过','Structure, identity, requirement revision and pending-operation checks passed'))}</p>`).join('')}</div>`);
-  const recovery=panel(tr('持续恢复','Persistent recovery'),`<div class='panel-body'><dl class='kv'><dt>${tr('模式','Mode')}</dt><dd data-recovery-mode>${esc(task.recovery_mode)}</dd><dt>${tr('恢复阶段','Recovery phase')}</dt><dd>${esc(task.recovery_state?.phase || tr('尚未评估','Not evaluated'))}</dd><dt>${tr('最近运行证据','Last runtime evidence')}</dt><dd>${fmt(task.recovery_state?.last_runtime_evidence_at || task.recovery_state?.last_verified_progress_at)}</dd><dt>${tr('未观测新证据','No new evidence')}</dt><dd>${duration(task.recovery_state?.no_progress_seconds || 0)}</dd><dt>${tr('累计代理运行','Total proxy runtime')}</dt><dd>${duration(task.recovery_state?.proxy_seconds_used || 0)} / ${task.max_proxy_seconds ? duration(task.max_proxy_seconds):tr('不限制','Unlimited')}</dd><dt>${tr('下次允许启动','Next start allowed')}</dt><dd>${task.next_start_at ? fmt(task.next_start_at):tr('就绪','Ready')}</dd></dl><p class='task-brief'>${esc(task.recovery_state?.guidance || tr('这里只记录运行变化；工作内容与完成判断由代理负责。','Runtime observations only. The proxy owns the work and its completion judgment.'))}</p></div>`);
-  const attempts=panel(tr('命令执行回执','Execution receipts'),(task.tool_attempts || []).length ? table([tr('工具','Tool'),tr('实际状态','Actual state'),tr('执行编号','Execution ID'),tr('时间','Time')],task.tool_attempts.map(a=>`<tr><td>${esc(a.tool)}</td><td>${badge(a.status)}${a.runtime ? details(tr('运行观察','Runtime observation'),a.runtime,'runtime-'+a.id):''}</td><td class='mono break'>${esc(a.id)}</td><td>${fmt(a.created_at)}</td></tr>`).join('')):empty(tr('尚无受管或原生命令回执','No managed or native command receipts')),tr('有限预览；结果未知的操作应先核验，再决定是否重试。','Bounded preview. Verify unknown outcomes before retrying.'));
+  const recovery=panel(tr('持续恢复','Persistent recovery'),`<div class='panel-body'><dl class='kv'><dt>${tr('授权模式','Permission mode')}</dt><dd data-permission-mode>${task.permission_mode==='trusted' ? tr('信任 · 自主执行','Trusted · autonomous'):tr('受控','Guarded')}</dd><dt>${tr('模式','Mode')}</dt><dd data-recovery-mode>${esc(task.recovery_mode)}</dd><dt>${tr('恢复阶段','Recovery phase')}</dt><dd>${esc(task.recovery_state?.phase || tr('尚未评估','Not evaluated'))}</dd><dt>${tr('最近运行证据','Last runtime evidence')}</dt><dd>${fmt(task.recovery_state?.last_runtime_evidence_at || task.recovery_state?.last_verified_progress_at)}</dd><dt>${tr('未观测新证据','No new evidence')}</dt><dd>${duration(task.recovery_state?.no_progress_seconds || 0)}</dd><dt>${tr('累计代理运行','Total proxy runtime')}</dt><dd>${duration(task.recovery_state?.proxy_seconds_used || 0)} / ${task.max_proxy_seconds ? duration(task.max_proxy_seconds):tr('不限制','Unlimited')}</dd><dt>${tr('下次允许启动','Next start allowed')}</dt><dd>${task.next_start_at ? fmt(task.next_start_at):tr('就绪','Ready')}</dd></dl><p class='task-brief'>${esc(task.recovery_state?.guidance || tr('这里只记录运行变化；工作内容与完成判断由代理负责。','Runtime observations only. The proxy owns the work and its completion judgment.'))}</p></div>`);
+  const attempts=panel(tr('命令执行回执','Execution receipts'),(task.tool_attempts || []).length ? table([tr('工具','Tool'),tr('实际状态','Actual state'),tr('执行编号','Execution ID'),tr('时间','Time')],task.tool_attempts.map(a=>`<tr><td>${esc(a.tool)}</td><td>${badge(a.status)}${a.reconciliation ? details(tr('代理核验结论（声明）','Proxy reconciliation (declared)'),a.reconciliation,'reconciliation-'+a.id):''}${a.runtime ? details(tr('运行观察','Runtime observation'),a.runtime,'runtime-'+a.id):''}</td><td class='mono break'>${esc(a.id)}</td><td>${fmt(a.created_at)}</td></tr>`).join('')):empty(tr('尚无受管或原生命令回执','No managed or native command receipts')),tr('有限预览；结果未知的操作应先核验，再决定是否重试。','Bounded preview. Verify unknown outcomes before retrying.'));
   const incidents=panel(tr('最近故障','Recent incidents'),task.incidents.length ? task.incidents.slice(0,5).map(incidentPreview).join(''):empty(tr('暂无故障','No incidents')));
   const handoffs=panel(tr('交接记录','Handoffs'),proxies.filter(p=>p.handoff).map(p=>`<div class='handoff'><span class='mono'>G${p.generation} · ${esc(short(p.id))}</span>${handoffView(p.handoff,'handoff-'+p.id)}</div>`).join('') || empty(tr('尚无交接记录','No handoffs'),tr('异常退出时可从账本恢复。','Unexpected exits can recover from the ledger.')));
   const events=panel(tr('历史事件','Events'),`<div class='dossier-events' tabindex='0' aria-label='${tr('历史事件阅读区','Event reader')}'>${eventList([...state.events].reverse(),true)}</div><div class='source-note'>${tr('已加载 {n} 条，最多保留 500 条。','{n} loaded; up to 500 retained.',{n:state.events.length})}<button class='text-button' data-action='events'>${tr('刷新 / 加载后续','Refresh / load more')}</button></div>`);
@@ -357,6 +357,7 @@ function openCommand(kind,old=null){
   if(!old && !state.task) return;
   state.modal=old || {key:crypto.randomUUID(),kind,task_id:state.task.id,title:state.task.title,created_at:Date.now()/1000};
   updateCommandCopy();
+  $('policy-permission').value=old?.payload?.permission_mode || state.task?.permission_mode || 'guarded';
   $('policy-fields').hidden=kind!=='set_recovery_policy';$('policy-mode').value=old?.payload?.recovery_mode || state.task?.recovery_mode || 'persistent';$('policy-budget').value=old?.payload?.max_proxy_seconds ?? state.task?.max_proxy_seconds ?? 0;
   $('dialog-target').innerHTML=esc(state.modal.title)+`<code>${esc(state.modal.task_id)}</code>`;
   $('instruction').hidden=kind!=='instruct_task';$('instruction-label').hidden=kind!=='instruct_task';$('instruction').value=old?.instruction || '';
@@ -367,7 +368,7 @@ function updateCommandCopy(){
   const kind=state.modal?.kind;if(!kind) return;
   const names={set_recovery_policy:tr('调整恢复策略','Adjust recovery policy'),hold_task:tr('暂停代理','Hold proxy'),resume_task:tr('恢复任务','Resume task'),instruct_task:tr('追加指令','Add instructions')};
   $('dialog-title').textContent=names[kind];
-  $('dialog-description').textContent=kind==='hold_task' ? tr('秉烛人将撤销当前代理所有权并停止会话。已启动的作业继续运行。','Candleholder will revoke the current proxy and stop its session. Existing jobs keep running.'):kind==='resume_task' ? tr('恢复任务的继续执行意图。秉烛人将按状态与预算分配代理，并核验已有作业。','Restore ACTIVE intent. Candleholder assigns a proxy according to state and budget, checking existing jobs.'):kind==='set_recovery_policy' ? tr('修改持久恢复模式与累计运行额度；不会自动恢复。额度为代理会话墙钟时间，不是模型账单。','Change recovery mode and total proxy runtime budget. This does not automatically Resume; runtime is wall-clock time, not a model bill.'):tr('指令写入持久任务；回执成功表示要求已记录，不代表代理已完成工作。','Instructions enter the durable task. An applied receipt means recorded, not that the proxy has finished the work.');
+  $('dialog-description').textContent=kind==='hold_task' ? tr('秉烛人将撤销当前代理所有权并停止会话。已启动的作业继续运行。','Candleholder will revoke the current proxy and stop its session. Existing jobs keep running.'):kind==='resume_task' ? tr('恢复任务的继续执行意图。秉烛人将按状态与预算分配代理，并核验已有作业。','Restore ACTIVE intent. Candleholder assigns a proxy according to state and budget, checking existing jobs.'):kind==='set_recovery_policy' ? tr('修改授权模式、恢复策略和运行额度。信任模式自动重试框架阻塞，但不解除明确的暂停；CLI 权限在下次会话启动时生效。','Change permission mode, recovery and runtime budget. Trusted retries framework blocks but preserves explicit Hold. CLI permissions apply at the next session start.'):tr('指令写入持久任务；回执成功表示要求已记录，不代表代理已完成工作。','Instructions enter the durable task. An applied receipt means recorded, not that the proxy has finished the work.');
   $('dialog-submit').textContent=kind==='hold_task' ? tr('确认暂停','Confirm hold'):kind==='resume_task' ? tr('确认恢复','Confirm resume'):tr('提交指令','Submit instruction');
 }
 async function submitCommand(e){
@@ -375,7 +376,7 @@ async function submitCommand(e){
   const item=state.modal, kind=item.kind;
   if(kind==='hold_task' && !$('hold-confirm').checked){$('dialog-error').textContent=tr("请明确确认停止当前代理；已启动的作业将保留。","Confirm stopping the current proxy. Existing jobs are retained.");$('dialog-error').hidden=false;return;}
   if(kind==='instruct_task' && !$('instruction').value.trim()){ $('instruction').focus();return;}
-  if(kind==='set_recovery_policy') item.payload=item.payload || {recovery_mode:$('policy-mode').value,max_proxy_seconds:Number($('policy-budget').value)};
+  if(kind==='set_recovery_policy') item.payload=item.payload || {permission_mode:$('policy-permission').value,recovery_mode:$('policy-permission').value==='trusted' ? 'persistent':$('policy-mode').value,max_proxy_seconds:Number($('policy-budget').value)};
   item.instruction=kind==='instruct_task' ? $('instruction').value.trim():undefined;
   if(!state.receipts.includes(item)) state.receipts.unshift(item);state.receipts=state.receipts.slice(0,20);
   item.status='SENDING';state.submitting=true;$('dialog-submit').disabled=true;$('dialog-error').hidden=true;storeReceipts();renderReceipts();
@@ -439,12 +440,12 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeo
 setInterval(updateHealth,1000);renderReceipts();refresh();
 
 let taskDraft=null;
-const taskFields={title:'task-title',objective:'task-objective',completion_criteria:'task-criteria',workspace:'task-workspace',adapter:'task-adapter',execution_profile:'task-profile',verification_template:'task-verifier',recovery_mode:'task-recovery',max_proxy_seconds:'task-budget'};
+const taskFields={title:'task-title',objective:'task-objective',completion_criteria:'task-criteria',workspace:'task-workspace',adapter:'task-adapter',execution_profile:'task-profile',permission_mode:'task-permission',verification_template:'task-verifier',recovery_mode:'task-recovery',max_proxy_seconds:'task-budget'};
 function openTask(old=null){
   if(!canControl()) return;
   taskDraft=old || {kind:'submit_task',key:crypto.randomUUID(),created_at:Date.now()/1000};
   for(const [field,id] of Object.entries(taskFields)){
-    if(old?.payload) $(id).value=old.payload[field] || (field==='adapter' ? 'claude':field==='execution_profile' ? 'managed':'');
+    if(old?.payload) $(id).value=old.payload[field] || (field==='adapter' ? 'claude':field==='execution_profile' ? 'managed':field==='permission_mode' ? 'guarded':'');
     $(id).disabled=!!old?.payload;
   }
   $('task-error').hidden=true;$('task-submit').disabled=false;$('task-dialog').showModal();
@@ -455,6 +456,7 @@ async function submitTask(event){
   if(!item.payload){
     item.payload=Object.fromEntries(Object.entries(taskFields).map(([field,id])=>[field,$(id).value]));
     if(!item.payload.workspace.trim()) delete item.payload.workspace;
+    if(item.payload.permission_mode==='trusted'){item.payload.recovery_mode='persistent';if(item.payload.adapter==='claude') item.payload.execution_profile='claude_code';}
     if(item.payload.adapter==='mock') item.payload.execution_profile='managed';
     item.payload.max_proxy_seconds=Number(item.payload.max_proxy_seconds);
     item.title=item.payload.title;
@@ -475,3 +477,6 @@ async function submitTask(event){
 $('task-form').addEventListener('submit',submitTask);
 for(const id of ['task-close','task-cancel']) $(id).addEventListener('click',()=>{if(!state.submitting)$('task-dialog').close();});
 $('task-dialog').addEventListener('cancel',e=>{if(state.submitting)e.preventDefault();});
+
+$('task-permission').addEventListener('change',()=>{if($('task-permission').value==='trusted'){$('task-profile').value='claude_code';$('task-recovery').value='persistent';}});
+$('policy-permission').addEventListener('change',()=>{if($('policy-permission').value==='trusted') $('policy-mode').value='persistent';});

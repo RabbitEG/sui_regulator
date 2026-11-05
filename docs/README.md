@@ -56,3 +56,5 @@
 - v0.3：[故障阶段需求](FAILURE_REQUIREMENTS_v0.3.md)、[故障调查](FAILURE_RESEARCH.md)。
 - 首轮：[原始需求](REQUIREMENTS.md)、[实施计划](IMPLEMENTATION_PLAN.md)、[交付报告](DELIVERY.md)、[测试计划](TEST_PLAN.md)、[验证摘要](verification.json)、[测试输出](test-output.txt)。
 - 项目起点：[复用调查](REUSE_REVIEW.md)、[环境记录](ENVIRONMENT.md)。
+
+- [信任模式与无人值守运行](TRUSTED_AUTONOMY.md)：一次授权、自主核验、自动恢复与升级。

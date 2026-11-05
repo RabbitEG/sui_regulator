@@ -30,3 +30,7 @@ MCP/机器 Gateway 的具体调用见 YAN_API.md（随 Gateway 阶段补齐）�
 完成要求全部托管 Job 进入已知终态、命令没有未决副作用、本代身份和用户要求版本匹配。历史失败实验不阻止模型完成用户要求；科学结论仍是代理声明。原生文件和 complete_task 共用验收门，详见 [提示词与完成协议](PROMPT_AND_LIFECYCLE_DESIGN.md)。
 
 历史页默认 20 条，最多 50 条；约 300 KB 记录预算会提前分页。返回 items / next_after / has_more / source；逐页读取到末尾，不能把预览缺失当成无历史。超大单记录显式报 RECORD_TOO_LARGE，不截断用户要求。instruction ACK 与完成规则、运行服务尚不支持移交后完成的限制，见 [接续协议](PROMPT_AND_LIFECYCLE_DESIGN.md#本轮接续协议schema-7)。
+
+## 自主核验（Schema 8）
+
+`reconcile_operation(kind, operation_id, evidence)` 仅对操作员授予 trusted 的 Task 开放。kind 是 attempt/job，作用域为当前有效代理所属任务。它将核验记录为 proxy-declared，保留原始 UNKNOWN 等状态，不伪造执行成功；迟到运行观察发生变化后须重新核验。核验可供完成与等待协议使用，不能把已知 RUNNING 工作直接抹为终态。[参数、限制与示例](TRUSTED_AUTONOMY.md#代理核验与完成)。

@@ -103,3 +103,7 @@ Read / Glob / Grep、Sui 查询和部署者批准的 `read_only=true` 模板始�
 操作阶段先迁移至 schema 6，接续阶段再至 schema 7，旧 UNKNOWN 不自动改为 RUNNING；新增 runtime 来源与身份字段。真实 CLI 完成 / 失败已覆盖，普通 stopped 与 worker_restart 的原始协议分支使用确定性回放；不能把回放声明为目标平台实测。
 
 运行证据事件为 `RUNTIME_EVIDENCE_UPDATED`，时间为 `last_runtime_evidence_at`，间隔为 `runtime_evidence_gap_seconds`。旧 `last_verified_progress_at` / `no_progress_seconds` 仅作为兼容别名保留；旧事件也不改写。指纹缓存最多 512 项，达到上限后不新增命令指纹证据；这不是评估全部任务活动的计分器，始终不触发仅凭缺少证据的强制轮换。
+
+## Trusted 的恢复差异
+
+以上需要操作员解锁的未决操作规则属于 guarded 模式。Schema 8 的 [trusted 模式](TRUSTED_AUTONOMY.md) 将自主核验交给代理，不再用未决/后台记录禁用整个任务的执行能力，并对认证、能力与身份异常持续退避恢复。现有任务不会自动变为 trusted。

@@ -21,6 +21,7 @@ COMMAND_KINDS = {
     "resolve_attempt",
 }
 JSON_COLUMNS = {
+    "reconciliation",
     "wait_state",
     "runtime",
     "completion",
@@ -149,6 +150,7 @@ class Service:
                 "verification_template",
                 "recovery_mode",
                 "max_proxy_seconds",
+                "permission_mode",
             }:
                 raise DomainError("INVALID_ARGUMENT", "unexpected submit_task fields")
             title = require_text(payload.get("title"), "title", 512)
@@ -158,7 +160,12 @@ class Service:
                 raise DomainError("INVALID_ARGUMENT", "unsupported adapter")
             spec = mock_spec(payload.get("spec", {}))
             workspace = self.config.home / "workspaces" / tid
-            profile = payload.get("execution_profile", "managed")
+            from .autonomy import validate_mode
+
+            permission = validate_mode(payload.get("permission_mode", "guarded"))
+            profile = payload.get("execution_profile", (
+                "claude_code" if permission == "trusted" and adapter == "claude" else "managed"
+            ))
             if (
                 not isinstance(profile, str)
                 or profile not in {"managed", "claude_code"}
@@ -179,8 +186,11 @@ class Service:
             from .recovery import validate_policy
 
             mode, budget = validate_policy(
-                payload.get("recovery_mode", self.config.recovery_mode), payload.get("max_proxy_seconds", 0)
+                payload.get("recovery_mode", "persistent" if permission == "trusted" else self.config.recovery_mode),
+                payload.get("max_proxy_seconds", 0)
             )
+            if permission == "trusted" and (mode != "persistent" or adapter == "claude" and profile != "claude_code"):
+                raise DomainError("INVALID_ARGUMENT", "trusted requires persistent recovery and Claude Code tools for the claude adapter")
             if not isinstance(verifier, str) or len(verifier) > 64:
                 raise DomainError("INVALID_ARGUMENT", "verification_template must be a bounded template name")
             if verifier:
@@ -211,6 +221,9 @@ class Service:
                     budget,
                 ),
             )
+            # Keep insertion compatible with pre-v8 migration fixtures.
+            if "permission_mode" in payload:
+                conn.execute("UPDATE tasks SET permission_mode=? WHERE id=?", (permission, tid))
             return {"task_id": tid, "effect": "task created"}
         task = self._get(conn, "tasks", tid)
         if kind == "cancel_job":
@@ -237,20 +250,34 @@ class Service:
         if kind == "set_recovery_policy":
             from .recovery import validate_policy
 
-            if not payload or set(payload) - {"recovery_mode", "max_proxy_seconds"}:
-                raise DomainError("INVALID_ARGUMENT", "expected recovery_mode and/or max_proxy_seconds")
+            from .autonomy import trusted, validate_mode
+
+            if not payload or set(payload) - {"recovery_mode", "max_proxy_seconds", "permission_mode"}:
+                raise DomainError("INVALID_ARGUMENT", "expected recovery_mode, max_proxy_seconds and/or permission_mode")
+            permission = validate_mode(payload.get("permission_mode", task["permission_mode"]))
             mode, budget = validate_policy(
-                payload.get("recovery_mode", task["recovery_mode"]),
+                payload.get("recovery_mode", "persistent" if permission == "trusted" else task["recovery_mode"]),
                 payload.get("max_proxy_seconds", task["max_proxy_seconds"]),
             )
+            if permission == "trusted" and mode != "persistent":
+                raise DomainError("INVALID_ARGUMENT", "trusted requires persistent recovery")
             conn.execute(
-                "UPDATE tasks SET recovery_mode=?,max_proxy_seconds=?,updated_at=? WHERE id=?",
-                (mode, budget, now, tid),
+                "UPDATE tasks SET recovery_mode=?,max_proxy_seconds=?,permission_mode=?,execution_profile=?,updated_at=? WHERE id=?",
+                (mode, budget, permission,
+                 "claude_code" if permission == "trusted" and task["adapter"] == "claude" else task["execution_profile"], now, tid),
             )
+            if permission == "trusted" and not trusted(task) and task["desired"] == "ACTIVE" and task["status"] in {"WAITING_RESOURCE", "QUARANTINED"}:
+                conn.execute("UPDATE tasks SET status='READY',next_start_at=? WHERE id=?", (now, tid))
+            if permission == "trusted" and not trusted(task):
+                state = json.loads(task["recovery_state"])
+                state.update(guidance="Yan granted trusted autonomy. Inspect uncertain operations and use reconcile_operation; continue useful work without requesting routine operator unlocking.",
+                             guidance_at=now)
+                conn.execute("UPDATE tasks SET recovery_state=? WHERE id=?", (encode(state), tid))
             return {
-                "effect": "policy updated; does not resume a paused task",
+                "effect": "policy updated; explicit Hold remains in force; CLI permission changes apply to the next Session",
                 "recovery_mode": mode,
                 "max_proxy_seconds": budget,
+                "permission_mode": permission,
             }
         if kind == "resolve_attempt":
             if set(payload) != {"attempt_id", "evidence"}:

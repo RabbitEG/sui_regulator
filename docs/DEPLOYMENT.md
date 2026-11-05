@@ -304,3 +304,7 @@ systemctl --user status sui-regulator-controller.service yan-console.service
 已有会话记录可立即使用新的字体、角色区分、Markdown 和故障位置视图。完整用户输入分段采集仅适用于新版本启动的代理；已经截断或未采集的旧内容无法补齐。不要为了页面外观强制轮换仍在工作的代理，等待自然接续即可。没有新增思考计时或工具耗时推算。
 
 目标机先运行 `yan console-demo --port 8765`，按 [阅读体验验收](YAN_CONSOLE_READING.md) 检查中英文、Markdown 与 GEN-001。实际任务继续参考 [任务书指南](TASK_BRIEFS.md)；真实 GLM 与目标机的 systemd / cgroup 行为仍需要现场测试。
+
+## 信任模式部署
+
+需要长期无人值守执行时，使用 [信任模式与无人值守指南](TRUSTED_AUTONOMY.md)。Schema 8 保留旧任务原授权；新任务可用 `--permission-mode trusted`，旧任务可用 `yan policy TASK_ID --permission-mode trusted`。GLM 端点沿用已验证配置，不按模型名称自动切换服务。

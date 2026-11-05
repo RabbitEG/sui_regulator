@@ -294,6 +294,12 @@
                   "minimum": 0,
                   "type": "number"
                 },
+                "permission_mode": {
+                  "enum": [
+                    "guarded",
+                    "trusted"
+                  ]
+                },
                 "recovery_mode": {
                   "enum": [
                     "persistent",
@@ -359,6 +365,12 @@
                   "maxLength": 16384,
                   "minLength": 1,
                   "type": "string"
+                },
+                "permission_mode": {
+                  "enum": [
+                    "guarded",
+                    "trusted"
+                  ]
                 },
                 "recovery_mode": {
                   "enum": [

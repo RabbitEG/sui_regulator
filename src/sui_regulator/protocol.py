@@ -239,6 +239,8 @@ class SuiProtocol:
             for name, entry in load_registry(self.config.command_registry).items()
         }
         task["execution_capabilities"] = {
+            "permission_mode": task["permission_mode"],
+            "proxy_reconciliation": task["permission_mode"] == "trusted",
             "native_code_tools": task["execution_profile"] == "claude_code",
             "native_read_tools": task["adapter"] == "claude",
             "managed_job_runner": "synthetic only",
@@ -283,6 +285,11 @@ class SuiProtocol:
         from .waiting import request
 
         return request(self.service, credentials, reason, check_after_seconds, job_id)
+
+    def reconcile_operation(self, credentials, kind, operation_id, evidence):
+        from .autonomy import reconcile_operation
+
+        return reconcile_operation(self.service, credentials, kind, operation_id, evidence)
 
     def report_progress(
         self,
@@ -360,7 +367,10 @@ class SuiProtocol:
                         "IDEMPOTENCY_CONFLICT", "logical job key already has a different specification"
                     )
                 return self.service._job_view(old)
-            if conn.execute(
+            from .autonomy import trusted
+
+            task = self.service._get(conn, "tasks", credentials.task_id)
+            if not trusted(task) and conn.execute(
                 "SELECT 1 FROM jobs WHERE task_id=? AND status IN ('STARTING','UNKNOWN') LIMIT 1",
                 (credentials.task_id,),
             ).fetchone():

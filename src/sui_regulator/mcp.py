@@ -16,6 +16,11 @@ from .protocol import SuiProtocol
 from .service import Service
 
 WORKER_TOOLS = {
+    "reconcile_operation": (
+        {"kind": {"type": "string", "enum": ["attempt", "job"]},
+         "operation_id": {"type": "string"}, "evidence": {"type": "string"}},
+        ["kind", "operation_id", "evidence"],
+    ),
     "get_task_records": (
         {
             "collection": {"type": "string"},

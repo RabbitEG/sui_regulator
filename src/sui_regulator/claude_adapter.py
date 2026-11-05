@@ -95,7 +95,10 @@ class ClaudeStreamDetector:
         return self._convert(Decoded([self.normalizer.end(now, partial_line, authorized_stop)]))
 
 
-def build_command(config, session_id: str, *, execution_profile: str = "managed") -> list[str]:
+def build_command(config, session_id: str, *, execution_profile: str = "managed", permission_mode: str = "guarded") -> list[str]:
+    from .autonomy import validate_mode
+
+    validate_mode(permission_mode)
     if execution_profile not in {"managed", "claude_code"}:
         raise ValueError("unknown execution profile")
     # managed: read-only built-ins so workers can study session records and
@@ -136,7 +139,7 @@ def build_command(config, session_id: str, *, execution_profile: str = "managed"
         "--append-system-prompt",
         SUPERVISOR_PROMPT,
         "--permission-mode",
-        "dontAsk",
+        "bypassPermissions" if permission_mode == "trusted" else "dontAsk",
         "--permission-prompts",
         "none",
         "--max-turns",

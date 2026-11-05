@@ -95,11 +95,14 @@ def apply_pending(controller) -> None:
             else:
                 worker = service._get(conn, "workers", incident["worker_id"])
                 persistent = task["recovery_mode"] == "persistent"
+                from ..autonomy import trusted
                 if incident["rule_id"] in {"TOOL-002", "ENV-001"} and action in {"quarantine", "wait", "fresh_session"}:
                     action = "advise"
                 if persistent and action in {"quarantine", "wait"}:
                     code = payload["evidence"].get("code")
-                    if code in {401, 403, "AUTH_REQUIRED"}:
+                    if trusted(task):
+                        action = "fresh_session"
+                    elif code in {401, 403, "AUTH_REQUIRED"}:
                         action = "wait"
                     elif code == "SESSION_ID_MISMATCH":
                         action = "quarantine"

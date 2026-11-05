@@ -161,6 +161,43 @@ class ClaudeContractTests(ProcessTestCase):
     "opt-in real installed CLI + loopback fake API only; no provider credentials",
 )
 class InstalledClaudeTests(ProcessTestCase):
+    def test_trusted_cli_debugs_past_unknown_and_reconciles_without_operator(self):
+        project = Path(self.temp.name) / "trusted-project"
+        project.mkdir()
+        tid = None
+        def steps(body, index):
+            if index == 0:
+                exposed = {t["name"] for t in body["tools"]}
+                self.assertTrue({"Bash", "Write"} <= exposed)
+                with self.service.store.transaction() as conn:
+                    task = self.service._get(conn, "tasks", tid)
+                    conn.execute(
+                        "INSERT INTO tool_attempts(id,task_id,worker_id,tool,operation_key,approach_key,status,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                        ("old-unknown", tid, task["current_worker"], "Bash", "old", "old", "UNKNOWN", time.time()),
+                    )
+                return "get_task_context", {}
+            return [
+                ("Bash", {"command": "printf before > probe.txt"}),
+                ("Write", {"file_path": str(project / "fixed.txt"), "content": "debugged"}),
+                ("reconcile_operation", {"kind": "attempt", "operation_id": "old-unknown",
+                                          "evidence": "Synthetic fixture: original operation has no remaining external work."}),
+                ("complete_task", {"summary": "Debugged and reconciled", "evidence": "probe.txt and fixed.txt"}),
+            ][min(index - 1, 3)]
+
+        with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+            "ANTHROPIC_BASE_URL": backend.url, "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+            "ANTHROPIC_AUTH_TOKEN": "", "CLAUDE_CODE_DISABLE_THINKING": "1", **NO_PROXIES,
+        }):
+            tid = self.submit(adapter="claude", workspace=str(project), permission_mode="trusted")
+            self.until(lambda: self.service.get_task(tid)["desired"] == "COMPLETED", timeout=35)
+            task = self.service.get_task(tid)
+            self.assertEqual(task["generation"], 1)
+            self.assertEqual((project / "probe.txt").read_text(), "before")
+            self.assertEqual((project / "fixed.txt").read_text(), "debugged")
+            old = next(a for a in task["tool_attempts"] if a["id"] == "old-unknown")
+            self.assertEqual(old["status"], "UNKNOWN")
+            self.assertEqual(old["reconciliation"]["source"], "proxy-declared")
+
     def test_live_instruction_reaches_same_cli_session_and_requires_explicit_read_ack(self):
         for profile in ("managed", "claude_code"):
             with self.subTest(profile=profile):

@@ -148,7 +148,11 @@ class Controller(AbstractContextManager):
                 worker["id"],
                 {"reason": reason},
             )
-            if reason == "SESSION_ID_MISMATCH" or (
+            from .autonomy import trusted
+
+            if trusted(current):
+                pass  # All runtime/configuration failures use the persisted backoff above.
+            elif reason == "SESSION_ID_MISMATCH" or (
                 not persistent and reason in {"AUTH_REQUIRED", "RESOURCE_BLOCKED"}
             ):
                 conn.execute("UPDATE tasks SET status='QUARANTINED' WHERE id=?", (task["id"],))

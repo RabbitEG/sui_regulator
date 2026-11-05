@@ -73,3 +73,7 @@ v0.4 初版新增跨任务只读分页投影；后续任务书阶段扩展 submi
 `get_command_status` 对 instruct / request_analysis 额外返回 `delivery[]`：每代的 `worker_id`、`offered_at`、`channel`、`acknowledged_at`，另有 `execution="unknown"`。SUCCEEDED 仍只代表入账。投递准备不等于收到；明确 ACK 仍是代理的已读声明。历史各代的 ACK 保留，不会自动变成新代已读。
 
 `get_task` 保留完整原始任务书，但 workers/jobs/artifacts 各最多 50、操作回执最多 100、Incident 最近 20，并有响应大小预算。`history_refs` 给出完整数量和分页方法，`outstanding_operations` 基于全账本计数；`instruction_delivery` 是当前代最近 20 条摘要，`wait_state` 是可选持久等待对象。精确旧代理详情通过 get_task_records 的 record_id 读取；Incident 继续用现有 get_incidents。Console 直接复用这些查询，不另写业务状态机。
+
+## 任务授权模式（Schema 8）
+
+`submit_task` 与 `set_recovery_policy` 的 payload 新增 `permission_mode: guarded|trusted`。未指定时新任务及旧账本升级保持 guarded。trusted 要求 Persistent；Claude 任务启用 claude_code 工具。切换策略不会解除明确 HOLD；ACTIVE 的框架等待/隔离可重新调度，CLI 启动权限在下一代生效。所有变更沿用幂等命令回执。[详细语义](TRUSTED_AUTONOMY.md)。

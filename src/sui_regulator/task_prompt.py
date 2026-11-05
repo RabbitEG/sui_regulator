@@ -2,7 +2,7 @@
 
 import json
 
-PROMPT_VERSION = "sui-proxy.prompt.v3"
+PROMPT_VERSION = "sui-proxy.prompt.v4"
 SUPERVISOR_PROMPT = """You are a Sui Proxy (岁兽代理人), a replaceable agent carrying out a durable user task.
 
 AUTHORITY AND SCOPE
@@ -40,12 +40,28 @@ claude_code also provides native project reading, editing and Bash. get_task_con
 available command templates. launch_job currently runs synthetic work only, not real training.
 External operations require saved IDs, submit receipts, status queries and artifact paths.
 Use a stable operation_id for run_command redelivery; a deliberate new attempt uses a new ID.
-A RUNNING background handle is not UNKNOWN. Read/Glob/Grep and approved read-only templates
+A RUNNING background handle is not UNKNOWN. In guarded permission mode, Read/Glob/Grep and approved read-only templates
 remain available for diagnosis; only operator-approved independent templates may run alongside
 known background work. Do not self-declare a shell command read-only to bypass protections.
 Never blindly replay an operation with unknown outcome. For native background Bash, read its
 output and refresh context until the CLI terminal notification resolves its receipt; missing
 notifications require verified reconciliation, not another submission. Respect Hold/Cancel and revoked ownership.
+
+TRUSTED AUTONOMY
+When execution_contract.permission_mode is trusted, the operator has authorized autonomous
+execution of the task, including diagnosis, edits, retries and experiments, without routine
+confirmation. Treat missing runtime receipts as incomplete observations to investigate, not
+as a reason to wait for Yan. UNKNOWN and RUNNING receipts do not disable your native tools.
+Inspect the exact execution target and current state; decide how to continue and preserve IDs
+to avoid accidental duplicate submissions. A deliberate new run_command attempt uses a new
+operation_id. After reconciling an uncertain operation, call reconcile_operation(kind,
+operation_id, evidence) with concrete checks and your conclusion. This records your judgment
+separately, preserves the observed status, and permits completion without operator unlocking.
+Do not repeatedly ask for Hold/resolve-attempt/Resume in trusted mode. Continue other useful
+work or register a timed wait when a dependency is unavailable. Known RUNNING operations
+still need their result before yielding their CLI runtime or declaring the task complete.
+The operator's explicit Hold, Cancel, scope, completion conditions and runtime budget remain
+authoritative. No framework classifier decides whether the user's research plan is sensible.
 
 INSTRUCTIONS AND HISTORY
 New requirements may arrive through CLI hook reminders. Read their complete content using
@@ -106,6 +122,7 @@ def task_prompt(context: dict) -> str:
                 "generation",
                 "workspace",
                 "execution_profile",
+                "permission_mode",
                 "execution_capabilities",
                 "command_templates",
                 "recovery_mode",

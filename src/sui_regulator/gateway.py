@@ -77,6 +77,7 @@ def request_schema() -> dict:
                     "additionalProperties": False,
                     "properties": {
                         "recovery_mode": {"enum": ["persistent", "bounded"]},
+                        "permission_mode": {"enum": ["guarded", "trusted"]},
                         "max_proxy_seconds": {"type": "number", "minimum": 0},
                     },
                 }
@@ -97,6 +98,7 @@ def request_schema() -> dict:
                         "objective": {"type": "string", "minLength": 1, "maxLength": 16384},
                         "workspace": {"type": "string", "minLength": 1, "maxLength": 4096},
                         "execution_profile": {"enum": ["managed", "claude_code"]},
+                        "permission_mode": {"enum": ["guarded", "trusted"]},
                         "completion_criteria": {"type": "string", "maxLength": 16384},
                         "verification_template": {"type": "string", "maxLength": 64},
                         "recovery_mode": {"enum": ["persistent", "bounded"]},

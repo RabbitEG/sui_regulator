@@ -46,7 +46,8 @@ def run(config: Config, credentials: Credentials) -> None:
     recorder.write("text", "system", SUPERVISOR_PROMPT, message_id="supervisor-protocol")
     recorder.record_input(prompt, context)
     process = subprocess.Popen(
-        build_command(config, worker["session_id"], execution_profile=context["execution_profile"]),
+        build_command(config, worker["session_id"], execution_profile=context["execution_profile"],
+                      permission_mode=context["permission_mode"]),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

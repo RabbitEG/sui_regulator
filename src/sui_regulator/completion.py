@@ -177,13 +177,26 @@ def accept(service, task_id, proxy_id, payload, receipt_id=None):
             require_text(payload["submission_id"], "submission_id", 128)
             require_text(payload["summary"], "summary")
             require_text(payload["evidence"], "completion evidence")
-            jobs = conn.execute("SELECT status FROM jobs WHERE task_id=?", (task_id,)).fetchall()
-            if any(job["status"] not in {"COMPLETED", "FAILED", "CANCELLED"} for job in jobs):
+            from .autonomy import reviewed, trusted
+
+            jobs = conn.execute("SELECT * FROM jobs WHERE task_id=?", (task_id,)).fetchall()
+            proxy_reviews = []
+            def reconciled(row, kind):
+                if trusted(task) and reviewed(row):
+                    proxy_reviews.append({"kind": kind, "operation_id": row["id"],
+                                          "observed_status": row["status"],
+                                          "reconciliation": json.loads(row["reconciliation"])})
+                    return True
+                return False
+
+            if any(job["status"] not in {"COMPLETED", "FAILED", "CANCELLED"}
+                   and not reconciled(job, "job") for job in jobs):
                 raise DomainError("UNVERIFIED_COMPLETION", "managed jobs must have known terminal outcomes")
-            if conn.execute(
-                "SELECT 1 FROM tool_attempts WHERE task_id=? AND status IN ('STARTED','UNKNOWN','RUNNING') LIMIT 1",
+            pending = conn.execute(
+                "SELECT * FROM tool_attempts WHERE task_id=? AND status IN ('STARTED','UNKNOWN','RUNNING')",
                 (task_id,),
-            ).fetchone():
+            ).fetchall()
+            if any(not reconciled(row, "attempt") for row in pending):
                 raise DomainError(
                     "UNVERIFIED_COMPLETION",
                     "an earlier command has an unresolved outcome; verify it before completing",
@@ -212,7 +225,8 @@ def accept(service, task_id, proxy_id, payload, receipt_id=None):
                 "accepted_at": now,
                 "receipt_id": receipt_id,
                 "semantic_result": "proxy-declared",
-                "managed_jobs_terminal": True,
+                "managed_jobs_terminal": all(job["status"] in {"COMPLETED", "FAILED", "CANCELLED"} for job in jobs),
+                "proxy_reconciliations": proxy_reviews,
                 "managed_jobs_verified": all(job["status"] == "COMPLETED" for job in jobs),
                 "all_managed_jobs_successful": all(job["status"] == "COMPLETED" for job in jobs),
                 "verification": dict(verification) if verification else None,

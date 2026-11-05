@@ -21,10 +21,14 @@ def request(service, credentials, reason, check_after_seconds, job_id=None):
     now = time.time()
     with service.store.transaction() as conn:
         fence(conn, credentials)
-        if conn.execute(
-            "SELECT 1 FROM tool_attempts WHERE task_id=? AND worker_id=? AND status IN ('STARTED','RUNNING') LIMIT 1",
+        from .autonomy import reviewed, trusted
+
+        task = service._get(conn, "tasks", credentials.task_id)
+        pending = conn.execute(
+            "SELECT * FROM tool_attempts WHERE task_id=? AND worker_id=? AND status IN ('STARTED','RUNNING')",
             (credentials.task_id, credentials.worker_id),
-        ).fetchone():
+        ).fetchall()
+        if any(not (trusted(task) and reviewed(row)) for row in pending):
             raise DomainError(
                 "RUNTIME_STILL_REQUIRED", "finish or verify native operations before yielding their runtime"
             )

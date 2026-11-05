@@ -91,3 +91,7 @@ SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src .venv/bin/python -m unittest \
 追加要求可在 Console / Yan 录入，当前 Session 的下一次工具往返或停止边界会收到提醒；慢工具运行期间不会被为此硬中断。长要求经完整分页读取，再提交已读 ACK。需要省下等待期间的 Session 时，代理可调用 wait_task，框架负责登记和到期接续；它不会替代理查询或迁移未配置的远端资源。
 
 当前没有“交付长期服务、移交运行责任后结束 Task”的受管契约。有关 Job 或副作用仍未终态时请保持任务继续或使用明确支持的等待方式；详见 [完成边界](PROMPT_AND_LIFECYCLE_DESIGN.md#本轮接续协议schema-7)。
+
+## 无人值守授权
+
+在任务书中完整定义目标、授权和停止条件，提交时使用 `--permission-mode trusted`。它配套 Persistent 和 Claude Code 工具，让代理自主处理 UNKNOWN、调试与后续实验，不要求逐次确认；明确的 Hold、Cancel 和运行额度仍有效。[完整一周任务模板与命令](TRUSTED_AUTONOMY.md)。

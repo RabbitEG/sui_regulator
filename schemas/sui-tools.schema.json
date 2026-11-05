@@ -123,6 +123,30 @@
       ],
       "type": "object"
     },
+    "reconcile_operation": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "attempt",
+            "job"
+          ],
+          "type": "string"
+        },
+        "operation_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "operation_id",
+        "evidence"
+      ],
+      "type": "object"
+    },
     "report_blocker": {
       "additionalProperties": false,
       "properties": {

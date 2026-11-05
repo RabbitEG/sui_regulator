@@ -67,6 +67,10 @@ def denial(conn, task, operation_key, approach_key, *, read_only=False, allow_du
         ).fetchone()[0]
         if used >= task["max_proxy_seconds"]:
             return "Proxy runtime budget exhausted; increase the budget and Resume."
+    from .autonomy import trusted
+
+    if trusted(task):
+        return None
     if not read_only:
         unknown = conn.execute(
             "SELECT 1 FROM jobs WHERE task_id=? AND status IN ('STARTING','UNKNOWN') LIMIT 1", (task["id"],)

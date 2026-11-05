@@ -9,8 +9,13 @@ from typing import Iterator
 
 from .models import encode
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 MIGRATIONS = {
+    8: [
+        "ALTER TABLE tasks ADD COLUMN permission_mode TEXT NOT NULL DEFAULT 'guarded'",
+        "ALTER TABLE tool_attempts ADD COLUMN reconciliation TEXT",
+        "ALTER TABLE jobs ADD COLUMN reconciliation TEXT",
+    ],
     7: [
         "ALTER TABLE tool_attempts ADD COLUMN result TEXT",
         "ALTER TABLE tasks ADD COLUMN wait_state TEXT",

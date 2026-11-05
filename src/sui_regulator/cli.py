@@ -26,7 +26,9 @@ def parser() -> argparse.ArgumentParser:
     submit.add_argument("--completion-criteria", default="")
     submit.add_argument("--verification-template", default="", help="approved no-argument command required to pass before completion")
     submit.add_argument("--workspace", type=Path, help="existing project directory")
-    submit.add_argument("--execution-profile", choices=["managed", "claude_code"], default="managed")
+    submit.add_argument("--execution-profile", choices=["managed", "claude_code"])
+    submit.add_argument("--permission-mode", choices=["guarded", "trusted"], default="guarded",
+                        help="trusted grants autonomous execution and automatic runtime recovery")
     submit.add_argument("--recovery-mode", choices=["persistent", "bounded"])
     submit.add_argument("--max-proxy-seconds", type=float, default=0, help="total Proxy wall-time allowance; 0 is unlimited")
     submit.add_argument("--key", default=None)
@@ -36,6 +38,7 @@ def parser() -> argparse.ArgumentParser:
     policy = commands.add_parser("policy", help="change durable recovery policy; does not Resume")
     policy.add_argument("task_id")
     policy.add_argument("--recovery-mode", choices=["persistent", "bounded"])
+    policy.add_argument("--permission-mode", choices=["guarded", "trusted"])
     policy.add_argument("--max-proxy-seconds", type=float)
     policy.add_argument("--key")
     resolve = commands.add_parser("resolve-attempt", help="record operator verification of an unresolved command while Task is on Hold")
@@ -163,8 +166,10 @@ def main(argv: list[str] | None = None) -> None:
                 payload["objective"] = args.objective
             if args.objective_file:
                 payload["objective"] = args.objective_file.read_text(encoding="utf-8")
-            payload.update(execution_profile=args.execution_profile, completion_criteria=args.completion_criteria,
+            payload.update(permission_mode=args.permission_mode, completion_criteria=args.completion_criteria,
                            verification_template=args.verification_template)
+            if args.execution_profile:
+                payload["execution_profile"] = args.execution_profile
             if args.workspace:
                 payload["workspace"] = str(args.workspace.expanduser().resolve())
             payload["max_proxy_seconds"] = args.max_proxy_seconds
@@ -174,7 +179,7 @@ def main(argv: list[str] | None = None) -> None:
         elif args.command == "resolve-attempt":
             result = service.command("resolve_attempt", actor, key, {"attempt_id": args.attempt_id, "evidence": args.evidence}, args.task_id)
         elif args.command == "policy":
-            payload = {field: getattr(args, field) for field in ("recovery_mode", "max_proxy_seconds") if getattr(args, field) is not None}
+            payload = {field: getattr(args, field) for field in ("recovery_mode", "max_proxy_seconds", "permission_mode") if getattr(args, field) is not None}
             result = service.command("set_recovery_policy", actor, key, payload, args.task_id)
         elif args.command == "list":
             result = service.list_tasks()
