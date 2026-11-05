@@ -41,7 +41,7 @@ const empty = (title, message='') => `<div class='empty'>${icon('overview')}<p>$
 const details = (name, value, key=name) => `<details class='json-details' data-preserve='${esc(key)}'><summary>${esc(name)}</summary><pre>${esc(JSON.stringify(value,null,2))}</pre></details>`;
 const panel = (title, body, subtitle='', action='') => `<section class='panel'><div class='panel-head'><h2>${title}${subtitle ? `<span>${subtitle}</span>` : ''}</h2>${action}</div>${body}</section>`;
 const state={snapshot:null,transport:null,readMono:0,offset:0,limit:20,search:'',filter:'',task:null,incident:null,events:[],jobId:null,jobData:null,receipts:[],workspaceId:null,paused:false,interval:5000,loading:false,pending:false,error:null,failures:0,modal:null,submitting:false};
-Object.assign(state,{taskTab:'summary',historyPage:null,historyError:null,historyLoading:false,transcript:null,transcriptItems:[],transcriptAfter:0,transcriptError:null,transcriptDiscarded:0,transcriptFilter:'reader',transcriptSearch:'',readerOptions:false,followTranscript:true,proxyIncidents:[],incidentAfter:0,incidentHasMore:false,incidentError:null,incidentDiscarded:0});
+Object.assign(state,{taskTab:'summary',historyPage:null,historyError:null,historyLoading:false,transcript:null,transcriptItems:[],transcriptBefore:null,transcriptThrough:null,transcriptHistory:[],messageDetail:null,transcriptNavigation:null,transcriptError:null,transcriptFilter:'reader',transcriptSearch:'',readerOptions:false,followTranscript:true,proxyIncidents:[],incidentAfter:0,incidentHasMore:false,incidentError:null,incidentDiscarded:0});
 try {const size=localStorage.getItem('yan-console-text-size');if(['normal','large','xlarge'].includes(size)) document.documentElement.dataset.textSize=size;}catch(_){}
 $('reading-size').value=document.documentElement.dataset.textSize || 'normal';
 $('reading-size').addEventListener('change',e=>{document.documentElement.dataset.textSize=e.target.value;try{localStorage.setItem('yan-console-text-size',e.target.value);}catch(_){}});
@@ -101,15 +101,14 @@ async function refresh(){
           if(key!==location.hash) return;task.workers.push(...older.items);
         }
         try {
-          const transcript=await rpc('get_proxy_transcript',{task_id:r[1],proxy_id:r[2],after:state.transcriptAfter,limit:40});
+          const before=state.transcriptBefore,through=state.transcriptThrough;
+          const transcript=await rpc('get_proxy_transcript',{task_id:r[1],proxy_id:r[2],view:'messages',limit:100,...(before==null ? {}:{before,through})});
           if(key!==location.hash) return;
+          if(before!==state.transcriptBefore || through!==state.transcriptThrough){state.pending=true;return;}
+          if(transcript.view!=='messages') throw new Error(tr('请将 Controller 与 Console 升级到同一版本。','Upgrade Controller and Console to the same version.'));
           state.transcript=transcript;state.transcriptError=null;
-          const known=new Set(state.transcriptItems.map(item=>item.id));
-          state.transcriptItems.push(...transcript.items.filter(item=>!known.has(item.id)));
-          const excess=Math.max(0,state.transcriptItems.length-400);state.transcriptDiscarded+=excess;
-          if(excess) state.transcriptItems.splice(0,excess);
-          state.transcriptAfter=transcript.next_after;
-        }catch(e){if(key!==location.hash) return;state.transcriptError=e.message;}
+          state.transcriptItems=transcript.items;state.transcriptNavigation=null;
+        }catch(e){if(key!==location.hash) return;if(state.transcriptNavigation){Object.assign(state,state.transcriptNavigation);state.transcriptNavigation=null;}state.transcriptError=e.message;}
         try {
           const rows=await rpc('get_incidents',{task_id:r[1],proxy_id:r[2],after:state.incidentAfter,limit:20});
           if(key!==location.hash) return;
@@ -133,7 +132,7 @@ async function refresh(){
     }
     await pollReceipts();state.failures=data.connection.available ? 0:state.failures+1;
   } catch(e){
-    if(key===location.hash){state.error=e.name==='AbortError' ? tr("查询超时，当前数据未重新核验。","Query timed out; current data is unverified."):e.message;if(!e.code || ['CONTROLLER_UNREACHABLE','DELIVERY_UNCONFIRMED'].includes(e.code)) state.transport={available:false,error:{message:state.error}};state.failures++;}
+    if(key===location.hash){if(state.transcriptNavigation){Object.assign(state,state.transcriptNavigation);state.transcriptNavigation=null;}state.error=e.name==='AbortError' ? tr("查询超时，当前数据未重新核验。","Query timed out; current data is unverified."):e.message;if(!e.code || ['CONTROLLER_UNREACHABLE','DELIVERY_UNCONFIRMED'].includes(e.code)) state.transport={available:false,error:{message:state.error}};state.failures++;}
   } finally {
     state.loading=false;if(key===location.hash) render();$('main').setAttribute('aria-busy','false');
     if(state.pending || key!==location.hash){state.pending=false;queueMicrotask(refresh);}else schedule();
@@ -258,17 +257,14 @@ function executionEvidence(task,p){
     </div><p class='source-note'>${tr('进程存在、收到文本、工具返回与作业完成是不同事实。助手声称“完成”不会改写运行观测。暂停或离线时，证据仅为快照。','Process existence, text, tool results and job completion are different facts. Assistant claims never overwrite execution observations. Paused or offline evidence is a snapshot.')}</p></section>`;
 }
 function transcriptGroups(){
-  const groups=[],calls=new Map();
-  for(const item of state.transcriptItems){
-    if(item.kind==='tool_result' && item.call_id && calls.has(item.call_id)){
-      const call=calls.get(item.call_id);call.results.push(item);call.endTime=item.time;continue;
-    }
-    const previous=groups.at(-1);
-    if(item.kind==='text' && item.message_id && previous?.kind==='text' && previous.message_id===item.message_id && previous.role===item.role){previous.text+=item.text;previous.endTime=item.time;previous.truncated ||= item.truncated;}
-    else{const entry={...item,results:[]};groups.push(entry);if(item.kind==='tool_call' && item.call_id) calls.set(item.call_id,entry);}
+  const groups=state.transcriptItems.map(item=>({...item}));
+  const first=groups[0]?.time,last=groups.at(-1)?.endTime;
+  for(const incident of state.proxyIncidents){
+    if(first!=null && incident.created_at<first && state.transcript?.has_more) continue;
+    if(state.transcriptBefore!=null && last!=null && incident.created_at>last) continue;
+    groups.push({id:'incident-'+incident.sequence,kind:'incident',time:incident.created_at,incident});
   }
-  for(const incident of state.proxyIncidents){groups.push({id:'incident-'+incident.sequence,kind:'incident',time:incident.created_at,incident});}
-  return groups.sort((a,b)=>a.time-b.time);
+  return groups.sort((a,b)=>(a.endTime || a.time)-(b.endTime || b.time));
 }
 function rawRecord(text){return `<div class='raw-content'><button type='button' class='text-button' data-copy-source>${tr('复制原文','Copy source')}</button><pre>${esc(text)}</pre></div>`;}
 function recordMeta(item){return `<p class='record-meta'>${esc(item.source)}${item.call_id ? ' · '+esc(item.call_id):''}${item.model ? ' · '+esc(item.model):''}</p>`;}
@@ -279,48 +275,135 @@ function transcriptLimit(item){
   if(!item.truncated) return '';
   const message=item.kind==='recording_limit'
     ? tr('本代会话的控制台记录已达 4 MiB 保存上限，后续内容未保存。此限制不会停止会话运行。','Console records for this generation reached the 4 MiB storage limit. Later content was not saved. This limit does not stop the session.')
-    : tr('本条控制台记录未完整保存，超出部分无法在此查看。此限制仅影响记录副本，不会裁剪会话实际收发的内容。','This console record was only partially saved; the omitted content is unavailable here. This limit affects the recorded copy only, not content sent or received by the session.');
-  return `<p class='message-limit'>${message}</p>`;
+    : tr('控制台记录未完整保存，超出保存上限的部分无法在此查看；这不表示发给会话的内容被裁剪。','The console did not save this record in full. Content beyond the storage limit cannot be viewed here; this does not mean input sent to the session was cut short.');
+  return `<p class='notice warning'>${message}</p>`;
+}
+function messageDisclosure(item,summary,classes='message-detail'){
+  return `<details class='${classes}' data-message-detail='${item.id}' data-preserve='message-${item.id}'><summary>${summary}</summary><div data-message-slot='${item.id}'></div></details>`;
 }
 function transcriptMessage(item,proxy){
   if(item.kind==='incident'){
     const i=item.incident,p=i.payload;
     return `<article class='session-message incident-marker' data-incident-marker='${i.sequence}' tabindex='-1'><header><strong>${icon('incidents')} ${tr('故障检出','Incident detected')} · ${esc(i.rule_id)}</strong><time>${fmt(i.created_at)}</time></header><p>${esc(p.symptom)}</p><div class='decision-line'><span>${tr('建议','Advice')}: ${esc(actionLabel(p.action))}</span><span>→</span><span>${tr('最终','Final')}: ${esc(actionLabel(i.action))}</span>${badge(i.status)}</div><p class='note'>${tr('检测器标记的起始时间','Detector-marked onset')}: ${fmt(p.onset_at)} · ${tr('检测时间','Detected')}: ${fmt(p.detected_at)}</p><a href='${incidentLink(i)}'>${tr('查看证据与恢复结果','Inspect evidence and recovery')} ${icon('arrow')}</a></article>`;
   }
-  const expanded=state.transcriptFilter==='all' ? 'open':'';
   if(['tool_call','tool_result'].includes(item.kind)){
     const results=item.kind==='tool_result' ? [item]:item.results,name=item.tool_name || tr('工具','Tool');
-    const status=results.length ? results.some(r=>r.is_error) ? tr('工具返回错误','Tool returned an error'):tr('已返回','Returned'):tr('尚无返回记录','No return recorded');
-    const blocks=(item.kind==='tool_call' ? `<h4>${tr('调用参数','Arguments')}</h4>${rawRecord(item.text)}${transcriptLimit(item)}`:'')+results.map(result=>`<h4>${tr('工具返回','Result')} · ${clock(result.time)}</h4>${rawRecord(result.text)}${transcriptLimit(result)}`).join('');
-    return `<article class='session-message role-tool compact-activity' data-message-role='tool' data-tool-call='${esc(item.call_id || '')}'><details class='message-tool' data-preserve='message-${item.id}' ${expanded}><summary><strong>↳ ${esc(name)}</strong><span class='tool-hint'>${esc(shortToolInput(item.kind==='tool_call' ? item.text:''))}</span><span class='tool-status'>${status}</span><time>${clock(item.time)}</time></summary>${blocks}${results.some(r=>r.is_error) ? `<p class='note'>${tr('工具错误不代表会话故障；由代理决定如何处理任务。','A tool error is not session failure. The proxy decides how to handle it.')}</p>`:''}${recordMeta(item)}</details></article>`;
+    const status=results.length ? item.is_error ? tr('工具返回错误','Tool returned an error'):tr('已返回','Returned'):tr('尚无返回记录','No return recorded');
+    const summary=`<strong>↳ ${esc(name)}</strong><span class='tool-hint'>${esc(shortToolInput(item.kind==='tool_call' ? item.text:''))}</span><span class='tool-status'>${status}</span><time>${clock(item.endTime || item.time)}</time>`;
+    return `<article class='session-message role-tool compact-activity' data-message-id='${item.id}' data-message-role='tool' data-tool-call='${esc(item.call_id || '')}'>${messageDisclosure(item,summary,'message-tool')}</article>`;
   }
   if(item.role==='system' || item.kind!=='text'){
     const label=item.message_id==='supervisor-protocol' ? tr('运行协议','Runtime protocol'):item.message_id==='injected-context' ? tr('注入上下文','Injected context'):item.kind==='exit' ? tr('运行时结束记录','Runtime end record'):item.kind==='recording_limit' ? tr('达到采集上限','Recording limit reached'):tr('运行时记录','Runtime record');
-    return `<article class='session-message role-system compact-activity' data-message-role='system'><details data-preserve='message-${item.id}' ${expanded}><summary><strong>· ${label}</strong><time>${clock(item.time)}</time></summary>${rawRecord(item.text)}${transcriptLimit(item)}${recordMeta(item)}</details></article>`;
-  }
-  let text=item.text,context='';
-  if(item.role==='user' && item.message_id==='initial-input'){
-    try{const injected=JSON.parse(text),request=injected.operator_request;
-      if(request && typeof request.objective==='string'){
-        text=request.objective;
-        if(request.completion_criteria) text+='\n\n### '+tr('验收条件','Acceptance criteria')+'\n\n'+request.completion_criteria;
-        context=`<details class='raw-message' data-preserve='injected-${item.id}'><summary>${tr('注入上下文','Injected context')}</summary>${rawRecord(item.text)}</details>`;
-      }
-    }catch(_){}
+    return `<article class='session-message role-system compact-activity' data-message-id='${item.id}' data-message-role='system'>${messageDisclosure(item,`<strong>· ${label}</strong><time>${clock(item.time)}</time>`)}</article>`;
   }
   const overlaps=state.proxyIncidents.filter(i=>i.rule_id==='GEN-001' && Number.isFinite(i.payload.onset_at) && item.time<=i.payload.detected_at && (item.endTime || item.time)>=i.payload.onset_at);
   const role=item.role==='user' ? 'user':'assistant',label=role==='user' ? item.input_field==='completion_criteria' ? tr('用户 · 验收条件','You · acceptance criteria'):tr('用户','You'):tr('岁兽代理人','Sui Proxy');
-  return `<article class='session-message role-${role} ${overlaps.length ? 'in-detection-window':''}' data-message-role='${role}'><header><strong><span class='role-symbol' aria-hidden='true'>${role==='user' ? '●':'◆'}</span>${label}</strong><time>${fmt(item.time)}</time>${overlaps.length ? `<a class='window-label' href='${incidentLink(overlaps[0])}'>${tr('退化检测窗口','Degeneration detection window')} · GEN-001</a>`:''}</header><div class='message-text markdown'>${YanMarkdown.render(text)}</div><details class='raw-message' data-preserve='message-${item.id}' ${expanded}><summary>${tr('原文与来源','Source and metadata')}</summary>${rawRecord(text)}${recordMeta(item)}</details>${context}${transcriptLimit(item)}</article>`;
+  return `<article class='session-message role-${role} ${overlaps.length ? 'in-detection-window':''}' data-message-id='${item.id}' data-message-role='${role}'><header><strong><span class='role-symbol' aria-hidden='true'>${role==='user' ? '●':'◆'}</span>${label}</strong><time>${fmt(item.time)}</time>${overlaps.length ? `<a class='window-label' href='${incidentLink(overlaps[0])}'>${tr('退化检测窗口','Degeneration detection window')} · GEN-001</a>`:''}</header><div class='message-text markdown ${item.preview_truncated ? 'message-preview':''}'>${YanMarkdown.render(item.text)}</div>${item.preview_truncated ? `<p class='preview-note'>${tr('仅显示预览 · 展开详情查看已保存的全文','Preview only · open details for the full saved message')}</p>`:''}${messageDisclosure(item,tr('查看详情','Details'))}${transcriptLimit(item)}</article>`;
 }
 function transcriptView(proxy){
   const page=state.transcript,groups=transcriptGroups(),query=state.transcriptSearch.toLocaleLowerCase();
-  const filtered=groups.filter(item=>(item.kind==='incident' || state.transcriptFilter==='reader' || state.transcriptFilter==='all' || (state.transcriptFilter==='dialogue' ? item.kind==='text' && ['user','assistant'].includes(item.role):['tool_call','tool_result'].includes(item.kind))) && (!query || item.kind==='incident' || JSON.stringify([item.text,item.tool_name,item.results]).toLocaleLowerCase().includes(query)));
+  const filtered=groups.filter(item=>(item.kind==='incident' || state.transcriptFilter==='reader' || (state.transcriptFilter==='dialogue' ? item.kind==='text' && ['user','assistant'].includes(item.role):['tool_call','tool_result'].includes(item.kind))) && (!query || item.kind==='incident' || JSON.stringify([item.text,item.tool_name,item.results]).toLocaleLowerCase().includes(query)));
   let content=filtered.map(item=>transcriptMessage(item,proxy)).join('');
-  if(!content){const missing=page?.availability==='not_recorded';content=empty(missing ? tr('此会话没有留存对话','No conversation was recorded'):page?.availability==='unreadable' ? tr('会话记录无法读取','Transcript unreadable'):query || state.transcriptFilter!=='reader' ? tr('当前筛选下没有记录','No matching records'):tr('等待会话输出','Waiting for session output'),missing ? tr('只采集升级后启动的新代理。不会根据事件编造历史对话。','Capture applies to proxies started after upgrading. Events never become invented conversation history.'):tr('仅显示实际采集输出；空记录不代表代理未启动。','Only captured output is shown. An empty transcript does not mean the proxy failed to start.'));}
-  const latest=state.transcriptItems.at(-1),options=[['reader',tr('阅读模式','Reader')],['dialogue',tr('只看对话','Dialogue only')],['tools',tr('工具活动','Tools')],['all',tr('展开原始记录','Expanded records')]];
-  return `<section class='panel session-transcript' id='proxy-transcript' tabindex='-1' data-session-transcript><div class='panel-head'><h2>${tr('会话实录','Conversation')}</h2><span>${proxy.adapter==='mock' ? tr('合成演示 · 非真实模型','Synthetic demo · no real model'):tr('已采集的会话输出','Captured session output')}</span></div><div class='transcript-toolbar'><label>${tr('查看','View')} <select id='transcript-filter'>${options.map(([v,label])=>`<option value='${v}' ${state.transcriptFilter===v ? 'selected':''}>${label}</option>`).join('')}</select></label><label><input id='transcript-follow' type='checkbox' ${state.followTranscript ? 'checked':''}> ${tr('跟随新消息','Follow new messages')}</label><button type='button' id='reader-options-toggle' class='text-button reader-options-toggle' aria-controls='reader-tools' aria-expanded='${state.readerOptions}' data-reader-options>${tr('阅读选项','Reading options')}</button><div id='reader-tools' class='reader-tools ${state.readerOptions ? 'expanded':''}'><input id='transcript-search' type='search' placeholder='${tr('搜索已加载的记录…','Search loaded records…')}' aria-label='${tr('搜索已加载的记录','Search loaded records')}' value='${esc(state.transcriptSearch)}'><button class='text-button' data-reader-jump='first'>${tr('开头','Top')}</button><button class='text-button' data-reader-jump='last'>${tr('最新','Latest')}</button>${state.proxyIncidents.length ? `<button class='button secondary small' data-next-incident>${tr('下一处故障','Next incident')} (${state.proxyIncidents.length})</button>`:''}<button class='button secondary small' data-action='transcript'>${page?.has_more || state.incidentHasMore ? tr('继续加载记录','Load more'):tr('刷新记录','Refresh')}</button></div></div>
+  if(!content){const missing=page?.availability==='not_recorded';content=empty(missing ? tr('此会话没有留存对话','No conversation was recorded'):page?.availability==='unreadable' ? tr('会话记录无法读取','Transcript unreadable'):query || state.transcriptFilter!=='reader' ? tr('当前筛选下没有记录','No matching records'):tr('等待会话输出','Waiting for session output'),missing ? tr('只显示实际留存的对话，不会根据事件编造历史。','Only recorded conversations are shown. Events never become invented history.'):tr('仅显示实际采集输出；空记录不代表代理未启动。','Only captured output is shown. An empty transcript does not mean the proxy failed to start.'));}
+  const latest=state.transcriptItems.at(-1),older=state.transcriptBefore!=null,options=[['reader',tr('阅读模式','Reader')],['dialogue',tr('只看对话','Dialogue only')],['tools',tr('工具活动','Tools')]];
+  return `<section class='panel session-transcript' id='proxy-transcript' tabindex='-1' data-session-transcript><div class='panel-head'><h2>${tr('会话实录','Conversation')}</h2><span>${proxy.adapter==='mock' ? tr('合成演示 · 非真实模型','Synthetic demo · no real model'):tr('已采集的会话输出','Captured session output')}</span></div><div class='transcript-toolbar'><label>${tr('查看','View')} <select id='transcript-filter'>${options.map(([v,label])=>`<option value='${v}' ${state.transcriptFilter===v ? 'selected':''}>${label}</option>`).join('')}</select></label><label><input id='transcript-follow' type='checkbox' ${state.followTranscript ? 'checked':''} ${older ? 'disabled':''}> ${tr('跟随新消息','Follow new messages')}</label><button type='button' id='reader-options-toggle' class='text-button reader-options-toggle' aria-controls='reader-tools' aria-expanded='${state.readerOptions}' data-reader-options>${tr('阅读选项','Reading options')}</button><div id='reader-tools' class='reader-tools ${state.readerOptions ? 'expanded':''}'><input id='transcript-search' type='search' placeholder='${tr('搜索本页预览…','Search page previews…')}' aria-label='${tr('搜索本页预览','Search page previews')}' value='${esc(state.transcriptSearch)}'><button class='text-button' data-reader-jump='first'>${tr('本页开头','Page start')}</button><button class='text-button' data-reader-jump='last'>${tr('本页末尾','Page end')}</button>${state.proxyIncidents.length ? `<button class='button secondary small' data-next-incident>${tr('下一处故障','Next incident')} (${state.proxyIncidents.length})</button>`:''}<button class='button secondary small' data-action='transcript'>${tr('刷新记录','Refresh')}</button></div></div>
+    <nav class='transcript-pagination' aria-label='${tr('会话历史翻页','Conversation history pages')}'><span>${older ? tr('历史消息 · {n} 条预览','Earlier messages · {n} previews',{n:state.transcriptItems.length}):tr('最近 {n} 条消息预览','Latest {n} message previews',{n:state.transcriptItems.length})}</span><button class='button secondary small' data-transcript-page='older' ${!page?.has_more ? 'disabled':''}>${tr('更早 100 条','Older 100')}</button>${older ? `<button class='button secondary small' data-transcript-page='newer'>${tr('较新一页','Newer page')}</button><button class='button secondary small' data-transcript-page='latest'>${tr('回到最新','Back to latest')}</button>`:''}</nav>
     ${state.transcriptError ? `<p class='notice warning'>${tr('会话记录未刷新','Transcript not refreshed')}: ${esc(state.transcriptError)}</p>`:''}${state.incidentError ? `<p class='notice warning'>${tr('故障标记未刷新','Incident markers not refreshed')}: ${esc(state.incidentError)}</p>`:''}${page?.limited ? `<p class='notice warning'>${tr('本代会话的控制台记录已达 4 MiB 保存上限，后续内容未保存。此限制不会停止会话运行。','Console records for this generation reached the 4 MiB storage limit. Later content was not saved. This limit does not stop the session.')}</p>`:''}
-    <div class='reader-legend'><span class='user-key'>● ${tr('用户','You')}</span><span class='assistant-key'>◆ ${tr('代理回复','Sui Proxy')}</span><span class='tool-key'>↳ ${tr('工具活动','Tools')}</span><span>${tr('技术细节默认收起 · 点击展开','Technical details collapsed · click to inspect')}</span></div><div class='transcript-list' data-transcript-list tabindex='0' aria-label='${tr('会话记录阅读区','Conversation reader')}'>${content}</div><div class='source-note'>${tr('最近采集','Last captured')} ${latest ? fmt(latest.time):'—'} · ${tr('已加载 {n} 条','{n} records loaded',{n:state.transcriptItems.length})}${state.transcriptDiscarded ? ' · '+tr('更早 {n} 条已从浏览器释放，重新进入可从头读取','{n} earlier records released from the browser; reopen to read from the start',{n:state.transcriptDiscarded}):''}${page?.has_more ? ' · '+tr('后面还有记录','More records available'):''}${state.incidentHasMore ? ' · '+tr('故障标记尚未加载完整','More incident markers available'):''}${state.incidentDiscarded ? ' · '+tr('仅保留最近加载的 100 个故障标记','Only the latest 100 loaded incident markers are retained'):''}${tr('。','. ')}${tr('故障标记来自检测账本；工具错误与实验结果不自动视为会话故障。','Incident markers come from the ledger; tool errors and experiment outcomes are not automatically session failures.')}</div></section>`;
+    <div class='reader-legend'><span class='user-key'>● ${tr('用户','You')}</span><span class='assistant-key'>◆ ${tr('代理回复','Sui Proxy')}</span><span class='tool-key'>↳ ${tr('工具活动','Tools')}</span><span>${tr('点击单条详情读取全文','Open a message’s details to read it in full')}</span></div><div class='transcript-list' data-transcript-list tabindex='0' aria-label='${tr('会话记录阅读区','Conversation reader')}'>${content}</div><div class='source-note'>${tr('本页最后采集','Last captured on this page')} ${latest ? fmt(latest.endTime || latest.time):'—'}${state.incidentHasMore ? ' · '+tr('故障标记尚未加载完整','More incident markers available'):''}${state.incidentDiscarded ? ' · '+tr('仅保留最近加载的 100 个故障标记','Only the latest 100 loaded incident markers are retained'):''}${tr('。','. ')}${tr('故障标记来自检测账本；工具错误与实验结果不自动视为会话故障。','Incident markers come from the ledger; tool errors and experiment outcomes are not automatically session failures.')}</div></section>`;
+}
+function detailCurrent(d){return state.messageDetail===d && d.route===location.hash;}
+function updateDetailStatus(d){
+  const current=state.transcriptItems.find(item=>item.id===d.item.id),changed=current && current.revision!==d.item.revision;
+  const status=d.node.querySelector('[data-detail-status]');
+  status.classList.toggle('warning',!!d.error);
+  status.innerHTML=d.error ? `${tr('详情读取失败，已读取部分保留','Could not read details; downloaded content retained')}: ${esc(d.error)}`:d.complete ? tr('已显示本条已保存的全文','Showing the full saved message'):d.loading ? tr('正在读取全文…','Reading the full message…'):d.rendering ? tr('正在分段排版全文…','Rendering the full message…'):tr('读取已暂停，展开后继续','Reading paused; reopen to continue');
+  if(changed) status.innerHTML+=` <span>${tr('本条有新内容','This message has new content')}</span>`;
+  if(d.error || changed) status.innerHTML+=` <button type='button' class='text-button' data-message-retry>${changed ? tr('读取最新详情','Read updated details'):tr('重试','Retry')}</button>`;
+  d.node.querySelectorAll('[data-detail-label]').forEach(el=>{const labels={arguments:['调用参数','Arguments'],result:['工具返回','Result'],source:['原文与来源','Source and metadata'],toolError:['工具错误不代表会话故障；由代理决定如何处理任务。','A tool error is not session failure. The proxy decides how to handle it.']};el.textContent=tr(...labels[el.dataset.detailLabel]);});
+  d.node.querySelectorAll('[data-copy-source]').forEach(el=>el.textContent=tr('复制原文','Copy source'));
+  d.node.querySelectorAll('[data-copy-code]').forEach(el=>el.textContent=tr('复制代码','Copy code'));
+  d.node.querySelectorAll('.code-bar > span').forEach(el=>el.textContent=tr('代码','Code'));
+}
+function attachMessageDetail(){
+  const d=state.messageDetail;if(!d || !detailCurrent(d)) return;
+  const slot=document.querySelector(`[data-message-slot='${d.item.id}']`);
+  if(!slot){d.open=false;return;}
+  const scroll=d.node.querySelector('.message-detail-scroll'),top=scroll?.scrollTop || 0;
+  slot.append(d.node);if(scroll) scroll.scrollTop=top;
+  updateDetailStatus(d);
+}
+async function renderMessageDetail(d){
+  if(!detailCurrent(d) || d.complete || d.rendering) return;
+  d.rendering=true;d.error=null;updateDetailStatus(d);
+  const body=d.node.querySelector('.message-detail-scroll');body.replaceChildren();
+  try{
+    if(d.item.kind==='text' && ['user','assistant'].includes(d.item.role)){
+      const text=d.items.map(row=>row.text).join('');
+      let display=text;
+      if(d.item.message_id==='initial-input'){
+        try{const request=JSON.parse(text).operator_request;if(typeof request?.objective==='string') display=request.objective+(request.completion_criteria ? '\n\n'+request.completion_criteria:'');}catch(_){}
+      }
+      const markdown=document.createElement('div');markdown.className='message-full-text markdown';body.append(markdown);
+      await YanMarkdown.renderInto(markdown,display,()=>detailCurrent(d));
+      if(!detailCurrent(d)) return;
+      const source=document.createElement('details');source.className='raw-message';
+      source.innerHTML=`<summary data-detail-label='source'></summary>${rawRecord(text)}${recordMeta(d.item)}${transcriptLimit(d.item)}`;body.append(source);
+    }else{
+      for(const row of d.items){
+        const block=document.createElement('div');
+        block.innerHTML=(row.kind==='tool_call' ? "<h4 data-detail-label='arguments'></h4>":row.kind==='tool_result' ? "<h4 data-detail-label='result'></h4>":'')+rawRecord(row.text)+transcriptLimit(row);
+        body.append(block);
+      }
+      if(d.item.is_error && ['tool_call','tool_result'].includes(d.item.kind)) body.insertAdjacentHTML('beforeend',"<p class='note' data-detail-label='toolError'></p>");
+      body.insertAdjacentHTML('beforeend',recordMeta(d.item));
+    }
+    d.complete=true;d.node.dataset.messageComplete='true';
+  }catch(e){d.error=e.message;}
+  finally{d.rendering=false;if(detailCurrent(d)) updateDetailStatus(d);}
+}
+async function loadMessageDetail(d){
+  if(d.loading || d.rendering || d.complete || !detailCurrent(d)) return;
+  if(d.loaded){renderMessageDetail(d);return;}
+  d.loading=true;d.error=null;updateDetailStatus(d);
+  try{
+    const r=route();
+    while(detailCurrent(d) && d.open){
+      const page=await rpc('get_proxy_transcript',{task_id:r[1],proxy_id:r[2],view:'detail',message_offset:d.item.id,through:d.item.revision,after:d.after,limit:40});
+      if(!detailCurrent(d)) return;
+      if(page.availability!=='recorded') throw new Error(tr('本条记录当前无法读取。','This message is currently unavailable.'));
+      if(page.has_more && page.next_after<=d.after) throw new Error(tr('读取游标未前进，请重试。','Read cursor did not advance; please retry.'));
+      d.items.push(...page.items);d.after=page.next_after;
+      if(!page.has_more){d.loaded=true;break;}
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+  }catch(e){if(detailCurrent(d)) d.error=e.name==='AbortError' ? tr('读取超时','Read timed out'):e.message;}
+  finally{d.loading=false;if(detailCurrent(d)){updateDetailStatus(d);updateHealth();if(d.loaded && d.open) renderMessageDetail(d);}}
+}
+function openMessageDetail(element,reload=false){
+  const id=Number(element.dataset.messageDetail),item=state.transcriptItems.find(row=>row.id===id);if(!item) return;
+  document.querySelectorAll('[data-message-detail][open]').forEach(other=>{if(other!==element) other.open=false;});
+  state.followTranscript=false;if($('transcript-follow')) $('transcript-follow').checked=false;
+  let d=state.messageDetail;
+  if(!d || d.item.id!==id || d.route!==location.hash || reload){
+    if(d) d.node.remove();
+    const node=document.createElement('div');node.className='message-detail-body';node.dataset.messageComplete='false';
+    node.innerHTML="<p class='detail-status note' data-detail-status role='status' aria-live='polite'></p><div class='message-detail-scroll' tabindex='0'></div>";
+    d={item:{...item},route:location.hash,node,items:[],after:0,loading:false,loaded:false,complete:false,rendering:false,error:null};state.messageDetail=d;
+  }
+  d.open=true;attachMessageDetail();loadMessageDetail(d);
+}
+function pageTranscript(direction){
+  if(state.loading) return;
+  const previous={transcriptBefore:state.transcriptBefore,transcriptThrough:state.transcriptThrough,transcriptHistory:[...state.transcriptHistory],messageDetail:state.messageDetail,followTranscript:state.followTranscript,transcriptSearch:state.transcriptSearch,resetDisclosure:false};
+  if(direction==='older'){
+    if(!state.transcript?.has_more) return;
+    state.transcriptHistory.push({before:state.transcriptBefore,through:state.transcriptThrough});
+    state.transcriptBefore=state.transcript.next_before;state.transcriptThrough=state.transcript.snapshot_end;
+  }else if(direction==='newer'){
+    const previous=state.transcriptHistory.pop();if(!previous) return;
+    state.transcriptBefore=previous.before;state.transcriptThrough=previous.through;
+  }else{state.transcriptBefore=null;state.transcriptThrough=null;state.transcriptHistory=[];}
+  state.transcriptNavigation=previous;state.messageDetail=null;state.followTranscript=state.transcriptBefore==null;state.transcriptSearch='';state.resetDisclosure=true;refresh();
 }
 function incidentDetail(i){const p=i.payload;return `<a class='back-link' href='#/incidents'>${icon('back')}${tr('返回故障事件','Back to incidents')}</a><div class='page-heading detail-heading'><div><h1>${esc(i.rule_id)} <span class='muted'>/ v${p.rule_version}</span></h1><span class='sub mono'>${esc(i.id)} · ${fmt(i.created_at)}</span></div>${badge(i.status)}</div>${panel(tr('从检出到处理','Detection to recovery'),`<div class='incident-flow'><div class='flow-step'><small>01 · ${tr('检测建议','Detection advice')}</small><h3>${esc(actionLabel(p.action))}</h3><p>${tr('规则建议，尚不代表已执行','A rule suggestion, not proof of execution')}</p></div><div class='flow-step'><small>02 · ${tr('秉烛人最终动作','Candleholder decision')}</small><h3>${esc(actionLabel(i.action))}</h3><p>${i.applied_at ? fmt(i.applied_at):tr('等待处理','Pending')}</p></div><div class='flow-step'><small>03 · ${tr(tr("应用结果","Application result"),'Application result')}</small><h3>${esc(statusLabel(i.status))}</h3><p>${i.status==='APPLIED' ? tr('控制状态已落盘','Control state committed'):tr('以持久处理回执为准','Consult the persisted receipt')}</p></div></div>`)}<div class='detail-columns'><div>${panel(tr('检测证据','Detection evidence'),`<div class='panel-body'><p class='summary'>${esc(p.symptom)}</p><div class='mini-divider'></div><pre class='evidence'>${esc(JSON.stringify(p.evidence,null,2))}</pre><p class='note'>${tr('证据保存计数与摘要。置信分数是启发式结果，并非校准后的概率。','Evidence contains counts and excerpts. Confidence is a heuristic score, not a calibrated probability.')}</p></div>`)}${panel(tr('应用回执','Application receipt'),`<div class='panel-body'><pre class='evidence'>${esc(JSON.stringify(i.outcome,null,2))}</pre>${details(tr('完整检测建议','Full detection advice'),p,'incident-payload')}</div>`)}</div><div>${panel(tr('关联与保护','Context and safeguards'),`<div class='panel-body'><dl class='kv compact'><dt>${tr('任务','Task')}</dt><dd>${taskLink(i.task_id,state.task?.title)}</dd><dt>${tr('代理会话','Sui Proxy')}</dt><dd><a class='mono' href='#/sessions/${encodeURIComponent(i.task_id)}/${encodeURIComponent(i.proxy_id || i.worker_id)}'>${esc(short(i.proxy_id || i.worker_id))}</a></dd><dt>${tr('代际','Generation')}</dt><dd>G${i.generation}</dd><dt>${tr('类别 / 严重度','Category / severity')}</dt><dd>${esc(p.category)} / ${esc(p.severity)}</dd><dt>${tr('推测来源','Suspected origin')}</dt><dd>${esc(p.suspected_origin)}</dd><dt>${tr('根因已确认','Cause confirmed')}</dt><dd>${p.cause_confirmed ? tr('是','Yes'):tr('否','No')}</dd><dt>${tr('保留任务与作业','Preserve task / jobs')}</dt><dd>${p.preserve_task && p.preserve_running_jobs ? tr('是','Yes'):tr('见规则','See rule')}</dd><dt>${tr('规则恢复预算','Rule recovery budget')}</dt><dd>${tr('{n} 次 / 规则窗口','{n} attempts / rule window',{n:p.max_attempts})}</dd></dl></div>`)}<div class='notice info'>${tr('检测建议与最终动作可能不同，请以处理回执为准。','Detection advice and final actions may differ. Check the application receipt.')}</div></div></div>`;}
 function render(){
@@ -332,6 +415,7 @@ function render(){
   const focusedDetails=focused?.tagName==='SUMMARY' ? focused.parentElement.dataset.preserve:null;
   const disclosures=new Map([...$('main').querySelectorAll('details[data-preserve]')].map(el=>[el.dataset.preserve,el.open]));
   const transcriptScroll=document.querySelector('[data-transcript-list]')?.scrollTop || 0;
+  const detailScroll=state.messageDetail?.node.querySelector('.message-detail-scroll')?.scrollTop || 0;
   const eventScroll=document.querySelector('.dossier-events, .overview-events')?.scrollTop || 0;
   let html;
   if(!state.snapshot) html=empty(state.error ? tr("无法读取账本","Cannot read the ledger"):tr("等待控制器连接","Waiting for Controller"),state.error || tr("启动同一状态目录的控制器后，点击立即刷新。","Start the Controller for the same home directory, then refresh."));
@@ -340,6 +424,8 @@ function render(){
   $('main').innerHTML=(state.error && state.snapshot ? `<div class='notice warning'>${esc(state.error)}</div>`:'')+html;
   if(!state.resetDisclosure) $('main').querySelectorAll('[data-preserve]').forEach(el=>{if(disclosures.has(el.dataset.preserve)) el.open=disclosures.get(el.dataset.preserve);});
   state.resetDisclosure=false;
+  attachMessageDetail();
+  const detailReader=state.messageDetail?.node.querySelector('.message-detail-scroll');if(detailReader) detailReader.scrollTop=detailScroll;
   const reader=document.querySelector('[data-transcript-list]');if(reader) reader.scrollTop=state.followTranscript ? reader.scrollHeight:transcriptScroll;
   const eventReader=document.querySelector('.dossier-events, .overview-events');if(eventReader) eventReader.scrollTop=eventScroll;
   if(focusedDetails) [...document.querySelectorAll('details[data-preserve]')].find(el=>el.dataset.preserve===focusedDetails)?.querySelector('summary')?.focus({preventScroll:true});
@@ -388,11 +474,13 @@ async function submitCommand(e){
   finally{state.submitting=false;$('dialog-submit').disabled=false;storeReceipts();renderReceipts();refresh();}
 }
 document.addEventListener('click',e=>{
+  const transcriptPage=e.target.closest('[data-transcript-page]');if(transcriptPage && !transcriptPage.disabled) pageTranscript(transcriptPage.dataset.transcriptPage);
+  const detailRetry=e.target.closest('[data-message-retry]');if(detailRetry){const d=state.messageDetail,current=state.transcriptItems.find(item=>item.id===d?.item.id);openMessageDetail(detailRetry.closest('[data-message-detail]'),current?.revision!==d?.item.revision);}
   if(e.target.closest('[data-reader-options]')){state.readerOptions=!state.readerOptions;render();}
   const copy=e.target.closest('[data-copy-code],[data-copy-source]');
   if(copy){const text=copy.closest('.code-block,.raw-content')?.querySelector('pre')?.textContent || '';navigator.clipboard.writeText(text).then(()=>notice(tr('已复制','Copied'))).catch(()=>notice(tr('复制失败，请展开原文手动复制。','Copy failed. Open the source and copy manually.')));}
   const reader=document.querySelector('[data-transcript-list]'),jumpReader=e.target.closest('[data-reader-jump]');
-  if(jumpReader && reader){state.followTranscript=jumpReader.dataset.readerJump==='last';$('transcript-follow').checked=state.followTranscript;reader.scrollTop=state.followTranscript ? reader.scrollHeight:0;}
+  if(jumpReader && reader){const end=jumpReader.dataset.readerJump==='last';state.followTranscript=end && state.transcriptBefore==null;$('transcript-follow').checked=state.followTranscript;reader.scrollTop=end ? reader.scrollHeight:0;}
   if(e.target.closest('[data-next-incident]') && reader){
     state.followTranscript=false;$('transcript-follow').checked=false;
     const marks=[...reader.querySelectorAll('[data-incident-marker]')],top=reader.getBoundingClientRect().top;
@@ -411,6 +499,11 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-action="events"]')) refresh();
   if(e.target.closest('[data-action="transcript"]')) refresh();
 });
+document.addEventListener('toggle',e=>{
+  const el=e.target;if(!el.matches?.('[data-message-detail]') || !el.isConnected) return;
+  if(el.open) openMessageDetail(el);
+  else if(state.messageDetail?.item.id===Number(el.dataset.messageDetail)) state.messageDetail.open=false;
+},true);
 document.addEventListener('keydown',e=>{
   const tab=e.target.closest('[data-task-tab]');if(!tab || !['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
   e.preventDefault();const keys=Object.keys(taskTabs),index=keys.indexOf(tab.dataset.taskTab);
@@ -435,7 +528,7 @@ $('pause-refresh').addEventListener('click',()=>{state.paused=!state.paused;$('p
 $('refresh-interval').addEventListener('change',e=>{state.interval=Number(e.target.value);schedule();updateHealth();});
 $('receipt-toggle').addEventListener('click',()=>$('receipts').hidden=!$('receipts').hidden);$('receipt-close').addEventListener('click',()=>$('receipts').hidden=true);
 const closeDialog=()=>{if(!state.submitting) $('command-dialog').close();};$('dialog-close').addEventListener('click',closeDialog);$('dialog-cancel').addEventListener('click',closeDialog);$('command-dialog').addEventListener('cancel',e=>{if(state.submitting)e.preventDefault();});$('command-form').addEventListener('submit',submitCommand);
-window.addEventListener('hashchange',()=>{state.offset=0;state.search='';state.filter='';state.task=null;state.taskTab='summary';state.historyPage=null;state.historyError=null;state.incident=null;state.events=[];state.jobId=null;state.jobData=null;state.error=null;state.transcript=null;state.transcriptItems=[];state.transcriptAfter=0;state.transcriptError=null;state.transcriptDiscarded=0;state.transcriptFilter='reader';state.transcriptSearch='';state.proxyIncidents=[];state.incidentAfter=0;state.incidentHasMore=false;state.incidentError=null;state.incidentDiscarded=0;state.followTranscript=true;$('main').innerHTML=`<div class='loading'><span class='loading-dot'></span>${tr('正在读取账本…','Reading the ledger…')}</div>`;refresh();});
+window.addEventListener('hashchange',()=>{state.offset=0;state.search='';state.filter='';state.task=null;state.taskTab='summary';state.historyPage=null;state.historyError=null;state.incident=null;state.events=[];state.jobId=null;state.jobData=null;state.error=null;state.transcript=null;state.transcriptItems=[];state.transcriptBefore=null;state.transcriptThrough=null;state.transcriptHistory=[];state.messageDetail=null;state.transcriptNavigation=null;state.transcriptError=null;state.transcriptFilter='reader';state.transcriptSearch='';state.proxyIncidents=[];state.incidentAfter=0;state.incidentHasMore=false;state.incidentError=null;state.incidentDiscarded=0;state.followTranscript=true;$('main').innerHTML=`<div class='loading'><span class='loading-dot'></span>${tr('正在读取账本…','Reading the ledger…')}</div>`;refresh();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);updateHealth();}else if(!state.paused) refresh();});
 setInterval(updateHealth,1000);renderReceipts();refresh();
 

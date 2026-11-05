@@ -17,6 +17,7 @@
 | 理解提示词结构、合作式换代与自动完成标记 | [长期 Agent 设计与参考](PROMPT_AND_LIFECYCLE_DESIGN.md) |
 | 定义完整任务、启用代码调试、配置完成前核验 | [任务书与执行能力](TASK_BRIEFS.md) |
 | 使用四个 Console 页面、人工干预、SSH 转发 | [Yan Console 使用与演示](YAN_CONSOLE.md) |
+| 最近 100 条会话预览、按需全文与历史翻页 | [会话窗口更新与验收](verification/transcript-window/README.md) |
 | 查看双语切换、Markdown、角色区分和故障位置 | [Yan Console 阅读体验更新与验收](YAN_CONSOLE_READING.md) |
 | 调整阅读字号、查看代理对话、核对进程与工具返回 | [会话阅读器交付与验收](SESSION_READER_DELIVERY.md) |
 | 理解世界观角色与兼容字段 | [命名体系](NAMING.md) |

@@ -305,6 +305,12 @@ systemctl --user status sui-regulator-controller.service yan-console.service
 
 目标机先运行 `yan console-demo --port 8765`，按 [阅读体验验收](YAN_CONSOLE_READING.md) 检查中英文、Markdown 与 GEN-001。实际任务继续参考 [任务书指南](TASK_BRIEFS.md)；真实 GLM 与目标机的 systemd / cgroup 行为仍需要现场测试。
 
+## 最近 100 条会话预览更新（2026-11-05）
+
+这次扩展已有 `yan.get_proxy_transcript` 的只读参数，需同时更新 Controller 和 Console；旧 Controller 不识别 `view` 参数时会报告查询失败。按上面的 release 安装与切换流程更新两项服务，再刷新浏览器即可。没有数据库迁移、提示词或恢复策略变更；已有 `transcripts/` 记录直接可用，不需要为页面更新主动 Hold 或轮换 Sui Proxy。Controller 服务仍应使用仓库模板的 `KillMode=process`，避免服务管理器在重启控制器时一并停止代理与独立 Job。
+
+验证时打开有历史记录的代理：首次显示最近 100 条预览；点击单条“查看详情”读取全文；“更早 100 条”手动翻页。长消息的保存分段不会成为多条卡片；预览省略与实际保存不完整分别提示。复现脚本、截图和测试范围见 [会话窗口验收](verification/transcript-window/README.md)。
+
 ## 信任模式部署
 
 需要长期无人值守执行时，使用 [信任模式与无人值守指南](TRUSTED_AUTONOMY.md)。Schema 8 保留旧任务原授权；新任务可用 `--permission-mode trusted`，旧任务可用 `yan policy TASK_ID --permission-mode trusted`。GLM 端点沿用已验证配置，不按模型名称自动切换服务。

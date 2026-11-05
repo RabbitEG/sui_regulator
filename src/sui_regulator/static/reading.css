@@ -103,6 +103,19 @@ body { font-optical-sizing: auto; }
 .raw-content > button { display: flex; margin-left: auto; font-size: .82rem; }
 .raw-content pre, .message-tool .raw-content pre { margin: 0; padding: 16px; max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: #f5f7f3; color: #2f423b; border: 0; font: .88rem/1.8 var(--mono); }
 .record-meta { color: #566660; font: .78rem/1.8 var(--mono); overflow-wrap: anywhere; margin-top: 12px; }
+.transcript-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 24px; border-bottom: 1px solid var(--line); }
+.transcript-pagination > span { margin-right: auto; font-size: .88rem; font-weight: 650; color: #355447; }
+.preview-note { margin: 12px 0 0; color: #52675d; font-size: .85rem; }
+.message-preview { max-height: 12rem; overflow: hidden; }
+.message-detail > summary { cursor: pointer; padding: 10px 0; color: #285b73; font-weight: 650; }
+.message-detail-body { min-width: 0; border-top: 1px solid #c7d0c9; margin-top: 10px; }
+.detail-status { padding: 8px 0; margin: 0; }
+.message-detail-scroll { max-height: 58vh; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 12px; }
+.message-full-text { font-size: 1.06rem; }
+.markdown-chunk { content-visibility: auto; contain-intrinsic-size: auto 600px; }
+.markdown-chunk:first-child > :first-child { margin-top: 0; }
+.session-message:has(> [data-message-detail][open]) > .message-text,
+.session-message:has(> [data-message-detail][open]) > .preview-note { display: none; }
 .session-message.in-detection-window { border-color: #c17c65; border-left-color: #b25139; }
 .window-label { color: #9b3f2b; font-size: .8rem; font-weight: 650; border: 1px solid #ddb3a1; padding: 2px 7px; background: #fff0e9; }
 .session-message.incident-marker { border: 1px solid #cf9a88; border-left: 5px solid #a94330; background: #fff0e8; }

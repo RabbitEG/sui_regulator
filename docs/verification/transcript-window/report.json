@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "scope": "Real local browser / HTTP / RPC, synthetic 155-message transcript",
+  "checks": [
+    "latest 100 logical messages in one initial response",
+    "no eager full detail requests",
+    "complete long Markdown via bounded detail pages",
+    "exact full source",
+    "retry resumes failed page without downloading the prefix again",
+    "Markdown fences, tables and reference links survive storage boundaries",
+    "full detail sanitization",
+    "refresh preserves rendered DOM and reading position",
+    "language switch preserves content and scroll",
+    "history failure retains current page",
+    "stream append is explicit and snapshot-consistent",
+    "late detail response cannot populate another page",
+    "older, newer and latest navigation",
+    "mobile width",
+    "offline preview snapshot",
+    "no browser errors"
+  ]
+}

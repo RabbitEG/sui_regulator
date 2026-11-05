@@ -14,7 +14,13 @@ window.YanMarkdown = (() => {
     const text=String(value ?? ''),key=YanI18n.language+'\0'+text;
     if(cache.has(key)) return cache.get(key);
     if(text.length>64000) return `<p class="note">${YanI18n.tr('长消息以原文显示，避免渲染阻塞。','Long message shown as source to keep the reader responsive.')}</p><pre class="markdown-source">${escape(text)}</pre>`;
-    const fragment=DOMPurify.sanitize(parser.render(text),{
+    const div=document.createElement('div');div.append(formatHTML(parser.render(text)));const html=div.innerHTML;
+    cache.set(key,html);bytes+=key.length+html.length;
+    while(cache.size>64 || bytes>1000000){const first=cache.keys().next().value;bytes-=first.length+cache.get(first).length;cache.delete(first);}
+    return html;
+  }
+  function formatHTML(html){
+    const fragment=DOMPurify.sanitize(html,{
       ALLOWED_TAGS:['p','br','hr','h1','h2','h3','h4','h5','h6','strong','em','s','blockquote','ul','ol','li','pre','code','table','thead','tbody','tr','th','td','a'],
       ALLOWED_ATTR:['href','title','start'],ALLOW_DATA_ATTR:false,ALLOW_ARIA_ATTR:false,RETURN_DOM_FRAGMENT:true,
     });
@@ -33,10 +39,24 @@ window.YanMarkdown = (() => {
       const wrap=document.createElement('div');wrap.className='markdown-table';wrap.tabIndex=0;
       table.replaceWith(wrap);wrap.append(table);
     });
-    const div=document.createElement('div');div.append(fragment);const html=div.innerHTML;
-    cache.set(key,html);bytes+=key.length+html.length;
-    while(cache.size>64 || bytes>1000000){const first=cache.keys().next().value;bytes-=first.length+cache.get(first).length;cache.delete(first);}
-    return html;
+    return fragment;
   }
-  return {render};
+  async function renderInto(element,text,current=()=>true){
+    // Parse the assembled message once: storage boundaries must not break fences,
+    // lists, tables or reference links. Yield between complete Markdown blocks.
+    const env={},tokens=parser.parse(String(text ?? ''),env);
+    let batch=[],depth=0,blocks=0;
+    for(let index=0;index<tokens.length;index++){
+      if(!current()) return;
+      const token=tokens[index];batch.push(token);depth+=token.nesting;
+      if(depth===0) blocks++;
+      if(depth===0 && (blocks>=24 || index===tokens.length-1)){
+        const chunk=document.createElement('div');chunk.className='markdown-chunk';
+        chunk.append(formatHTML(parser.renderer.render(batch,parser.options,env)));
+        element.append(chunk);batch=[];blocks=0;
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+      }
+    }
+  }
+  return {render,renderInto};
 })();
