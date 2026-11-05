@@ -161,6 +161,47 @@ class ClaudeContractTests(ProcessTestCase):
     "opt-in real installed CLI + loopback fake API only; no provider credentials",
 )
 class InstalledClaudeTests(ProcessTestCase):
+    def test_trusted_normal_turn_and_timed_wait_keep_cli_identity_and_history(self):
+        self.config = replace(self.config, trusted_continuation_seconds=0.05)
+        (self.config.home / "config.toml").unlink()
+        self.config.write()
+        tid = None
+        identities, waiting_observations, resumed_history = [], [], []
+        wait_started = None
+
+        def steps(body, index):
+            nonlocal wait_started
+            task = self.service.get_task(tid)
+            identities.append(task["workers"][0]["child_identity"])
+            if index == 0:
+                return "__normal_text_turn__", {}
+            if index == 1:
+                resumed_history.append("synthetic stub: no matching MCP tools" in json.dumps(body["messages"]))
+                return "get_task_context", {}
+            if index == 2:
+                wait_started = time.monotonic()
+                return "wait_task", {"reason": "Wait for the next experiment check", "check_after_seconds": 1}
+            if index == 3:
+                waiting_observations.append((task["status"], task["current_worker"], task["wait_state"]["runtime_retained"]))
+                return "__normal_text_turn__", {}
+            self.assertGreaterEqual(time.monotonic() - wait_started, 1)
+            return "complete_task", {"summary": "Continued the same conversation after a timed wait"}
+
+        with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+            "ANTHROPIC_BASE_URL": backend.url, "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+            "ANTHROPIC_AUTH_TOKEN": "", "CLAUDE_CODE_DISABLE_THINKING": "1", **NO_PROXIES,
+        }):
+            tid = self.submit(adapter="claude", permission_mode="trusted")
+            self.until(lambda: self.service.get_task(tid)["desired"] == "COMPLETED", timeout=35)
+            task = self.service.get_task(tid)
+            self.assertEqual(task["generation"], 1)
+            self.assertTrue(identities[0])
+            self.assertTrue(all(value == identities[0] for value in identities))
+            self.assertEqual(resumed_history, [True])
+            self.assertEqual(waiting_observations, [("WAITING", task["workers"][0]["id"], True)])
+            continued = [e for e in self.service.events(tid) if e["kind"] == "SESSION_CONTINUED"]
+            self.assertEqual(len(continued), 2)
+
     def test_trusted_cli_debugs_past_unknown_and_reconciles_without_operator(self):
         project = Path(self.temp.name) / "trusted-project"
         project.mkdir()

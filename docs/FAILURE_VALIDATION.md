@@ -1,5 +1,7 @@
 # v0.3 故障检测与安全恢复验收
 
+本文保留 v0.3 阶段的规则与验收数据。当前 trusted 模式使用十分钟、识别工具执行的静默策略，重复等启发式提示不强制换代；实际行为见 [信任模式](TRUSTED_AUTONOMY.md)。
+
 已交付可安装的 Failure Registry、确定性 Detection Engine、Incident Corpus、离线 Replay，以及 Wrapper → 持久 Incident → Candleholder 的分级恢复链路。本轮没有扩大科研任务执行能力，也没有使用真实模型凭据。
 
 ## 验收结果

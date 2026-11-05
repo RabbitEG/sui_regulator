@@ -222,6 +222,7 @@ class SuiProtocol:
                     advance_revision=True,
                 )
         task["rotation_policy"] = {
+            "age_rotation_enabled": task["permission_mode"] != "trusted",
             "requested": rotation,
             "can_defer": True,
             "forced_deadline": None,

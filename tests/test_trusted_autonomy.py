@@ -153,6 +153,7 @@ class TrustedAutonomyTests(ProcessTestCase):
 
     def test_schema7_upgrade_preserves_guarded_policy_and_unknown(self):
         from pathlib import Path
+
         from sui_regulator.config import Config
         from sui_regulator.service import Service
 

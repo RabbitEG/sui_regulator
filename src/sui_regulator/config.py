@@ -31,6 +31,8 @@ class Config:
     recovery_backoff_max: float = 300.0
     no_progress_seconds: float = 900.0
     escalation_seconds: float = 3600.0
+    trusted_response_silence_seconds: float = 600.0
+    trusted_continuation_seconds: float = 30.0
 
     @property
     def max_proxies(self) -> int:

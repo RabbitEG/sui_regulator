@@ -177,7 +177,7 @@ class Controller(AbstractContextManager):
                 )
         self._stop(worker)
 
-    def _health_reason(self, worker: dict) -> str | None:
+    def _health_reason(self, worker: dict, *, trusted_session=False) -> str | None:
         now = time.time()
         if worker["status"] == "STARTING" and now - worker["created_at"] < self.config.startup_grace:
             return None
@@ -186,14 +186,14 @@ class Controller(AbstractContextManager):
             return worker["error"] or "PROCESS_FAILURE"
         if worker["lease_expires"] <= now:
             return "LEASE_EXPIRED"
-        if worker["anomaly_count"] >= 3:
+        if not trusted_session and worker["anomaly_count"] >= 3:
             return "MALFORMED_OR_REPEATED_TOOL_CALLS"
         return None
 
     def _observe_health(self):
         active = set()
         for row in self.service.store.rows(
-            "SELECT w.* FROM workers w JOIN tasks t ON t.current_worker=w.id WHERE t.desired='ACTIVE' AND t.status NOT IN ('WAITING','QUARANTINED')"
+            "SELECT w.* FROM workers w JOIN tasks t ON t.current_worker=w.id WHERE t.desired='ACTIVE' AND t.status != 'QUARANTINED'"
         ):
             active.add(row["id"])
             if row["status"] == "STARTING" and time.time() - row["created_at"] < self.config.startup_grace:
@@ -272,15 +272,16 @@ class Controller(AbstractContextManager):
         for task in self.service.store.rows("SELECT * FROM tasks ORDER BY created_at,id"):
             if task["desired"] != "ACTIVE" or task["status"] in {
                 "QUARANTINED",
-                "WAITING",
                 "WAITING_RESOURCE",
-            }:
+            } or (task["status"] == "WAITING" and not task["current_worker"]):
                 continue
             worker = None
             if task["current_worker"]:
                 rows = self.service.store.rows("SELECT * FROM workers WHERE id=?", (task["current_worker"],))
                 worker = rows[0] if rows else None
             if worker:
+                from .autonomy import trusted
+
                 if worker["rotation_at"] is not None and (
                     worker["handoff"]
                     and worker["handoff_at"] is not None
@@ -288,12 +289,13 @@ class Controller(AbstractContextManager):
                 ):
                     self._retire(task, worker, "SESSION_ROTATION", False)
                 else:
-                    reason = self._health_reason(worker)
+                    reason = self._health_reason(worker, trusted_session=trusted(task))
                     if reason:
                         self._retire(task, worker, reason, True)
                     elif (
                         time.time() - worker["created_at"] >= self.config.max_session_age
                         and worker["rotation_at"] is None
+                        and not trusted(task)
                     ):
                         with self.service.store.transaction() as conn:
                             conn.execute(

@@ -9,7 +9,7 @@
 | get_task_context | 查询完整任务书、追加指令首个有界页、历史引用、近期回执、Handoff、Job、可用模板与本代完成协议 |
 | get_task_records | collection、after、limit、可选 record_id；稳定游标读取 instructions / attempts / jobs / proxies / artifacts / events 的原始记录 |
 | acknowledge_instructions | command_ids（1–50）；本代已提供指令的幂等已读声明，不声称执行 |
-| wait_task | reason、check_after_seconds（1–604800 秒）、可选 job_id；保留 Task，释放当前代并登记可唤醒等待 |
+| wait_task | reason、check_after_seconds（1–604800 秒）、可选 job_id；登记可唤醒等待；trusted 保留当前运行时和会话，guarded 释放当前代 |
 | heartbeat | Wrapper 自动续租；单纯心跳不算有效任务活动 |
 | report_progress | 版本化声明，保存 phase/summary/job_ids/next_action/blockers 与审计；不更新客观 Job 状态 |
 | report_blocker | WAITING_USER/RESOURCE/EXTERNAL，区别正常等待与卡死 |

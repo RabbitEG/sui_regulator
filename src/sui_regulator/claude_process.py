@@ -40,14 +40,19 @@ def run(config: Config, credentials: Credentials) -> None:
     service, last_heartbeat = Service(config), 0.0
     protocol = SuiProtocol(service)
     context = protocol.claim_task(credentials)
+    continuous = context["permission_mode"] == "trusted"
     worker = next(w for w in context["workers"] if w["id"] == credentials.worker_id)
     prompt = task_prompt(context)
     recorder = SessionRecorder(config, credentials)
     recorder.write("text", "system", SUPERVISOR_PROMPT, message_id="supervisor-protocol")
     recorder.record_input(prompt, context)
     process = subprocess.Popen(
-        build_command(config, worker["session_id"], execution_profile=context["execution_profile"],
-                      permission_mode=context["permission_mode"]),
+        build_command(
+            config,
+            worker["session_id"],
+            execution_profile=context["execution_profile"],
+            permission_mode=context["permission_mode"],
+        ),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -63,8 +68,28 @@ def run(config: Config, credentials: Credentials) -> None:
             (encode(identity(process.pid)), credentials.worker_id),
         )
     assert process.stdin and process.stdout and process.stderr
-    process.stdin.write(prompt.encode())
-    process.stdin.close()
+
+    def send_input(text):
+        payload = (
+            (
+                encode(
+                    {
+                        "type": "user",
+                        "session_id": worker["session_id"],
+                        "message": {"role": "user", "content": text},
+                    }
+                )
+                + "\n"
+            )
+            if continuous
+            else text
+        )
+        process.stdin.write(payload.encode())
+        process.stdin.flush()
+
+    send_input(prompt)
+    if not continuous:
+        process.stdin.close()
     from .requirements_delivery import offer
 
     with service.store.transaction() as conn:
@@ -80,8 +105,11 @@ def run(config: Config, credentials: Credentials) -> None:
         worker["session_id"],
         FailureRegistry(Path(config.failure_registry)) if config.failure_registry else None,
         recovery_mode=context["recovery_mode"],
+        permission_mode=context["permission_mode"],
+        response_silence_seconds=config.trusted_response_silence_seconds,
     )
     final_seen, error, stderr_tail = False, None, b""
+    next_continuation = None
     stream_capability_recorded = False
 
     def record_exit(reason: str, return_code=None, turn_limit=False, incidents=()):
@@ -128,11 +156,57 @@ def run(config: Config, credentials: Credentials) -> None:
                 protocol.heartbeat(credentials)
                 recorder.flush(final=False)
                 last_heartbeat = time.monotonic()
-                clock_event = detector.tick()
+                background_pending = (
+                    bool(
+                        service.store.rows(
+                            "SELECT 1 FROM tool_attempts WHERE task_id=? AND worker_id=? AND status='RUNNING' LIMIT 1",
+                            (credentials.task_id, credentials.worker_id),
+                        )
+                    )
+                    if continuous
+                    else False
+                )
+                clock_event = detector.tick(tool_pending=background_pending)
                 publish(service, credentials, clock_event.incidents)
                 if clock_event.error:
                     record_exit(clock_event.error)
                     return
+                if continuous and next_continuation is not None and time.monotonic() >= next_continuation:
+                    if background_pending:
+                        next_continuation = time.monotonic() + config.trusted_continuation_seconds
+                    else:
+                        # A successful conversational turn is not a Session failure.
+                        # Keep the same process, session identity and in-memory history.
+                        current = protocol.get_task_context(credentials, offer_context=False)
+                        if (
+                            current["status"] == "WAITING"
+                            and current["wait_state"]
+                            and current["wait_state"]["next_check_at"] > time.time()
+                        ):
+                            # Recheck on the heartbeat so new instructions can wake the same Session.
+                            continue
+                        message = (
+                            "[Sui runtime continuation] Your previous turn ended normally and the Task is still active. "
+                            "Read current task context and continue the operator's full workflow in this same Session. "
+                            "If genuinely waiting, use wait_task with a concrete recheck time. If finished, submit complete_task. "
+                            "This reminder grants no new task scope and does not request replay of previous operations."
+                        )
+                        send_input(message)
+                        recorder.write("runtime", "system", message, message_id="runtime-continuation")
+                        with service.store.transaction() as conn:
+                            service.store.event(
+                                conn,
+                                credentials.task_id,
+                                "SESSION_CONTINUED",
+                                "wrapper-observed",
+                                credentials.worker_id,
+                                {
+                                    "session_id": worker["session_id"],
+                                    "reason": "normal turn ended; Task still active",
+                                },
+                            )
+                        detector.begin_turn()
+                        final_seen, next_continuation = False, None
             for key, _ in selector.select(timeout=min(config.heartbeat_seconds, 0.1)):
                 fd = key.fd
                 chunk = os.read(fd, 65536)
@@ -208,6 +282,9 @@ def run(config: Config, credentials: Credentials) -> None:
                     if event.session_id and event.session_id != worker["session_id"]:
                         error = "SESSION_ID_MISMATCH"
                     if event.activity:
+                        # The CLI may resume itself after a background notification.
+                        # Do not queue an extra user turn into ongoing model/tool work.
+                        next_continuation = None
                         protocol.heartbeat(credentials, effective_activity=not event.anomaly)
                     if event.anomaly or event.successful_tool:
                         with service.store.transaction() as conn:
@@ -221,6 +298,8 @@ def run(config: Config, credentials: Credentials) -> None:
                                 ),
                             )
                     final_seen |= event.final
+                    if continuous and event.final and not event.error:
+                        next_continuation = time.monotonic() + config.trusted_continuation_seconds
                     error = error or event.error
                     if error:
                         record_exit(error, turn_limit=error == "MAX_TURNS_EXHAUSTED")
@@ -240,6 +319,9 @@ def run(config: Config, credentials: Credentials) -> None:
                         )
         return_code = process.wait(timeout=5)
         context = protocol.get_task_context(credentials, offer_context=False)
+        if continuous and error is None and return_code == 0:
+            # With open streaming input, an actual CLI exit is distinct from a result frame.
+            error = "CLI_EXITED_BEFORE_TASK_COMPLETION"
         if context["rotation_requested"]:
             protocol.handoff(
                 credentials,
@@ -300,6 +382,11 @@ def run(config: Config, credentials: Credentials) -> None:
                 process.wait(timeout=3)
         process.stdout.close()
         process.stderr.close()
+        if not process.stdin.closed:
+            try:
+                process.stdin.close()
+            except OSError:
+                pass
 
 
 def main() -> None:

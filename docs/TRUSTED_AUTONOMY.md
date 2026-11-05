@@ -8,6 +8,9 @@
 | --- | --- | --- |
 | UNKNOWN／STARTED 操作 | 可能拦截整个任务的写操作 | 保留记录，允许 Bash、Edit、Write 和新工作，由代理核验 |
 | 已知后台 RUNNING | 限制并行写操作 | 允许继续诊断、修改与执行其他工作 |
+| Session 年龄、轮数 | 年龄软交接、默认 100 轮上限 | 不按年龄请求换代，不设 CLI 轮数上限 |
+| 正常对话结束一轮 | 未完成 Task 时后续换代 | 同一 CLI 进程和 Session 继续，保留上下文 |
+| 定时等待 | 释放 Session，到期另起一代 | 保留 Session，到期或收到指令后继续 |
 | 认证拒绝、CLI 能力不足、Session 身份异常 | 部分情况等待人工 Resume | 持续退避重试，恢复可用后继续 |
 | 核验未决操作 | 操作员 Hold → resolve-attempt → Resume | 代理调用 `reconcile_operation`，不必暂停任务 |
 | 相同 operation_id 或 Job logical_key 再投递 | 返回已有回执／未决提示，不重复提交 | 保留相同语义；有意重试使用新的操作编号 |
@@ -17,6 +20,28 @@
 信任模式要求 `persistent` 恢复；新 Claude 任务自动选择 `claude_code` 执行能力。原生 CLI 使用 `--permission-mode bypassPermissions`，保留指令投递、执行回执及当前所有者检查的 Hooks。工具列表包含项目读写、Bash 和 Sui MCP；不会额外启用交互问答工具。
 
 实际权限是服务账号已有的操作系统权限，不是项目目录沙箱。框架不会额外要求逐次审批；Claude Code 的组织设置和平台自身限制仍适用。上游语义见 [Claude Code permissions](https://code.claude.com/docs/en/permissions) 和 [Hooks](https://code.claude.com/docs/en/hooks)。
+
+## 会话寿命与静默
+
+信任模式使用持续打开的 `stream-json` 输入，同一个 CLI 进程可以接收后续轮次。正常 `result` 只表示一轮对话结束；Task 尚未完成时，默认 30 秒后发送简短运行提醒，继续原任务，不重放上一轮工具调用。等待状态或已观测后台工具运行期间不发送该提醒。该路径已用真实 CLI 验证进程身份、Session、Generation 和历史上下文均保持不变。
+
+`wait_task` 在信任模式保留当前代和运行时，到期、关联受管 Job 结束、新指令或 Resume 时继续。等待期间仍有心跳和进程检查。Hold、Cancel、完整完成标记或明确请求的交接仍能结束当前运行。
+
+只有**正在等待模型响应、没有已知工具执行，并且连续 600 秒没有可见运行活动**时，才按静默超时恢复。十分钟是可配置的运行策略，不是证明模型崩溃的结论。
+
+- thinking 增量、compacting 状态、compact boundary、正常文本和工具事件刷新活动时间。
+- `sleep 600`、训练、SSH 等已发起但未返回的工具调用不受模型静默阈值打断。依据工具调用／结果事件和同代后台回执判断，不用命令字符串猜执行时长。
+- 观察到后台工具结束后，重新给予完整的模型响应等待时间。CLI 进程退出、流真正断开或租约失效仍按实际运行故障恢复。
+- 重复文本、格式异常计数、重试通知和非终态 compact 异常保留 Incident 提示；它们本身不杀死健康的信任 Session。实验结果与测试失败继续由模型处理。
+
+可在私有 `config.toml` 的 `[regulator]` 下设置：
+
+```toml
+trusted_response_silence_seconds = 600.0
+trusted_continuation_seconds = 30.0
+```
+
+`max_session_age` 和 `claude_max_turns` 只约束 guarded 模式。现有进程需要在下一次启动后采用新的 Wrapper 逻辑；更新 Controller 不会把正在调试的 Session 强制轮换。
 
 ## 启动一周任务
 
@@ -84,7 +109,7 @@ yan --home /absolute/private/state receipt COMMAND_ID
 
 通过 `reconcile_operation` 提交，`kind` 可为 `attempt` 或 `job`，作用于本 Task。结果有持久事件和可查询的 `reconciliation` 字段，`source=proxy-declared`。UNKNOWN 仍然是 UNKNOWN，不改写为 SUCCEEDED，也不伪造退出码。核验允许框架接受该代理的后续完成申请；明确配置的验收命令仍必须真实成功。
 
-工具处理 STARTED／UNKNOWN 命令，以及 STARTING／UNKNOWN／BLOCKED Job。已知 RUNNING 工作应先查询、等待或结束，再处理终态；不能仅用核验工具把正在运行的工作变成已结束。迟到的运行观察保留其权威状态，核验只适用于被检查的观察状态。已核验的未决命令不会阻止代理注册定时等待。
+工具处理 STARTED／UNKNOWN 命令，以及 STARTING／UNKNOWN／BLOCKED Job。已知 RUNNING 工作应先查询、等待或结束，再处理终态；不能仅用核验工具把正在运行的工作变成已结束。迟到的运行观察保留其权威状态，核验只适用于被检查的观察状态。信任模式的定时等待保留运行时，因此未决或后台操作不会禁止该等待。
 
 `complete_task` 的完成回执会列出所依赖的代理核验，`managed_jobs_terminal` 不会在仍有 UNKNOWN 时虚报为真。用户是否完成科研目标仍由模型判断；框架只消费任务协议与证据。
 
@@ -94,8 +119,10 @@ yan --home /absolute/private/state receipt COMMAND_ID
 
 `tests/test_claude.py` 的 `test_trusted_cli_debugs_past_unknown_and_reconciles_without_operator` 使用本机真实 Claude Code 与本地合成 API，实际执行 Bash、Write、核验和完成。真实 GLM 端点和目标服务器仍应按部署指南进行现场运行验证。
 
+`tests/test_trusted_session_lifetime.py` 覆盖十分钟静默、`sleep 600`、thinking／compact、后台等待、八小时 Session 年龄、提示不换代、同代唤醒及等待期间真实进程失败。`test_trusted_normal_turn_and_timed_wait_keep_cli_identity_and_history` 使用真实 CLI 验证正常轮次与定时等待后仍是同一进程、同一代、同一历史。
+
 ```bash
-PYTHONPATH=src .venv/bin/python -m unittest tests.test_trusted_autonomy -v
+PYTHONPATH=src .venv/bin/python -m unittest tests.test_trusted_autonomy tests.test_trusted_session_lifetime -v
 SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src .venv/bin/python -m unittest \
-  tests.test_claude.InstalledClaudeTests.test_trusted_cli_debugs_past_unknown_and_reconciles_without_operator -v
+  tests.test_claude.InstalledClaudeTests -v
 ```

@@ -21,14 +21,15 @@ def request(service, credentials, reason, check_after_seconds, job_id=None):
     now = time.time()
     with service.store.transaction() as conn:
         fence(conn, credentials)
-        from .autonomy import reviewed, trusted
+        from .autonomy import trusted
 
         task = service._get(conn, "tasks", credentials.task_id)
+        retain_runtime = trusted(task)
         pending = conn.execute(
             "SELECT * FROM tool_attempts WHERE task_id=? AND worker_id=? AND status IN ('STARTED','RUNNING')",
             (credentials.task_id, credentials.worker_id),
         ).fetchall()
-        if any(not (trusted(task) and reviewed(row)) for row in pending):
+        if not retain_runtime and pending:
             raise DomainError(
                 "RUNTIME_STILL_REQUIRED", "finish or verify native operations before yielding their runtime"
             )
@@ -43,16 +44,19 @@ def request(service, credentials, reason, check_after_seconds, job_id=None):
             "responsible": "candleholder",
             "requested_by": credentials.worker_id,
             "state": "waiting",
+            "runtime_retained": retain_runtime,
             "wake_on": "job terminal, timer, new instruction or explicit Resume",
         }
         conn.execute(
-            "UPDATE tasks SET status='WAITING',current_worker=NULL,next_start_at=?,wait_state=?,updated_at=? WHERE id=?",
-            (waiting["next_check_at"], encode(waiting), now, credentials.task_id),
+            "UPDATE tasks SET status='WAITING',current_worker=?,next_start_at=?,wait_state=?,updated_at=? WHERE id=?",
+            (credentials.worker_id if retain_runtime else None, waiting["next_check_at"], encode(waiting), now,
+             credentials.task_id),
         )
-        conn.execute(
-            "UPDATE workers SET status='RETIRED',lease_expires=0,ended_at=? WHERE id=?",
-            (now, credentials.worker_id),
-        )
+        if not retain_runtime:
+            conn.execute(
+                "UPDATE workers SET status='RETIRED',lease_expires=0,ended_at=? WHERE id=?",
+                (now, credentials.worker_id),
+            )
         service.store.event(
             conn,
             credentials.task_id,
@@ -82,7 +86,7 @@ def wake(service):
                 continue
             state.update(state="woken", woken_at=now)
             conn.execute(
-                "UPDATE tasks SET status='READY',next_start_at=?,wait_state=?,updated_at=? WHERE id=?",
-                (now, encode(state), now, task["id"]),
+                "UPDATE tasks SET status=?,next_start_at=?,wait_state=?,updated_at=? WHERE id=?",
+                ("RUNNING" if task["current_worker"] else "READY", now, encode(state), now, task["id"]),
             )
             service.store.event(conn, task["id"], "TASK_WAIT_RESUMED", "controller", "candleholder", state)

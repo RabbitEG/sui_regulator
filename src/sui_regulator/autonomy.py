@@ -7,6 +7,8 @@ import time
 
 from .models import DomainError, digest, encode, require_text
 
+TRUSTED_ADVISORY_RULES = {"GEN-001", "GEN-002", "TOOL-001", "UNKNOWN-001", "NET-001", "NET-004"}
+
 
 def trusted(task):
     # Older-schema migration tests and recovery of pre-upgrade records remain guarded.

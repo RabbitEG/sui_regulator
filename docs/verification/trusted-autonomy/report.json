@@ -1,0 +1,41 @@
+{
+  "scope": "Local synthetic tests, actual Claude Code 2.1.316 with loopback fake API, and Chromium; no real GLM or seven-day wall-clock run",
+  "unit_and_integration": {
+    "command": "SUI_TEST_REAL_CLAUDE=1 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v",
+    "tests": 178,
+    "passed": true,
+    "seconds": 56.068,
+    "installed_cli_cases": 10,
+    "stream_capability_cases": 1
+  },
+  "week_simulation": "169 hourly Controller ticks across seven virtual days: recovery, reconciliation, completion and stable Job identity",
+  "session_lifetime": [
+    "600 seconds of response silence required",
+    "sleep 600 and other pending tools exempt",
+    "thinking and compact refresh activity",
+    "background tool completion restarts response clock",
+    "age and heuristic incidents retain healthy trusted owner",
+    "same CLI identity and history across normal turns and timed waits",
+    "timer, instructions and Resume wake the same owner",
+    "Hold still revokes ownership",
+    "actual process failure during a wait still recovers"
+  ],
+  "browser": {
+    "passed": true,
+    "command": "PYTHONPATH=src .venv/bin/python scripts/verify_trusted_browser.py",
+    "checks": [
+      "real task creation",
+      "trusted profile and persistent recovery",
+      "durable command receipts",
+      "policy update reflected after explicit refresh",
+      "English rendering",
+      "no page errors"
+    ],
+    "screenshots": [
+      "create-trusted-zh.png",
+      "trusted-task-zh.png"
+    ]
+  },
+  "schema_export_check": "passed",
+  "ruff_check": "passed"
+}

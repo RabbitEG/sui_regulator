@@ -12,6 +12,7 @@
 |---|---|
 | 了解能力、运行 Mock、安装和测试 | [项目概览与本地验证](PROJECT_OVERVIEW.md) |
 | 在另一台服务器部署、验收、备份或回滚 | [部署与验收指南](DEPLOYMENT.md) · [systemd 用户服务模板](../deploy/systemd/user/) |
+| 一周无人值守、同代等待与十分钟静默策略 | [信任模式](TRUSTED_AUTONOMY.md) |
 | 理解提示词结构、合作式换代与自动完成标记 | [长期 Agent 设计与参考](PROMPT_AND_LIFECYCLE_DESIGN.md) |
 | 定义完整任务、启用代码调试、配置完成前核验 | [任务书与执行能力](TASK_BRIEFS.md) |
 | 使用四个 Console 页面、人工干预、SSH 转发 | [Yan Console 使用与演示](YAN_CONSOLE.md) |
@@ -56,5 +57,3 @@
 - v0.3：[故障阶段需求](FAILURE_REQUIREMENTS_v0.3.md)、[故障调查](FAILURE_RESEARCH.md)。
 - 首轮：[原始需求](REQUIREMENTS.md)、[实施计划](IMPLEMENTATION_PLAN.md)、[交付报告](DELIVERY.md)、[测试计划](TEST_PLAN.md)、[验证摘要](verification.json)、[测试输出](test-output.txt)。
 - 项目起点：[复用调查](REUSE_REVIEW.md)、[环境记录](ENVIRONMENT.md)。
-
-- [信任模式与无人值守运行](TRUSTED_AUTONOMY.md)：一次授权、自主核验、自动恢复与升级。

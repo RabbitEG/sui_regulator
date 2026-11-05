@@ -95,7 +95,11 @@ def apply_pending(controller) -> None:
             else:
                 worker = service._get(conn, "workers", incident["worker_id"])
                 persistent = task["recovery_mode"] == "persistent"
-                from ..autonomy import trusted
+                from ..autonomy import TRUSTED_ADVISORY_RULES, trusted
+
+                if (trusted(task) and incident["rule_id"] in TRUSTED_ADVISORY_RULES
+                        and not payload["evidence"].get("terminal") and worker["status"] != "EXITED"):
+                    action = "advise"
                 if incident["rule_id"] in {"TOOL-002", "ENV-001"} and action in {"quarantine", "wait", "fresh_session"}:
                     action = "advise"
                 if persistent and action in {"quarantine", "wait"}:
@@ -211,7 +215,7 @@ def apply_pending(controller) -> None:
                 elif action in {"replan", "advise"}:
                     from ..recovery import advise
 
-                    reason = "Observed a repeated tool error or task environment issue. This is not evidence of Session failure. Inspect it and decide how to debug or continue; no automatic rotation is requested."
+                    reason = "A heuristic or task-level observation was recorded. Inspect it and decide how to debug or continue; this observation alone does not terminate the Session."
                     advise(conn, service, task, reason)
                     outcome = {"guidance": reason, "proxy_retained": True, "jobs_retained": True}
                     state = "APPLIED"

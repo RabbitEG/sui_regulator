@@ -151,6 +151,11 @@ class ClaudeNormalizer:
         if kind in {"stream_event", "assistant", "user", "result", "error"} or value.get("subtype") in {
             "init",
             "api_retry",
+            "status",
+            "compact_boundary",
+            "task_notification",
+            "task_progress",
+            "task_started",
         }:
             self.last_stream_at = time
         if kind == "system":
@@ -173,6 +178,7 @@ class ClaudeNormalizer:
                 return Decoded([self._obs(time, "malformed_call", reason="invalid stream event")])
             event_type = event.get("type")
             if event_type == "message_start":
+                self.final_seen = False
                 self.message_id = event.get("message", {}).get("id", f"stream-{self.serial}")
                 self.blocks.clear()
                 self.awaiting_response = True
@@ -217,6 +223,7 @@ class ClaudeNormalizer:
                             self._obs(time, "malformed_call", reason="invalid completed tool argument JSON")
                         )
         elif kind in {"assistant", "user"}:
+            self.final_seen = False
             message = value.get("message", {})
             content = message.get("content", []) if isinstance(message, dict) else None
             if not isinstance(content, list):

@@ -10,7 +10,7 @@ Sui Regulator manages durable tasks, replaceable AI sessions, and independent jo
 
 ## Capabilities
 
-- **Trusted autonomy**: opt into `--permission-mode trusted` for unattended execution. Unknown receipts and background work do not lock other tools; proxies reconcile operations, and runtime/configuration failures retry automatically. See the [unattended operation guide](docs/TRUSTED_AUTONOMY.md).
+- **Trusted autonomy**: opt into `--permission-mode trusted` for unattended execution. Unknown receipts and background work do not lock other tools. Healthy sessions retain their process and conversation across turns and timed waits; runtime failures retry automatically. See the [unattended operation guide](docs/TRUSTED_AUTONOMY.md).
 - **Durable tasks**: preserve complete Markdown briefs, acceptance criteria, execution profiles, additional instructions, generation history, and Handoffs. Proxies can register a wait, resume when it expires, and submit a completion marker.
 - **Session recovery**: respond to runtime evidence such as process failures, broken connections, lost ownership, and anomalies in generated output. Persistent and Bounded recovery modes are available. Failed experiments, normal debugging, and a lack of new observations alone are not treated as session failures.
 - **Auditable controls**: Hold, Resume, and Instruct produce persistent Command Receipts. Desired, Declared, and Observed State remain separate, distinguishing operator intent, proxy claims, and runtime observations.

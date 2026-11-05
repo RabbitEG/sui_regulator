@@ -6,12 +6,13 @@ from .registry import FailureRegistry
 
 
 class DetectionEngine:
-    def __init__(self, registry: FailureRegistry | None = None, session_id: str = "offline"):
+    def __init__(self, registry: FailureRegistry | None = None, session_id: str = "offline", config_overrides=None):
         self.registry = registry or FailureRegistry()
         self.session_id = session_id
         self.state = {rule.id: {} for rule in self.registry.rules}
         self.emitted: set[tuple[str, str]] = set()
         self.last_time = -1.0
+        self.config_overrides = config_overrides or {}
 
     def feed(self, observed: Observation) -> list[Incident]:
         if observed.time < self.last_time:
@@ -39,7 +40,7 @@ class DetectionEngine:
                 )
             ):
                 self.emitted = {key for key in self.emitted if key[0] != rule.id}
-            config = rule.detector["config"]
+            config = {**rule.detector["config"], **self.config_overrides.get(rule.id, {})}
             finding = DETECTORS[algorithm](observed, self.state[rule.id], config)
             if (
                 not finding

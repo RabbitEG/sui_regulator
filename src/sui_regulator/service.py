@@ -248,9 +248,8 @@ class Service:
                 return {"task_id": tid, "effect": "already cancelled; jobs retained"}
             raise DomainError("INVALID_STATE", "terminal task cannot be modified or resumed")
         if kind == "set_recovery_policy":
-            from .recovery import validate_policy
-
             from .autonomy import trusted, validate_mode
+            from .recovery import validate_policy
 
             if not payload or set(payload) - {"recovery_mode", "max_proxy_seconds", "permission_mode"}:
                 raise DomainError("INVALID_ARGUMENT", "expected recovery_mode, max_proxy_seconds and/or permission_mode")
@@ -322,7 +321,8 @@ class Service:
             )
             if task["status"] == "WAITING" and task["wait_state"] and task["desired"] == "ACTIVE":
                 conn.execute(
-                    "UPDATE tasks SET status='READY',next_start_at=0,wait_state=NULL WHERE id=?", (tid,)
+                    "UPDATE tasks SET status=?,next_start_at=0,wait_state=NULL WHERE id=?",
+                    ("RUNNING" if task["current_worker"] else "READY", tid),
                 )
                 self.store.event(
                     conn, tid, "TASK_WAIT_RESUMED", "yan", command["actor"], {"reason": "new instruction"}
@@ -332,6 +332,10 @@ class Service:
             raise DomainError("INVALID_ARGUMENT", "control command payload must be empty")
         desired = {"hold_task": "HOLD", "resume_task": "ACTIVE", "cancel_task": "CANCELLED"}[kind]
         status = "READY" if desired == "ACTIVE" else desired
+        if kind == "resume_task" and task["desired"] == "ACTIVE" and task["status"] == "WAITING" and task["current_worker"]:
+            conn.execute("UPDATE tasks SET status='RUNNING',next_start_at=0,wait_state=NULL,updated_at=? WHERE id=?", (now, tid))
+            self.store.event(conn, tid, "TASK_WAIT_RESUMED", "yan", command["actor"], {"reason": "explicit Resume"})
+            return {"task_id": tid, "effect": "waiting Session resumed"}
         if (
             kind == "resume_task"
             and task["desired"] == "ACTIVE"
