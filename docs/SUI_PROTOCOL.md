@@ -21,6 +21,8 @@
 | run_command | 执行部署者批准的固定模板，持久记录意图、所有权检查和真实结果；可选 operation_id 对同一次逻辑请求重送返回原回执，有意的新尝试应换 ID |
 | complete_task | 提交总结与证据，执行可选核验模板，写入完成标记并通过同一完成验收入口 |
 
+`wait_task` 的 `wait_state` 保存 `requested_at`、`job_status_at_registration` 与登记时的 `tool_attempt_ids`。除定时器、新指令和 Resume 外，关联 Job 的终态或新出现的 UNKNOWN/BLOCKED、这些原生操作的终态或失去观测也会唤醒；`wake_reason` 在 `TASK_WAIT_RESUMED` 与任务详情中可查。已经 UNKNOWN 的 Job 仍可登记有限时间后再查，不会立即反复唤醒。trusted 唤醒保留原代理，等待的实验失败不等于 Session 失败。不可直接观测的外部事件仍需代理定时复查。
+
 写操作在 BEGIN IMMEDIATE 内验证 desired、current_worker、generation、lease expiry、token hash 与 Sui Proxy 状态。Runner 在独立执行进程中再次验证已登记授权。Sui Proxy 被接管后，旧请求返回 FENCED 并有拒绝审计。已经 RUNNING 的 Job 不依赖旧 Sui Proxy 后续续租。
 
 MCP/机器 Gateway 的具体调用见 YAN_API.md（随 Gateway 阶段补齐）。首轮的 bootstrap 注册只授权 Controller；Sui Proxy 无权自行抢占或提高 generation。

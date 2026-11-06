@@ -315,7 +315,7 @@ systemctl --user status sui-regulator-controller.service yan-console.service
 
 需要长期无人值守执行时，使用 [信任模式与无人值守指南](TRUSTED_AUTONOMY.md)。Schema 8 保留旧任务原授权；新任务可用 `--permission-mode trusted`，旧任务可用 `yan policy TASK_ID --permission-mode trusted`。GLM 端点沿用已验证配置，不按模型名称自动切换服务。
 
-新启动的 trusted Session 不受年龄／轮数换代限制，正常轮次和定时等待保留同一进程及上下文。默认静默阈值为十分钟；正在执行的工具、已知后台工作以及实际 thinking／compact 事件分别参与等待与活动判断。对应配置为 `trusted_response_silence_seconds` 和 `trusted_continuation_seconds`，见 [配置示例](../examples/config.toml)。
+新启动的 trusted Session 不受年龄／轮数换代限制，正常轮次和定时等待保留同一进程及上下文。默认模型响应静默阈值为十分钟；工具必须有可续期的运行观测，旧消息、旧 RUNNING 回执或 Wrapper 心跳不能无限延长等待。仍可观测的长工具、实际 thinking／compact 事件分别参与等待与活动判断。对应配置为 `trusted_response_silence_seconds`、`trusted_tool_observation_seconds` 和 `trusted_continuation_seconds`，见 [配置示例](../examples/config.toml) 与 [等待失效及远端观测边界](TRUSTED_AUTONOMY.md#会话寿命与静默)。更新后的 Wrapper 在下一次自然启动时生效，重启 Controller 不会强制换代正在调试的 Session。
 
 新逻辑在新版本启动的代理中生效。已有健康会话不会仅因更新而被强杀；需要在出发前切换旧运行环境时，按维护流程安排一次明确的交接，再用新任务或接续代验证真实 GLM 工具执行、定时等待和完成标记。
 

@@ -33,8 +33,8 @@ class ClaudeStreamDetector:
     """Compatibility facade; decoding, rules and policy live in separate modules."""
 
     def __init__(self, session_id=None, registry=None, recovery_mode="bounded", permission_mode="guarded",
-                 response_silence_seconds=600):
-        self.normalizer = ClaudeNormalizer(session_id)
+                 response_silence_seconds=600, tool_observation_seconds=600):
+        self.normalizer = ClaudeNormalizer(session_id, tool_observation_seconds=tool_observation_seconds)
         self.permission_mode = permission_mode
         overrides = {"NET-002": {"warn_after": response_silence_seconds / 2,
                                   "act_after": response_silence_seconds}} if permission_mode == "trusted" else None
@@ -93,7 +93,7 @@ class ClaudeStreamDetector:
         now = max(time.time() if now is None else now, self.engine.last_time)
         return self._convert(self.normalizer.feed(line, now))
 
-    def tick(self, now=None, tool_pending=False):
+    def tick(self, now=None, tool_pending=False, live_tools=(), ended_tools=()):
         now = max(time.time() if now is None else now, self.engine.last_time)
         from .failures.models import Observation
 
@@ -101,7 +101,7 @@ class ClaudeStreamDetector:
             # The model's silence allowance starts after observed background work ends.
             self.normalizer.last_stream_at = now
         self.external_tool_pending = tool_pending
-        clock = self.normalizer.clock(now)
+        clock = self.normalizer.clock(now, live_tools=live_tools, ended_tools=ended_tools)
         if tool_pending:
             clock = Observation(clock.time, clock.kind, {**clock.data, "tool_pending": True}, clock.source)
         return self._convert(Decoded([clock]))

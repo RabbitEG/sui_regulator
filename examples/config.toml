@@ -26,6 +26,9 @@ claude_model = ""
 claude_max_turns = 100
 # Trusted: model silence threshold, excluding observed foreground/background tools.
 trusted_response_silence_seconds = 600.0
+# Freshness of tool observations, renewed by a matching live launcher or CLI progress.
+# A previous call/RUNNING receipt alone cannot extend this window indefinitely.
+trusted_tool_observation_seconds = 600.0
 # Continue the same conversation after a normal turn, unless waiting or tools are running.
 trusted_continuation_seconds = 30.0
 # Empty uses the versioned rules bundled with the wheel.

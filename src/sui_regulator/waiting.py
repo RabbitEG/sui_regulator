@@ -45,7 +45,10 @@ def request(service, credentials, reason, check_after_seconds, job_id=None):
             "requested_by": credentials.worker_id,
             "state": "waiting",
             "runtime_retained": retain_runtime,
-            "wake_on": "job terminal, timer, new instruction or explicit Resume",
+            "requested_at": now,
+            "job_status_at_registration": job["status"] if job_id else None,
+            "tool_attempt_ids": [row["id"] for row in pending],
+            "wake_on": "job terminal or observation lost, native operation ended or observation lost, timer, new instruction or explicit Resume",
         }
         conn.execute(
             "UPDATE tasks SET status='WAITING',current_worker=?,next_start_at=?,wait_state=?,updated_at=? WHERE id=?",
@@ -78,13 +81,23 @@ def wake(service):
         ).fetchall():
             task = unpack(raw)
             state = task["wait_state"]
-            due = task["next_start_at"] <= now
+            reason = "timer" if task["next_start_at"] <= now else None
             if state.get("job_id"):
                 job = service._get(conn, "jobs", state["job_id"])
-                due |= job["status"] in {"COMPLETED", "FAILED", "CANCELLED"}
-            if not due:
+                if job["status"] in {"COMPLETED", "FAILED", "CANCELLED"}:
+                    reason = "job_terminal"
+                elif (job["status"] in {"UNKNOWN", "BLOCKED"}
+                      and job["status"] != state.get("job_status_at_registration")):
+                    reason = "job_observation_changed"
+            for attempt_id in state.get("tool_attempt_ids", []):
+                attempt = conn.execute("SELECT status FROM tool_attempts WHERE id=? AND task_id=?",
+                                       (attempt_id, task["id"])).fetchone()
+                if attempt and attempt["status"] not in {"STARTED", "RUNNING"}:
+                    reason = "native_operation_observation_changed"
+                    break
+            if not reason:
                 continue
-            state.update(state="woken", woken_at=now)
+            state.update(state="woken", woken_at=now, wake_reason=reason)
             conn.execute(
                 "UPDATE tasks SET status=?,next_start_at=?,wait_state=?,updated_at=? WHERE id=?",
                 ("RUNNING" if task["current_worker"] else "READY", now, encode(state), now, task["id"]),

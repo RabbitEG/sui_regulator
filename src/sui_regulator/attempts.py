@@ -123,14 +123,22 @@ def start(conn, task, credentials, attempt_id, tool, operation_key, approach_key
 
 
 def finish(conn, attempt_id, status, result, runtime=None):
+    row = conn.execute("SELECT status,runtime FROM tool_attempts WHERE id=?", (attempt_id,)).fetchone()
+    if not row:
+        return 0
+    late_observation = (row["status"] == "UNKNOWN"
+                        and json.loads(row["runtime"]).get("source") == "wrapper-wait-observer")
+    if row["status"] not in {"STARTED", "READING"} and not late_observation:
+        return 0
     return conn.execute(
-        "UPDATE tool_attempts SET status=?,result_hash=?,finished_at=?,runtime=COALESCE(?,runtime) WHERE id=? AND status IN ('STARTED','READING')",
+        "UPDATE tool_attempts SET status=?,result_hash=?,finished_at=?,runtime=COALESCE(?,runtime) WHERE id=? AND status=?",
         (
             status,
             error_fingerprint(result),
             None if status == "RUNNING" else time.time(),
             encode(runtime) if runtime is not None else None,
             attempt_id,
+            row["status"],
         ),
     ).rowcount
 

@@ -41,7 +41,7 @@ class TrustedSessionLifetimeTests(ProcessTestCase):
             },
             0,
         )
-        self.assertIsNone(detector.tick(now=3600).error)
+        self.assertIsNone(detector.tick(now=3600, live_tools={"sleep"}).error)
         self.feed(
             detector,
             {
@@ -86,6 +86,79 @@ class TrustedSessionLifetimeTests(ProcessTestCase):
             10001,
         )
         self.assertEqual(detector.tick(now=10601).error, "STREAM_STALLED")
+
+    def test_missing_sleep_result_does_not_exempt_silence_forever(self):
+        detector = self.detector()
+        self.feed(detector, {"type": "assistant", "message": {"id": "waiting", "content": [
+            {"type": "text", "text": "I will sleep for ten minutes and check the experiment."},
+            {"type": "tool_use", "id": "sleep-call", "name": "Bash",
+             "input": {"command": "sleep 600", "timeout": 600000}},
+        ]}}, 0)
+        self.assertIsNone(detector.tick(now=599).error)
+        # The CLI transport never delivers a result; the old call is not perpetual proof of life.
+        self.assertEqual(detector.tick(now=1800).error, "STREAM_STALLED")
+
+    def test_waiting_words_do_not_grant_an_execution_exemption(self):
+        detector = self.detector()
+        self.feed(detector, {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "sleep 600; waiting until next week or an external event"},
+        ]}}, 0)
+        self.assertEqual(detector.tick(now=600).error, "STREAM_STALLED")
+
+    def test_requested_timeout_does_not_replace_fresh_runtime_evidence(self):
+        detector = self.detector()
+        self.feed(detector, {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "lost-call", "name": "Bash",
+             "input": {"command": "sleep 604800", "timeout": 604800000}},
+        ]}}, 0)
+        self.assertEqual(detector.tick(now=1200).error, "STREAM_STALLED")
+
+    def test_only_matching_runtime_progress_renews_tool_observation(self):
+        detector = self.detector()
+        self.feed(detector, {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "live-call", "name": "Bash", "input": {"command": "sleep 600"}},
+        ]}}, 0)
+        self.feed(detector, {"type": "system", "subtype": "task_progress", "session_id": "session",
+                             "tool_use_id": "live-call"}, 550)
+        self.assertIsNone(detector.tick(now=1100).error)
+        self.feed(detector, {"type": "system", "subtype": "task_progress", "session_id": "other",
+                             "tool_use_id": "live-call"}, 1150)
+        self.feed(detector, {"type": "system", "subtype": "task_progress", "session_id": "session",
+                             "tool_use_id": "other-call"}, 1300)
+        self.assertEqual(detector.tick(now=1750).error, "STREAM_STALLED")
+
+    def test_background_failure_ends_wait_exemption_but_is_not_a_session_failure(self):
+        detector = self.detector()
+        self.feed(detector, {"type": "assistant", "message": {"id": "waiting", "content": [
+            {"type": "tool_use", "id": "sleep-call", "name": "Bash",
+             "input": {"command": "sleep 600", "run_in_background": True}},
+        ]}}, 0)
+        # Even if the usual tool_result is lost, a matching terminal runtime event is evidence.
+        ended = self.feed(detector, {"type": "system", "subtype": "task_notification",
+                                   "session_id": "session", "tool_use_id": "sleep-call",
+                                   "task_id": "background-sleep", "status": "failed"}, 30)
+        self.assertIsNone(ended.error)
+        self.assertIsNone(detector.tick(now=629).error)
+        self.assertEqual(detector.tick(now=630).error, "STREAM_STALLED")
+
+    def test_job_observation_loss_wakes_same_proxy_to_check_instead_of_waiting_a_week(self):
+        from sui_regulator.waiting import wake
+
+        tid = self.submit(adapter="unavailable", permission_mode="trusted")
+        protocol = SuiProtocol(self.service)
+        credentials = protocol.register(tid)
+        protocol.claim_task(credentials)
+        job = protocol.launch_job(credentials, "existing-experiment")
+        protocol.wait_task(credentials, "Wait until experiment ends", 604800, job_id=job["id"])
+        with self.service.store.transaction() as conn:
+            conn.execute("UPDATE jobs SET status='UNKNOWN' WHERE id=?", (job["id"],))
+        wake(self.service)
+        task = self.service.get_task(tid)
+        self.assertEqual(task["status"], "RUNNING")
+        self.assertEqual(task["current_worker"], credentials.worker_id)
+        self.assertEqual(task["generation"], 1)
+        self.assertEqual(task["jobs"][0]["status"], "UNKNOWN")
+        self.assertEqual(task["wait_state"]["wake_reason"], "job_observation_changed")
 
     def test_trusted_wait_keeps_owner_and_wakes_without_rotation(self):
         from sui_regulator.models import DomainError

@@ -161,6 +161,33 @@ class ClaudeContractTests(ProcessTestCase):
     "opt-in real installed CLI + loopback fake API only; no provider credentials",
 )
 class InstalledClaudeTests(ProcessTestCase):
+    def test_real_cli_sleep_outlives_observation_lease_without_rotation(self):
+        self.config = replace(self.config, trusted_tool_observation_seconds=.5,
+                              trusted_response_silence_seconds=3)
+        (self.config.home / "config.toml").unlink()
+        self.config.write()
+        tid, started = None, None
+
+        def steps(body, index):
+            nonlocal started
+            if index == 0:
+                started = time.monotonic()
+                return "Bash", {"command": "sleep 5", "timeout": 10000}
+            self.assertGreater(time.monotonic() - started, 5)
+            self.assertEqual(self.service.get_task(tid)["generation"], 1)
+            return "complete_task", {"summary": "Observed the actual CLI sleep finish without rotation"}
+
+        with FakeAnthropic(steps=steps) as backend, patch.dict(os.environ, {
+            "ANTHROPIC_BASE_URL": backend.url, "ANTHROPIC_API_KEY": "sk-ant-synthetic-local-only",
+            "ANTHROPIC_AUTH_TOKEN": "", "CLAUDE_CODE_DISABLE_THINKING": "1", **NO_PROXIES,
+        }):
+            tid = self.submit(adapter="claude", permission_mode="trusted")
+            self.until(lambda: self.service.get_task(tid)["desired"] == "COMPLETED", timeout=45)
+            task = self.service.get_task(tid)
+            self.assertEqual(task["generation"], 1)
+            self.assertEqual(task["tool_attempts"][0]["status"], "SUCCEEDED")
+            self.assertFalse([e for e in self.service.events(tid) if e["kind"] == "TOOL_WAIT_OBSERVATION_LOST"])
+
     def test_trusted_normal_turn_and_timed_wait_keep_cli_identity_and_history(self):
         self.config = replace(self.config, trusted_continuation_seconds=0.05)
         (self.config.home / "config.toml").unlink()

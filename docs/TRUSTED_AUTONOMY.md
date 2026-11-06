@@ -25,21 +25,28 @@
 
 信任模式使用持续打开的 `stream-json` 输入，同一个 CLI 进程可以接收后续轮次。正常 `result` 只表示一轮对话结束；Task 尚未完成时，默认 30 秒后发送简短运行提醒，继续原任务，不重放上一轮工具调用。等待状态或已观测后台工具运行期间不发送该提醒。该路径已用真实 CLI 验证进程身份、Session、Generation 和历史上下文均保持不变。
 
-`wait_task` 在信任模式保留当前代和运行时，到期、关联受管 Job 结束、新指令或 Resume 时继续。等待期间仍有心跳和进程检查。Hold、Cancel、完整完成标记或明确请求的交接仍能结束当前运行。
+`wait_task` 在信任模式保留当前代和运行时，到期、关联受管 Job 结束或变成 UNKNOWN/BLOCKED、登记时的原生操作结束或失去观测、新指令或 Resume 时继续。等待期间仍有心跳和进程检查。Hold、Cancel、完整完成标记或明确请求的交接仍能结束当前运行。
 
-只有**正在等待模型响应、没有已知工具执行，并且连续 600 秒没有可见运行活动**时，才按静默超时恢复。十分钟是可配置的运行策略，不是证明模型崩溃的结论。
+只有**正在等待模型响应、没有仍然有效的工具执行观测，并且连续 600 秒没有可见运行活动**时，才按静默超时恢复。十分钟是可配置的运行策略，不是证明模型崩溃的结论。
 
 - thinking 增量、compacting 状态、compact boundary、正常文本和工具事件刷新活动时间。
-- `sleep 600`、训练、SSH 等已发起但未返回的工具调用不受模型静默阈值打断。依据工具调用／结果事件和同代后台回执判断，不用命令字符串猜执行时长。
-- 观察到后台工具结束后，重新给予完整的模型响应等待时间。CLI 进程退出、流真正断开或租约失效仍按实际运行故障恢复。
+- `sleep 600`、训练、SSH 等工具的等待依据会持续核验：匹配的本地执行进程仍存在且未冻结，或同一 Session、同一调用收到运行进度事件，才续期观测。持续可见的长工具没有累计等待上限，不从对话或命令字符串猜执行时长。
+- 旧的 tool_use、RUNNING 回执、Wrapper 心跳和用户请求的工具 timeout 都不是永久存活证明。没有新观测时，工具观测默认 600 秒后过期；原生回执变为 UNKNOWN，并记录 `TOOL_WAIT_OBSERVATION_LOST`，不编造退出码或实验结果。
+- 已观察到的本地启动进程消失时，最多等待 5 秒让正常 Hook 结果入账；若没有结果，转为 UNKNOWN。匹配的 Hook／CLI 终态通知随后到达时，仍可补齐真实结果。
+- 工具结束或失去观测后，重新给予完整的模型响应等待时间。正常一轮已结束时，让原会话继续核验；若一轮仍悬挂且持续无活动，响应静默到额后才恢复 Session。CLI 进程退出、流真正断开或租约失效仍按实际运行故障恢复。
 - 重复文本、格式异常计数、重试通知和非终态 compact 异常保留 Incident 提示；它们本身不杀死健康的信任 Session。实验结果与测试失败继续由模型处理。
 
 可在私有 `config.toml` 的 `[regulator]` 下设置：
 
 ```toml
 trusted_response_silence_seconds = 600.0
+trusted_tool_observation_seconds = 600.0
 trusted_continuation_seconds = 30.0
 ```
+
+这两个 600 秒对应不同阶段：完全收不到新工具观测时，先耗尽观测窗口，再给模型完整响应窗口，通常最多约 20 分钟才触发静默恢复；已经观察到启动进程消失时，响应窗口从发现异常时开始。后台一轮已正常结束则无需等满响应窗口，直接按继续对话的间隔处理；登记的等待由 Controller 唤醒原会话。发现不确定性不会自动把 Task 判失败，也不会自动重提实验。
+
+本地 Linux `/proc` 检查仅关联该 CLI 的子进程，核对 PID、启动时间和 boot ID；读取不到或无法匹配时不声称命令已经失败。**本地进程活着不等于远端实验或事件监听器健康**。不能直接观测的 SSH 目标、外部事件或第三方调度器，由代理使用有限的 `wait_task` 复查间隔主动检查。只写一句“等到某时/事件”不会创建持久定时器；也不能检测框架未接入的远端状态变化。
 
 `max_session_age` 和 `claude_max_turns` 只约束 guarded 模式。现有进程需要在下一次启动后采用新的 Wrapper 逻辑；更新 Controller 不会把正在调试的 Session 强制轮换。
 
@@ -102,7 +109,7 @@ yan --home /absolute/private/state receipt COMMAND_ID
 | 用户明确 Hold | 撤销代理，保留持久 Task 与独立 Job | 需要，因为这是用户暂停指令 |
 | 用户设置的非零 `max_proxy_seconds` 到额 | Hold | 调整额度后需要；默认 0 不限 |
 | 用户 Cancel／模型提交并被接受的完整完成标记 | 任务终态 | 不可 Resume；新委托应新建 Task |
-| 代理登记定时等待 | 保留会话，到期／关联 Job 终态／新指令时唤醒 | 不需要；也可以主动提前 Resume |
+| 代理登记定时等待 | 保留会话，到期／关联工作结束或失去观测／新指令时唤醒 | 不需要；也可以主动提前 Resume |
 | 进程退出、流断开、十分钟模型静默、所有权异常 | 自动退避并建立下一代 | 不需要 |
 | 认证、配额、CLI 能力或其他服务故障 | 自动退避重试 | 不需要；外部依赖仍须实际恢复可用 |
 | UNKNOWN、重复文本、实验失败、核验未通过 | 保留证据，由代理调查和继续处理 | 不需要 |
@@ -135,6 +142,8 @@ CLI／操作系统自身的限制仍然存在，信任模式不承诺在服务�
 `tests/test_claude.py` 的 `test_trusted_cli_debugs_past_unknown_and_reconciles_without_operator` 使用本机真实 Claude Code 与本地合成 API，实际执行 Bash、Write、核验和完成。真实 GLM 端点和目标服务器仍应按部署指南进行现场运行验证。
 
 `tests/test_trusted_session_lifetime.py` 覆盖十分钟静默、`sleep 600`、thinking／compact、后台等待、八小时 Session 年龄、提示不换代、同代唤醒及等待期间真实进程失败。`test_trusted_normal_turn_and_timed_wait_keep_cli_identity_and_history` 使用真实 CLI 验证正常轮次与定时等待后仍是同一进程、同一代、同一历史。
+
+`tests/test_wait_observation.py` 覆盖真实 sleep 子进程存活、被杀、被冻结、旧回执、丢失工具返回、迟到 Hook，以及持续输入 Wrapper 的同 Session 唤醒和悬挂恢复。真实 CLI 的 `test_real_cli_sleep_outlives_observation_lease_without_rotation` 验证长工具超过观测与响应窗口仍不会换代。具体证据见 [等待观测回归记录](verification/wait-observation/README.md)。
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m unittest tests.test_trusted_autonomy tests.test_trusted_session_lifetime -v

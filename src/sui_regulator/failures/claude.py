@@ -52,7 +52,7 @@ class Decoded:
 
 
 class ClaudeNormalizer:
-    def __init__(self, expected_session: str | None = None):
+    def __init__(self, expected_session: str | None = None, *, tool_observation_seconds=600):
         self.expected_session = expected_session
         self.final_seen = False
         self.streaming_observed = False
@@ -66,6 +66,11 @@ class ClaudeNormalizer:
         self.seen_calls = deque(maxlen=512)
         self.seen_messages = deque(maxlen=128)
         self.pending: set[str] = set()
+        # A past call is a bounded observation, not perpetual proof of execution.
+        # Keep completed calls briefly so native background receipts can be matched.
+        self.tool_calls: dict[str, dict] = {}
+        self.observed_calls: set[str] = set()
+        self.tool_observation_seconds = tool_observation_seconds
 
     def _obs(self, time, kind, **data):
         return Observation(time, kind, data, "claude-wrapper")
@@ -91,6 +96,12 @@ class ClaudeNormalizer:
             return [self._obs(time, "malformed_call", reason="empty Bash command")]
         if len(self.pending) >= 128:
             self.pending.pop()
+        if len(self.tool_calls) >= 512:
+            removable = next((key for key in self.tool_calls if key not in self.pending | self.observed_calls),
+                             next(iter(self.tool_calls)))
+            self.tool_calls.pop(removable)
+        self.tool_calls[call_id] = {"call_id": call_id, "name": name, "arguments": arguments,
+                                   "started_at": time, "valid_until": time + self.tool_observation_seconds}
         self.pending.add(call_id)
         self.awaiting_response = False
         return [self._obs(time, "tool_call", call_id=call_id, name=name[:256], arguments=arguments)]
@@ -128,6 +139,15 @@ class ClaudeNormalizer:
             observations.insert(0, self._obs(time, "environment_error", code=code))
         return observations
 
+    def tool_ended(self, call_id, time):
+        if call_id not in self.tool_calls or "ended_at" in self.tool_calls[call_id]:
+            return
+        self.tool_calls[call_id]["ended_at"] = time
+        self.pending.discard(call_id)
+        if not self.final_seen:
+            self.awaiting_response = not self.pending
+        self.last_stream_at = time
+
     def feed(self, line: str, time: float) -> Decoded:
         try:
             return self._decode(line, time)
@@ -148,6 +168,19 @@ class ClaudeNormalizer:
             return Decoded()
         result = Decoded()
         kind = value["type"]
+        if kind == "system" and value.get("subtype") in {"task_started", "task_progress", "task_notification"}:
+            call_id = value.get("tool_use_id")
+            if (not isinstance(call_id, str) or call_id not in self.tool_calls
+                    or (self.expected_session and value.get("session_id") != self.expected_session)):
+                return result
+            call = self.tool_calls[call_id]
+            if value["subtype"] == "task_notification":
+                if value.get("status") not in {"completed", "failed", "stopped"}:
+                    return result
+                self.tool_ended(call_id, time)
+            elif "ended_at" not in call:
+                call["valid_until"] = max(call["valid_until"], time + self.tool_observation_seconds)
+                call["observed_at"] = time
         if kind in {"stream_event", "assistant", "user", "result", "error"} or value.get("subtype") in {
             "init",
             "api_retry",
@@ -289,15 +322,24 @@ class ClaudeNormalizer:
                 result.observations.append(self._obs(time, "response_completed"))
         return result
 
-    def clock(self, time: float) -> Observation:
+    def clock(self, time: float, live_tools=(), ended_tools=()) -> Observation:
         if self.last_stream_at is None:
             self.last_stream_at = time
+        for call_id in live_tools:
+            if call_id in self.tool_calls:
+                self.tool_calls[call_id]["valid_until"] = time + self.tool_observation_seconds
+        for call_id in ended_tools:
+            self.tool_ended(call_id, time)
+        valid = [call for key, call in self.tool_calls.items()
+                 if key in self.pending and call["valid_until"] > time]
+        expired = [call["valid_until"] for key, call in self.tool_calls.items()
+                   if key in self.pending and call["valid_until"] <= time]
         return self._obs(
             time,
             "clock",
-            awaiting_response=self.awaiting_response,
-            tool_pending=bool(self.pending),
-            last_stream_at=self.last_stream_at,
+            awaiting_response=self.awaiting_response or bool(expired and not valid and not self.final_seen),
+            tool_pending=bool(valid),
+            last_stream_at=max([self.last_stream_at, *expired]),
             streaming_observed=self.streaming_observed,
         )
 

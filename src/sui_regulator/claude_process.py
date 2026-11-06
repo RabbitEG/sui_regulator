@@ -107,9 +107,14 @@ def run(config: Config, credentials: Credentials) -> None:
         recovery_mode=context["recovery_mode"],
         permission_mode=context["permission_mode"],
         response_silence_seconds=config.trusted_response_silence_seconds,
+        tool_observation_seconds=config.trusted_tool_observation_seconds,
     )
+    from .wait_observation import ToolWaitMonitor
+
+    wait_monitor = ToolWaitMonitor(service, credentials, identity(process.pid))
     final_seen, error, stderr_tail = False, None, b""
     next_continuation = None
+    last_wait_wake = 0
     stream_capability_recorded = False
 
     def record_exit(reason: str, return_code=None, turn_limit=False, incidents=()):
@@ -156,42 +161,40 @@ def run(config: Config, credentials: Credentials) -> None:
                 protocol.heartbeat(credentials)
                 recorder.flush(final=False)
                 last_heartbeat = time.monotonic()
-                background_pending = (
-                    bool(
-                        service.store.rows(
-                            "SELECT 1 FROM tool_attempts WHERE task_id=? AND worker_id=? AND status='RUNNING' LIMIT 1",
-                            (credentials.task_id, credentials.worker_id),
-                        )
-                    )
-                    if continuous
-                    else False
-                )
-                clock_event = detector.tick(tool_pending=background_pending)
+                observation = wait_monitor.poll(detector.normalizer)
+                background_pending = continuous and observation.background_pending
+                clock_event = detector.tick(tool_pending=background_pending,
+                                            live_tools=observation.live_tools, ended_tools=observation.ended_tools)
                 publish(service, credentials, clock_event.incidents)
                 if clock_event.error:
                     record_exit(clock_event.error)
                     return
                 if continuous and next_continuation is not None and time.monotonic() >= next_continuation:
-                    if background_pending:
+                    current = protocol.get_task_context(credentials, offer_context=False)
+                    waiting = current["wait_state"] or {}
+                    woken_at = waiting.get("woken_at", 0)
+                    if current["status"] == "WAITING" and waiting.get("next_check_at", 0) > time.time():
+                        continue
+                    if background_pending and woken_at <= last_wait_wake:
                         next_continuation = time.monotonic() + config.trusted_continuation_seconds
                     else:
                         # A successful conversational turn is not a Session failure.
                         # Keep the same process, session identity and in-memory history.
-                        current = protocol.get_task_context(credentials, offer_context=False)
-                        if (
-                            current["status"] == "WAITING"
-                            and current["wait_state"]
-                            and current["wait_state"]["next_check_at"] > time.time()
-                        ):
-                            # Recheck on the heartbeat so new instructions can wake the same Session.
-                            continue
                         message = (
                             "[Sui runtime continuation] Your previous turn ended normally and the Task is still active. "
                             "Read current task context and continue the operator's full workflow in this same Session. "
                             "If genuinely waiting, use wait_task with a concrete recheck time. If finished, submit complete_task. "
                             "This reminder grants no new task scope and does not request replay of previous operations."
                         )
+                        wake_reason = waiting.get("wake_reason") if woken_at > last_wait_wake else None
+                        if wake_reason:
+                            message += (
+                                f" Registered wait woke because: {wake_reason}. Read the current receipts; "
+                                "a lost observation is not proof that an experiment failed or stopped. "
+                                "Check the original operation before deciding what to do next."
+                            )
                         send_input(message)
+                        last_wait_wake = woken_at
                         recorder.write("runtime", "system", message, message_id="runtime-continuation")
                         with service.store.transaction() as conn:
                             service.store.event(
@@ -203,6 +206,7 @@ def run(config: Config, credentials: Credentials) -> None:
                                 {
                                     "session_id": worker["session_id"],
                                     "reason": "normal turn ended; Task still active",
+                                    "wait_wake_reason": wake_reason,
                                 },
                             )
                         detector.begin_turn()

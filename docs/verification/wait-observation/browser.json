@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "wake_reason_zh",
+    "wake_reason_en",
+    "mobile_no_overflow",
+    "same_proxy"
+  ],
+  "browser_errors": [],
+  "wake_reason": "native_operation_observation_changed"
+}

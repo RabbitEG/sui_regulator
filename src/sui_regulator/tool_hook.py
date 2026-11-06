@@ -66,6 +66,9 @@ def handle(service, credentials, event):
                 advise(conn, service, current, denied)
             elif name == "Bash":
                 attempts.start(conn, current, credentials, attempt_id, "Bash", operation_key, approach_key)
+                conn.execute("UPDATE tool_attempts SET runtime=? WHERE id=?",
+                             (encode({"source": "claude-hook", "tool_use_id": event.get("tool_use_id"),
+                                      "observed_at": time.time()}), attempt_id))
             guidance = message + "\n" + (note or json.loads(current["recovery_state"]).get("guidance", ""))
         if denied:
             return {
