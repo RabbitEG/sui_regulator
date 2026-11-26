@@ -34,20 +34,28 @@ Version **v0.4** targets Linux, Python 3.11+, and deployment under one OS user w
 flowchart TD
     User[User or authorized client] --> CLI[Yan CLI]
     User --> Web[Yan Console · independent process]
-    CLI -->|Unix RPC| API
+    CLI -->|Ordinary commands| Local[Local Service instance]
+    CLI -->|yan rpc| API
     Web -->|Unix RPC| API
     subgraph Control[Controller process]
-        API[Yan RPC] --> C[Candleholder · control and recovery]
-        C <--> DB[(SQLite ledger)]
+        API[Yan RPC / Service]
+        C[Candleholder · control and recovery]
+        C --> Runner[Runner scheduler]
     end
+    Local <--> DB[(SQLite ledger)]
+    API <--> DB
+    C <--> DB
     C -->|Assign and resume| Proxy[Sui Proxy · AI session]
-    Proxy -->|Managed protocol and tools| API
-    C -->|Start and reconcile| Job[Independent Runner / Job]
+    Proxy --> Protocol[Local SuiProtocol / MCP / hooks]
+    Protocol <--> DB
+    Runner -->|Start and reconcile| Job[Independent synthetic Job process]
     Job -->|Status and metrics| DB
     Proxy -.->|Authorized native tools| External[External commands and experiments]
 ```
 
 A Task outlives its sessions; managed Jobs can also survive proxy replacement. Console queries and commands go through Yan. Stopping Console does not stop the Controller or its Jobs. Candleholder implements control and recovery within the Controller; it does not judge the substance of a task.
+
+Ordinary CLI commands use a local Service instance; `yan rpc` and Console use the Unix gateway. Proxy wrappers and MCP/hooks access the shared local ledger through ownership-checked domain logic.
 
 **The managed Runner currently supports synthetic Jobs only.** With the `claude_code` execution profile, a proxy can use native tools to edit code, run commands, and conduct experiments. Work launched through Bash, SSH, or external scripts does not automatically become a managed Job. Duplicate prevention, process survival, and remote status must be verified through the actual execution interface. See the [architecture](docs/ARCHITECTURE.md) and [task brief guide](docs/TASK_BRIEFS.md) for these boundaries.
 

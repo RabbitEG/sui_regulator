@@ -34,20 +34,28 @@
 flowchart TD
     User[用户或授权客户端] --> CLI[大炎命令行]
     User --> Web[大炎管理台 · 独立进程]
-    CLI -->|本地套接字 RPC| API
+    CLI -->|普通命令| Local[本地 Service 实例]
+    CLI -->|yan rpc| API
     Web -->|本地套接字 RPC| API
     subgraph Control[控制器进程]
-        API[大炎接口] --> C[秉烛人 · 控制与恢复]
-        C <--> DB[(SQLite 账本)]
+        API[大炎 RPC 与领域服务]
+        C[秉烛人 · 控制与恢复]
+        C --> Runner[作业调度对象]
     end
+    Local <--> DB[(SQLite 账本)]
+    API <--> DB
+    C <--> DB
     C -->|分配与接续| Proxy[岁兽代理人 · AI 会话]
-    Proxy -->|受管协议与工具| API
-    C -->|启动与核验| Job[独立运行器与作业]
+    Proxy --> Protocol[本地受管协议与 MCP、Hook]
+    Protocol <--> DB
+    Runner -->|启动与核验| Job[独立合成作业进程]
     Job -->|状态与指标| DB
     Proxy -.->|授权的原生工具| External[外部命令与实验]
 ```
 
 任务的生命周期独立于会话；受管作业也可以跨代理代际运行。管理台通过大炎接口查询和提交指令，停止管理台不会停止控制器或作业。秉烛人是控制器中的监控与恢复职责，不裁判任务的工作内容。
+
+普通 CLI 命令调用本地 Service；`yan rpc` 与管理台通过本地套接字访问 Gateway。代理包装层及 MCP、Hook 通过所有权校验后的领域逻辑访问共用账本。
 
 **当前托管运行器只实现合成作业。** 启用 `claude_code` 后，代理可以用原生工具修改代码、运行命令和实验；通过 Bash、SSH 或外部脚本启动的工作不会自动变成托管作业。它们的去重、存活与远端状态必须按实际执行接口核验。具体边界见[整体架构](docs/ARCHITECTURE.md)与[任务书指南](docs/TASK_BRIEFS.md)。
 
